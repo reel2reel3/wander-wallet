@@ -1,0 +1,18 @@
+{
+  "name": "Wayfarer — Creator Road Finance & Expense Tracker",
+  "short_name": "Wayfarer",
+  "description": "Multi-currency travel expense ledger, trip budget burn-rate, receipt capture, and sponsorship ROI tracker for YouTube creators.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0f14",
+  "theme_color": "#0c0f14",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

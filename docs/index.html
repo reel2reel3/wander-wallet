@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Wayfarer — Creator Road Finance & Travel Expense Tracker</title>
+  <meta name="description" content="Modern multi-currency travel expense tracker, trip budget burn-rate monitor, receipt vault, and YouTube sponsorship ROI dashboard for creators on the road." />
+  <meta name="theme-color" content="#0c0f14" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Desktop & Laptop Sidebar -->
+    <aside class="sidebar" aria-label="Primary Navigation">
+      <div class="brand-header">
+        <img src="icon.svg" alt="Wayfarer Logo" class="brand-logo" />
+        <div>
+          <div class="brand-title" id="sidebar-channel-name">Nomad Frame Studios</div>
+          <div class="brand-subtitle">
+            <span class="sync-dot" id="sync-status-dot"></span>
+            <span id="sync-status-text">Cloud SQLite Synced</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-cta">
+        <button type="button" class="btn-quick-add-sidebar" id="btn-sidebar-quick-add">
+          <span>+ Quick Add Expense</span>
+        </button>
+      </div>
+
+      <div class="nav-section-label">Workspace Views</div>
+      <ul class="nav-list">
+        <li>
+          <button type="button" class="nav-item-btn active" data-view="dashboard" id="nav-btn-dashboard">
+            <span class="nav-item-left">
+              <span>📊</span>
+              <span class="nav-item-text">Dashboard &amp; Ledger</span>
+            </span>
+            <span class="nav-badge" id="badge-expense-count">0</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item-btn" data-view="trips" id="nav-btn-trips">
+            <span class="nav-item-left">
+              <span>✈️</span>
+              <span class="nav-item-text">Trips &amp; Shoot Budgets</span>
+            </span>
+            <span class="nav-badge" id="badge-trip-count">0</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item-btn" data-view="revenue" id="nav-btn-revenue">
+            <span class="nav-item-left">
+              <span>🎬</span>
+              <span class="nav-item-text">Sponsors &amp; AdSense ROI</span>
+            </span>
+            <span class="nav-badge" id="badge-revenue-count">0</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item-btn" data-view="tax" id="nav-btn-tax">
+            <span class="nav-item-left">
+              <span>🧾</span>
+              <span class="nav-item-text">Tax &amp; CSV Export Hub</span>
+            </span>
+          </button>
+        </li>
+      </ul>
+
+      <div class="nav-section-label">Active Production Trips</div>
+      <ul class="nav-list" id="sidebar-trip-list">
+        <!-- Populated dynamically -->
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="fx-ticker">
+          <div class="fx-ticker-title">
+            <span>Road FX Rates (→ USD)</span>
+            <span class="mono">AUTO</span>
+          </div>
+          <div class="fx-rates-grid mono">
+            <span>¥100 JPY = $0.66</span>
+            <span>€1 EUR = $1.09</span>
+            <span>£1 GBP = $1.30</span>
+            <span>1 CHF = $1.16</span>
+            <span>100 ISK = $0.73</span>
+            <span>$1 CAD = $0.73</span>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm" id="btn-theme-toggle" style="width: 100%;">
+          <span>◐ Switch Light / Dark Theme</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-workspace">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-heading" id="main-page-heading">Road Finance Dashboard</h1>
+          <div class="trip-pill-selector" title="Filter workspace by production trip">
+            <span>📍 Trip:</span>
+            <select id="global-trip-select" aria-label="Select Trip">
+              <option value="all">All Production Trips</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button type="button" class="btn" id="btn-open-new-trip">+ New Trip</button>
+          <button type="button" class="btn" id="btn-open-new-revenue">+ Log Revenue</button>
+          <button type="button" class="btn" id="btn-export-csv-top">⬇ Export Tax CSV</button>
+          <button type="button" class="btn btn-primary" id="btn-topbar-quick-add">+ Add Expense</button>
+        </div>
+      </header>
+
+      <div class="content-container">
+        <!--Active Trip Banner -->
+        <section class="trip-context-banner" id="trip-context-banner">
+          <!-- Populated dynamically -->
+        </section>
+
+        <!-- VIEW 1: DASHBOARD & LEDGER -->
+        <div id="view-dashboard" class="view-section">
+          <!-- 4 KPI Cards -->
+          <section class="kpi-grid" aria-label="Key Financial Metrics" style="margin-bottom: 22px;">
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">Total Production Spend</span>
+                <span class="kpi-tag positive" id="kpi-tax-pct-tag">100% Deductible</span>
+              </div>
+              <div class="kpi-value tabular" id="kpi-total-spend">$0.00</div>
+              <div class="kpi-subtext">
+                <span id="kpi-expense-items-sub">0 itemized entries</span>
+                <span class="mono" id="kpi-cost-per-video">$0 / video</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">Trip Budget &amp; Runway</span>
+                <span class="kpi-tag" id="kpi-budget-status-tag">On Track</span>
+              </div>
+              <div class="kpi-value tabular" id="kpi-budget-remaining">$0.00 left</div>
+              <div>
+                <div class="progress-track">
+                  <div class="progress-fill" id="kpi-budget-bar" style="width: 0%;"></div>
+                </div>
+                <div class="kpi-subtext" style="margin-top: 6px;">
+                  <span id="kpi-budget-used-pct">0% used</span>
+                  <span class="tabular" id="kpi-budget-cap-label">of $0 budget</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">Daily Road Burn Rate</span>
+                <span class="kpi-tag" id="kpi-burn-days-tag">0 Shoot Days</span>
+              </div>
+              <div class="kpi-value tabular" id="kpi-daily-burn">$0.00<span style="font-size: 14px; font-weight: 500; color: var(--text-muted);">/day</span></div>
+              <div class="kpi-subtext">
+                <span id="kpi-hotel-share">Hotels: $0</span>
+                <span id="kpi-meal-share">Meals: $0</span>
+              </div>
+            </div>
+
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span class="kpi-label">Net Trip Profit (ROI)</span>
+                <span class="kpi-tag positive" id="kpi-roi-multiple-tag">0.0x ROI</span>
+              </div>
+              <div class="kpi-value tabular" id="kpi-net-profit">$0.00</div>
+              <div class="kpi-subtext">
+                <span id="kpi-total-revenue-sub">Rev: $0</span>
+                <span id="kpi-reimbursable-sub">Reimburse: $0</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Category Breakdown + Daily Burn Chart -->
+          <section class="analytics-grid" style="margin-bottom: 22px;">
+            <div class="panel-card">
+              <div class="panel-header">
+                <div>
+                  <h2 class="panel-title">Expense Breakdown by Category</h2>
+                  <p class="panel-subtitle">Click any category to filter the itemized ledger below</p>
+                </div>
+                <button type="button" class="btn btn-sm" id="btn-clear-cat-filter" style="display: none;">Clear Filter</button>
+              </div>
+              <div class="category-list" id="category-breakdown-list">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <div class="panel-card">
+              <div class="panel-header">
+                <div>
+                  <h2 class="panel-title">Daily Shoot Spend Timeline (USD)</h2>
+                  <p class="panel-subtitle">Converted to home currency across shoot dates</p>
+                </div>
+                <span class="kpi-tag mono" id="chart-peak-day-tag">Peak: $0</span>
+              </div>
+              <div class="chart-container" id="daily-burn-chart">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+          </section>
+
+          <!-- Itemized Expense Ledger -->
+          <section class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Itemized Road Expense Ledger</h2>
+                <p class="panel-subtitle">Multi-currency receipts, hotels, crew meals, transit, and production gear</p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-sm" id="btn-ledger-export-csv">⬇ CSV</button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-ledger-add-expense">+ Add Item</button>
+              </div>
+            </div>
+
+            <div class="filter-bar">
+              <div class="filter-controls">
+                <input
+                  type="search"
+                  id="input-ledger-search"
+                  class="input-search"
+                  placeholder="Search hotel, meal, vendor, note, currency..."
+                  aria-label="Search expenses"
+                />
+                <select id="select-currency-filter" class="select-filter" aria-label="Filter by currency">
+                  <option value="all">All Currencies</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="JPY">JPY (¥)</option>
+                  <option value="ISK">ISK (kr)</option>
+                  <option value="CHF">CHF (Fr)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                </select>
+                <select id="select-special-filter" class="select-filter" aria-label="Special filter">
+                  <option value="all">All Entries</option>
+                  <option value="receipts">With Receipt Photo</option>
+                  <option value="missing_receipt">Missing Receipt (&gt;$75)</option>
+                  <option value="reimbursable">Crew Reimbursable</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="category-chips" id="ledger-category-chips">
+              <!-- Populated dynamically -->
+            </div>
+
+            <div class="table-responsive">
+              <table class="ledger-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Expense &amp; Vendor</th>
+                    <th>Trip</th>
+                    <th>Category</th>
+                    <th>Local Currency</th>
+                    <th style="text-align: right;">Total (USD)</th>
+                    <th>Payment / Paid By</th>
+                    <th>Receipt</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="ledger-table-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- VIEW 2: TRIPS & SHOOT BUDGETS -->
+        <div id="view-trips" class="view-section" style="display: none;">
+          <section class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Production Trips &amp; Destination Budgets</h2>
+                <p class="panel-subtitle">Compare budget runway, cost per YouTube episode, and net sponsorship ROI per trip</p>
+              </div>
+              <button type="button" class="btn btn-primary" id="btn-trips-view-create">+ New Production Trip</button>
+            </div>
+            <div id="trips-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px;">
+              <!-- Populated dynamically -->
+            </div>
+          </section>
+        </div>
+
+        <!-- VIEW 3: SPONSORSHIPS & ADSENSE ROI -->
+        <div id="view-revenue" class="view-section" style="display: none;">
+          <section class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">YouTube AdSense &amp; Sponsorship Revenue Tracker</h2>
+                <p class="panel-subtitle">Offset travel and production costs against video brand deals and AdSense payouts</p>
+              </div>
+              <button type="button" class="btn btn-primary" id="btn-rev-view-create">+ Log Sponsor / AdSense</button>
+            </div>
+            <div class="table-responsive">
+              <table class="ledger-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Deliverable / Revenue Title</th>
+                    <th>Sponsor / Source</th>
+                    <th>Trip</th>
+                    <th>Status</th>
+                    <th style="text-align: right;">Amount (USD)</th>
+                    <th style="text-align: right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="revenue-table-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- VIEW 4: TAX & ACCOUNTANT EXPORT HUB -->
+        <div id="view-tax" class="view-section" style="display: none;">
+          <section class="panel-card" style="margin-bottom: 20px;">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Accountant &amp; Tax Deduction Readiness</h2>
+                <p class="panel-subtitle">Schedule C category rollups, crew reimbursements, and one-click CSV / PDF exports</p>
+              </div>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button type="button" class="btn" id="btn-print-pdf-report">🖨️ Print / Save PDF Report</button>
+                <button type="button" class="btn btn-primary" id="btn-tax-download-csv">⬇ Download Accountant CSV</button>
+              </div>
+            </div>
+
+            <div class="kpi-grid" id="tax-summary-kpis">
+              <!-- Populated dynamically -->
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: var(--bg-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); flex-wrap: wrap;">
+              <div>
+                <div style="font-size: 13.5px; font-weight: 600;">Meals &amp; Craft Deduction Treatment</div>
+                <div style="font-size: 12px; color: var(--text-muted);">On-camera featured food challenges are typically 100% COGS/Production; standard travel crew meals can be toggled to 50% IRS limit.</div>
+              </div>
+              <select id="select-meal-deduction-rate" class="form-select" style="min-width: 210px;">
+                <option value="100">100% Production / On-Camera Deduction</option>
+                <option value="50">50% Standard Business Travel Meal Limit</option>
+              </select>
+            </div>
+
+            <div class="table-responsive">
+              <table class="ledger-table">
+                <thead>
+                  <tr>
+                    <th>Tax Category</th>
+                    <th>Entries</th>
+                    <th>Receipts Attached</th>
+                    <th style="text-align: right;">Gross Spend (USD)</th>
+                    <th style="text-align: right;">Est. Deductible (USD)</th>
+                  </tr>
+                </thead>
+                <tbody id="tax-category-table-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar (Phones & Small Tablets on the Road) -->
+    <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
+      <button type="button" class="mobile-nav-btn active" data-mobile-view="dashboard">
+        <span>📊</span>
+        <span>Ledger</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-mobile-view="trips">
+        <span>✈️</span>
+        <span>Trips</span>
+      </button>
+      <button type="button" class="mobile-fab" id="btn-mobile-fab-add">
+        <span>+ Expense</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-mobile-view="revenue">
+        <span>🎬</span>
+        <span>ROI</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-mobile-view="tax">
+        <span>🧾</span>
+        <span>Tax CSV</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- MODAL 1: QUICK ADD / EDIT EXPENSE -->
+  <div class="modal-backdrop" id="modal-expense" role="dialog" aria-modal="true" aria-labelledby="modal-expense-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-expense-title">Quick Add Road Expense</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-expense" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-expense">
+        <input type="hidden" id="exp-id" />
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Quick Category Tap</label>
+            <div class="quick-cat-grid" id="exp-quick-cat-grid">
+              <button type="button" class="quick-cat-btn selected" data-cat="Hotels & Lodging">🏨 Hotels &amp; Lodging</button>
+              <button type="button" class="quick-cat-btn" data-cat="Meals & Craft">🍜 Meals &amp; Craft</button>
+              <button type="button" class="quick-cat-btn" data-cat="Flights & Transit">🚄 Flights &amp; Transit</button>
+              <button type="button" class="quick-cat-btn" data-cat="Gear & Rentals">📷 Gear &amp; Rentals</button>
+              <button type="button" class="quick-cat-btn" data-cat="Permits & Locations">🎟️ Permits &amp; Locations</button>
+              <button type="button" class="quick-cat-btn" data-cat="Crew & Talent">🎥 Crew &amp; Talent</button>
+            </div>
+            <input type="hidden" id="exp-category" value="Hotels & Lodging" />
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="exp-trip-id">Production Trip</label>
+              <select id="exp-trip-id" class="form-select" required></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="exp-date">Date</label>
+              <input type="date" id="exp-date" class="form-input" required />
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="exp-title">Expense Description</label>
+              <input type="text" id="exp-title" class="form-input" placeholder="e.g., Shibuya Hotel (3 Nights) or Crew Ramen" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="exp-vendor">Hotel / Airline / Merchant</label>
+              <input type="text" id="exp-vendor" class="form-input" placeholder="e.g., JR East, Shibuya Stream, B&H" />
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label" for="exp-amount-original">Amount Paid (Local)</label>
+              <input type="number" step="0.01" min="0" id="exp-amount-original" class="form-input mono" placeholder="0.00" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="exp-currency">Currency</label>
+              <select id="exp-currency" class="form-select mono">
+                <option value="USD">USD ($)</option>
+                <option value="JPY">JPY (¥)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="CHF">CHF (Fr)</option>
+                <option value="ISK">ISK (kr)</option>
+                <option value="CAD">CAD ($)</option>
+                <option value="AUD">AUD ($)</option>
+                <option value="KRW">KRW (₩)</option>
+                <option value="MXN">MXN ($)</option>
+                <option value="THB">THB (฿)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="exp-rate">FX Rate (to USD)</label>
+              <input type="number" step="0.00001" min="0" id="exp-rate" class="form-input mono" value="1" required />
+            </div>
+          </div>
+
+          <div class="fx-conversion-preview">
+            <span>Converted Home Currency Total:</span>
+            <strong class="mono" style="font-size: 16px;" id="exp-usd-preview">$0.00 USD</strong>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="exp-payment-method">Card / Payment Method</label>
+              <select id="exp-payment-method" class="form-select">
+                <option value="Amex Business Platinum">Amex Business Platinum</option>
+                <option value="Chase Ink Business">Chase Ink Business</option>
+                <option value="Personal Card (Reimburse)">Personal Card (Reimburse)</option>
+                <option value="Personal Cash (Reimburse)">Personal Cash (Reimburse)</option>
+                <option value="Wise Business Transfer">Wise Business Transfer</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="exp-paid-by">Paid By (Team Member)</label>
+              <input type="text" id="exp-paid-by" class="form-input" value="Channel Card" placeholder="e.g., Channel Card, Alex (Host), Sam (DP)" />
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+              <input type="checkbox" id="exp-tax-deductible" checked />
+              <span>Tax-Deductible Production Expense</span>
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
+              <input type="checkbox" id="exp-reimbursable" />
+              <span>Needs Crew Reimbursement</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Receipt Photo / Folio Attachment (Phone Camera or File)</label>
+            <label class="receipt-upload-zone" for="exp-receipt-input">
+              <input type="file" id="exp-receipt-input" accept="image/*" capture="environment" style="display: none;" />
+              <div id="exp-receipt-status">📸 Tap to snap receipt photo on phone or upload invoice image</div>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="exp-notes">Production / Episode Notes</label>
+            <input type="text" id="exp-notes" class="form-input" placeholder="Which video or segment was this for?" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" data-close-modal="modal-expense">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Expense</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: NEW / EDIT TRIP -->
+  <div class="modal-backdrop" id="modal-trip" role="dialog" aria-modal="true" aria-labelledby="modal-trip-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-trip-title">Create Production Trip</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-trip" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-trip">
+        <input type="hidden" id="trip-id" />
+        <div class="modal-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="trip-name">Trip / Series Name</label>
+              <input type="text" id="trip-name" class="form-input" placeholder="e.g., Vietnam Street Food Series - Dec 2026" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="trip-destination">Cities / Locations</label>
+              <input type="text" id="trip-destination" class="form-input" placeholder="e.g., Hanoi & Da Nang" required />
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label" for="trip-start">Start Date</label>
+              <input type="date" id="trip-start" class="form-input" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="trip-end">End Date</label>
+              <input type="date" id="trip-end" class="form-input" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="trip-currency">Local Currency</label>
+              <select id="trip-currency" class="form-select mono">
+                <option value="USD">USD</option>
+                <option value="JPY">JPY</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="CHF">CHF</option>
+                <option value="ISK">ISK</option>
+                <option value="CAD">CAD</option>
+                <option value="AUD">AUD</option>
+                <option value="KRW">KRW</option>
+                <option value="MXN">MXN</option>
+                <option value="THB">THB</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label" for="trip-budget">Target Trip Budget (USD)</label>
+              <input type="number" step="50" min="0" id="trip-budget" class="form-input mono" value="6500" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="trip-videos">Planned Videos</label>
+              <input type="number" min="1" id="trip-videos" class="form-input mono" value="2" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="trip-status">Trip Status</label>
+              <select id="trip-status" class="form-select">
+                <option value="active">Active (On the Road)</option>
+                <option value="planned">Planned / Pre-Prod</option>
+                <option value="completed">Wrapped / Completed</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="trip-notes">Production Scope &amp; Episode Notes</label>
+            <input type="text" id="trip-notes" class="form-input" placeholder="e.g., 2 main channel episodes + 4 shorts" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" data-close-modal="modal-trip">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Production Trip</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: LOG SPONSOR / ADSENSE REVENUE -->
+  <div class="modal-backdrop" id="modal-revenue" role="dialog" aria-modal="true" aria-labelledby="modal-revenue-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-revenue-title">Log Sponsor or AdSense Revenue</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-revenue" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-revenue">
+        <div class="modal-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="rev-trip-id">Production Trip</label>
+              <select id="rev-trip-id" class="form-select" required></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rev-source">Revenue Stream</label>
+              <select id="rev-source" class="form-select">
+                <option value="Sponsor Integration">Sponsor Integration</option>
+                <option value="YouTube AdSense">YouTube AdSense</option>
+                <option value="Dedicated Brand Video">Dedicated Brand Video</option>
+                <option value="Affiliate / Merch">Affiliate / Merch</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="rev-title">Deliverable / Description</label>
+              <input type="text" id="rev-title" class="form-input" placeholder="e.g., 60s Mid-Roll Integration Ep 1" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rev-sponsor">Brand / Sponsor Name</label>
+              <input type="text" id="rev-sponsor" class="form-input" placeholder="e.g., Surfshark, Peak Design, AdSense" />
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label" for="rev-amount">Amount (USD)</label>
+              <input type="number" step="0.01" min="0" id="rev-amount" class="form-input mono" placeholder="5000" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rev-status">Payment Status</label>
+              <select id="rev-status" class="form-select">
+                <option value="paid">Paid</option>
+                <option value="invoiced">Invoiced / Net-30</option>
+                <option value="projected">Projected</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rev-date">Date</label>
+              <input type="date" id="rev-date" class="form-input" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="rev-video">Video Title</label>
+            <input type="text" id="rev-video" class="form-input" placeholder="e.g., 24 Hours on Japan's Sleeper Train" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" data-close-modal="modal-revenue">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Revenue Entry</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: RECEIPT PREVIEW LIGHTBOX -->
+  <div class="modal-backdrop" id="modal-receipt-preview" role="dialog" aria-modal="true" aria-labelledby="modal-receipt-preview-title">
+    <div class="modal-dialog" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-receipt-preview-title">Verified Receipt Attachment</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-receipt-preview" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" style="align-items: center; text-align: center;">
+        <img id="receipt-preview-img" src="" alt="Attached Receipt" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border-subtle);" />
+        <div id="receipt-preview-caption" style="font-size: 12.5px; color: var(--text-secondary);"></div>
+      </div>
+      <div class="modal-footer">
+        <a id="receipt-download-link" href="#" download="receipt.png" class="btn btn-sm">⬇ Download Receipt</a>
+        <button type="button" class="btn btn-primary btn-sm" data-close-modal="modal-receipt-preview">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

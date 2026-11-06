@@ -1,0 +1,13 @@
+{
+  "name": "wayfarer-creator-finance",
+  "version": "1.0.0",
+  "description": "Full-stack travel expense, budget burn-rate, multi-currency, and sponsorship ROI tracker for YouTube creators on the road.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}
