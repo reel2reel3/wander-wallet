@@ -1,11 +1,12 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { URL } = require('node:url');
 const { DatabaseSync } = require('node:sqlite');
 
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || path.join(__dirname, 'data');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 if (!fs.existsSync(DATA_DIR)) {
@@ -23,6 +24,13 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS auth_sessions (
+    token TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    created_at TEXT NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS trips (
@@ -643,6 +651,7 @@ function getSettingsMap() {
     exchange_rates: DEFAULT_RATES
   };
   for (const r of rows) {
+    if (r.key.startsWith('auth_')) continue;
     if (r.key === 'exchange_rates') {
       try {
         map.exchange_rates = { ...DEFAULT_RATES, ...JSON.parse(r.value) };
@@ -656,6 +665,107 @@ function getSettingsMap() {
     }
   }
   return map;
+}
+
+const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function hashPassword(password, salt) {
+  return crypto.pbkdf2Sync(String(password), String(salt), 100000, 64, 'sha512').toString('hex');
+}
+
+function getAuthCredentials() {
+  const envPassword = process.env.APP_PASSWORD;
+  const envUsername = process.env.APP_USERNAME || 'admin';
+  if (envPassword && String(envPassword).trim().length > 0) {
+    return {
+      configured: true,
+      envManaged: true,
+      username: envUsername.trim(),
+      verify: (inputPass) => {
+        const a = Buffer.from(String(inputPass));
+        const b = Buffer.from(String(envPassword));
+        return a.length === b.length && crypto.timingSafeEqual(a, b);
+      }
+    };
+  }
+
+  const userRow = db.prepare("SELECT value FROM settings WHERE key = 'auth_username'").get();
+  const hashRow = db.prepare("SELECT value FROM settings WHERE key = 'auth_password_hash'").get();
+  const saltRow = db.prepare("SELECT value FROM settings WHERE key = 'auth_password_salt'").get();
+
+  if (hashRow && saltRow && hashRow.value && saltRow.value) {
+    return {
+      configured: true,
+      envManaged: false,
+      username: (userRow && userRow.value) ? userRow.value : 'admin',
+      verify: (inputPass) => {
+        const computed = hashPassword(inputPass, saltRow.value);
+        const a = Buffer.from(computed, 'hex');
+        const b = Buffer.from(hashRow.value, 'hex');
+        return a.length === b.length && crypto.timingSafeEqual(a, b);
+      }
+    };
+  }
+
+  return {
+    configured: false,
+    envManaged: false,
+    username: 'admin',
+    verify: () => false
+  };
+}
+
+function createAuthSession(username, rememberDays = 30) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const durationMs = (Number(rememberDays) || 30) * 24 * 60 * 60 * 1000;
+  const expiresAt = Date.now() + durationMs;
+  const now = new Date().toISOString();
+  db.prepare('DELETE FROM auth_sessions WHERE expires_at < ?').run(Date.now());
+  db.prepare('INSERT INTO auth_sessions (token, username, expires_at, created_at) VALUES (?, ?, ?, ?)').run(
+    token,
+    username,
+    expiresAt,
+    now
+  );
+  return { token, expiresAt, maxAgeSeconds: Math.floor(durationMs / 1000) };
+}
+
+function parseCookies(req) {
+  const raw = req.headers.cookie || '';
+  const out = {};
+  raw.split(';').forEach(part => {
+    const idx = part.indexOf('=');
+    if (idx > 0) {
+      const k = part.slice(0, idx).trim();
+      const v = part.slice(idx + 1).trim();
+      out[k] = decodeURIComponent(v);
+    }
+  });
+  return out;
+}
+
+function getAuthenticatedSession(req, parsedUrl) {
+  let token = '';
+  const authHeader = req.headers.authorization || '';
+  if (authHeader.startsWith('Bearer ')) {
+    token = authHeader.slice(7).trim();
+  }
+  if (!token) {
+    const cookies = parseCookies(req);
+    if (cookies.ww_session) token = cookies.ww_session;
+  }
+  if (!token && parsedUrl && parsedUrl.searchParams.get('token')) {
+    token = parsedUrl.searchParams.get('token');
+  }
+  if (!token) return null;
+
+  const row = db.prepare('SELECT token, username, expires_at FROM auth_sessions WHERE token = ?').get(token);
+  if (!row) return null;
+  if (row.expires_at < Date.now()) {
+    db.prepare('DELETE FROM auth_sessions WHERE token = ?').run(token);
+    return null;
+  }
+  return row;
 }
 
 function getBootstrapData() {
@@ -693,10 +803,11 @@ function readJsonBody(req) {
   });
 }
 
-function sendJson(res, status, data) {
+function sendJson(res, status, data, extraHeaders = {}) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store'
+    'Cache-Control': 'no-store',
+    ...extraHeaders
   });
   res.end(JSON.stringify(data));
 }
@@ -728,9 +839,153 @@ const server = http.createServer(async (req, res) => {
     const pathname = parsedUrl.pathname;
     const method = req.method.toUpperCase();
 
-    // Railway Healthcheck Endpoint
+    // Railway Healthcheck Endpoint (unauthenticated for container health probes)
     if (pathname === '/api/health' && method === 'GET') {
       return sendJson(res, 200, { status: 'ok', app: 'Wander Wallet', timestamp: new Date().toISOString() });
+    }
+
+    // Auth Status Endpoint
+    if (pathname === '/api/auth/status' && method === 'GET') {
+      const creds = getAuthCredentials();
+      const session = getAuthenticatedSession(req, parsedUrl);
+      return sendJson(res, 200, {
+        configured: creds.configured,
+        envManaged: creds.envManaged,
+        authenticated: Boolean(session),
+        username: session ? session.username : creds.username
+      });
+    }
+
+    // First-Time Admin Setup Endpoint
+    if (pathname === '/api/auth/setup' && method === 'POST') {
+      const creds = getAuthCredentials();
+      if (creds.configured) {
+        return sendJson(res, 400, { error: 'Account password is already configured. Please sign in.' });
+      }
+      const body = await readJsonBody(req);
+      const username = String(body.username || 'admin').trim() || 'admin';
+      const password = String(body.password || '');
+      if (password.length < 4) {
+        return sendJson(res, 400, { error: 'Password must be at least 4 characters.' });
+      }
+      const salt = crypto.randomBytes(16).toString('hex');
+      const hash = hashPassword(password, salt);
+      const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+      upsert.run('auth_username', username);
+      upsert.run('auth_password_salt', salt);
+      upsert.run('auth_password_hash', hash);
+
+      const sess = createAuthSession(username, 30);
+      return sendJson(
+        res,
+        200,
+        {
+          authenticated: true,
+          configured: true,
+          username,
+          token: sess.token,
+          expiresAt: sess.expiresAt
+        },
+        {
+          'Set-Cookie': `ww_session=${sess.token}; Path=/; Max-Age=${sess.maxAgeSeconds}; HttpOnly; SameSite=Lax`
+        }
+      );
+    }
+
+    // Login Endpoint
+    if (pathname === '/api/auth/login' && method === 'POST') {
+      const creds = getAuthCredentials();
+      if (!creds.configured) {
+        return sendJson(res, 400, { error: 'Please complete first-time password setup.' });
+      }
+      const body = await readJsonBody(req);
+      const inputUser = String(body.username || '').trim();
+      const inputPass = String(body.password || '');
+      const rememberDays = body.remember === false ? 1 : 30;
+
+      const userMatch = !inputUser || inputUser.toLowerCase() === creds.username.toLowerCase();
+      if (!userMatch || !creds.verify(inputPass)) {
+        return sendJson(res, 401, { error: 'Invalid username or password.' });
+      }
+
+      const sess = createAuthSession(creds.username, rememberDays);
+      return sendJson(
+        res,
+        200,
+        {
+          authenticated: true,
+          configured: true,
+          username: creds.username,
+          token: sess.token,
+          expiresAt: sess.expiresAt
+        },
+        {
+          'Set-Cookie': `ww_session=${sess.token}; Path=/; Max-Age=${sess.maxAgeSeconds}; HttpOnly; SameSite=Lax`
+        }
+      );
+    }
+
+    // Logout Endpoint
+    if (pathname === '/api/auth/logout' && method === 'POST') {
+      const session = getAuthenticatedSession(req, parsedUrl);
+      if (session) {
+        db.prepare('DELETE FROM auth_sessions WHERE token = ?').run(session.token);
+      }
+      return sendJson(
+        res,
+        200,
+        { authenticated: false },
+        {
+          'Set-Cookie': 'ww_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax'
+        }
+      );
+    }
+
+    // Change Password Endpoint (requires active session)
+    if (pathname === '/api/auth/change-password' && method === 'POST') {
+      const session = getAuthenticatedSession(req, parsedUrl);
+      if (!session) {
+        return sendJson(res, 401, { error: 'Authentication required.' });
+      }
+      const creds = getAuthCredentials();
+      if (creds.envManaged) {
+        return sendJson(res, 400, {
+          error: 'Password is managed via Railway APP_PASSWORD environment variable. Update it in Railway Settings.'
+        });
+      }
+      const body = await readJsonBody(req);
+      const currentPass = String(body.current_password || '');
+      const newUsername = String(body.new_username || creds.username).trim() || creds.username;
+      const newPass = String(body.new_password || '');
+
+      if (!creds.verify(currentPass)) {
+        return sendJson(res, 401, { error: 'Current password is incorrect.' });
+      }
+      if (newPass.length < 4) {
+        return sendJson(res, 400, { error: 'New password must be at least 4 characters.' });
+      }
+
+      const salt = crypto.randomBytes(16).toString('hex');
+      const hash = hashPassword(newPass, salt);
+      const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+      upsert.run('auth_username', newUsername);
+      upsert.run('auth_password_salt', salt);
+      upsert.run('auth_password_hash', hash);
+
+      return sendJson(res, 200, { ok: true, username: newUsername });
+    }
+
+    // Protect all /api/* routes with session authentication
+    if (pathname.startsWith('/api/')) {
+      const session = getAuthenticatedSession(req, parsedUrl);
+      if (!session) {
+        const creds = getAuthCredentials();
+        return sendJson(res, 401, {
+          error: 'Unauthorized',
+          configured: creds.configured,
+          envManaged: creds.envManaged
+        });
+      }
     }
 
     // API Routes

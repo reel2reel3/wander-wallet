@@ -677,6 +677,286 @@
     return store;
   }
 
+  let memoryAuthToken = '';
+  let memoryLocalCreds = null;
+  let memorySessionUnlocked = false;
+
+  function getAuthToken() {
+    return safeStorageGet('wanderwallet_session_token') || memoryAuthToken || '';
+  }
+
+  function setAuthToken(token) {
+    memoryAuthToken = token || '';
+    safeStorageSet('wanderwallet_session_token', token || '');
+  }
+
+  function getLocalAuthCreds() {
+    if (memoryLocalCreds) return memoryLocalCreds;
+    const raw = safeStorageGet('wanderwallet_local_creds');
+    if (raw) {
+      try {
+        memoryLocalCreds = JSON.parse(raw);
+        return memoryLocalCreds;
+      } catch (e) {}
+    }
+    return null;
+  }
+
+  function saveLocalAuthCreds(creds) {
+    memoryLocalCreds = creds;
+    safeStorageSet('wanderwallet_local_creds', JSON.stringify(creds));
+  }
+
+  function showAuthGate(mode = 'login', defaultUsername = 'admin', errorMessage = '') {
+    const overlay = document.getElementById('auth-gate-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    document.getElementById('auth-gate-mode').value = mode;
+    document.getElementById('auth-input-username').value = defaultUsername || 'admin';
+    document.getElementById('auth-input-password').value = '';
+    const confirmInput = document.getElementById('auth-input-confirm');
+    if (confirmInput) confirmInput.value = '';
+
+    const badge = document.getElementById('auth-gate-badge');
+    const title = document.getElementById('auth-gate-title');
+    const subtitle = document.getElementById('auth-gate-subtitle');
+    const passLabel = document.getElementById('auth-label-password');
+    const confirmGroup = document.getElementById('auth-confirm-group');
+    const submitBtn = document.getElementById('btn-auth-gate-submit');
+    const errEl = document.getElementById('auth-gate-error');
+
+    if (mode === 'setup') {
+      if (badge) badge.textContent = '🛡️ FIRST-TIME SECURITY SETUP';
+      if (title) title.textContent = 'Create Your Admin Login';
+      if (subtitle) {
+        subtitle.textContent =
+          'Protect your Wander Wallet URL so only you can access your trips, receipts, and financial data.';
+      }
+      if (passLabel) passLabel.textContent = 'Create Password (at least 4 characters)';
+      if (confirmGroup) confirmGroup.style.display = 'flex';
+      if (submitBtn) submitBtn.textContent = 'Save Password & Unlock Wander Wallet →';
+    } else {
+      if (badge) badge.textContent = '🔒 PROTECTED WORKSPACE';
+      if (title) title.textContent = 'Sign In to Wander Wallet';
+      if (subtitle) {
+        subtitle.textContent =
+          'Enter your credentials to unlock your production trips, receipts, and tax exports.';
+      }
+      if (passLabel) passLabel.textContent = 'Password';
+      if (confirmGroup) confirmGroup.style.display = 'none';
+      if (submitBtn) submitBtn.textContent = 'Unlock Wander Wallet →';
+    }
+
+    if (errEl) {
+      if (errorMessage) {
+        errEl.textContent = errorMessage;
+        errEl.style.display = 'block';
+      } else {
+        errEl.style.display = 'none';
+      }
+    }
+
+    setTimeout(() => {
+      const passEl = document.getElementById('auth-input-password');
+      if (passEl) passEl.focus();
+    }, 50);
+  }
+
+  function hideAuthGate() {
+    const overlay = document.getElementById('auth-gate-overlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  async function submitAuthGateForm() {
+    const mode = document.getElementById('auth-gate-mode').value;
+    const username = document.getElementById('auth-input-username').value.trim() || 'admin';
+    const password = document.getElementById('auth-input-password').value;
+    const confirm = document.getElementById('auth-input-confirm').value;
+    const remember = document.getElementById('auth-input-remember').checked;
+
+    if (!password || password.length < 4) {
+      showAuthGate(mode, username, 'Password must be at least 4 characters.');
+      return;
+    }
+    if (mode === 'setup' && password !== confirm) {
+      showAuthGate(mode, username, 'Passwords do not match. Please try again.');
+      return;
+    }
+
+    if (location.protocol.startsWith('http')) {
+      try {
+        const endpoint = mode === 'setup' ? '/api/auth/setup' : '/api/auth/login';
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password, remember })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showAuthGate(mode, username, data.error || 'Authentication failed.');
+          return;
+        }
+        if (data.token) {
+          setAuthToken(data.token);
+        }
+        state.authUsername = data.username || username;
+        hideAuthGate();
+        showToast(mode === 'setup' ? 'Admin password created & device signed in!' : `Welcome back, ${state.authUsername}!`);
+        const boot = await apiRequest('/api/bootstrap');
+        if (boot) applyBootstrapData(boot);
+        return;
+      } catch (err) {
+        // Fallback to local auth if server is offline
+      }
+    }
+
+    // Local / standalone preview mode authentication
+    if (mode === 'setup') {
+      saveLocalAuthCreds({ username, password });
+      memorySessionUnlocked = true;
+      setAuthToken('local-token-' + Date.now());
+      state.authUsername = username;
+      hideAuthGate();
+      showToast('Admin password saved! Workspace unlocked.');
+      return;
+    } else {
+      const localCreds = getLocalAuthCreds();
+      if (
+        localCreds &&
+        localCreds.password === password &&
+        (!username || username.toLowerCase() === (localCreds.username || 'admin').toLowerCase())
+      ) {
+        memorySessionUnlocked = true;
+        setAuthToken('local-token-' + Date.now());
+        state.authUsername = localCreds.username || 'admin';
+        hideAuthGate();
+        showToast(`Welcome back, ${state.authUsername}!`);
+      } else {
+        showAuthGate('login', username, 'Invalid username or password.');
+      }
+    }
+  }
+
+  async function lockAndLogout() {
+    const token = getAuthToken();
+    setAuthToken('');
+    memorySessionUnlocked = false;
+    if (location.protocol.startsWith('http')) {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+      } catch (e) {}
+      try {
+        const stRes = await fetch('/api/auth/status');
+        const st = await stRes.json();
+        showAuthGate(st.configured ? 'login' : 'setup', st.username || 'admin');
+        showToast('Workspace locked');
+        return;
+      } catch (e) {}
+    }
+    const localCreds = getLocalAuthCreds();
+    showAuthGate(localCreds ? 'login' : 'setup', (localCreds && localCreds.username) || 'admin');
+    showToast('Workspace locked');
+  }
+
+  async function openSecuritySettingsModal() {
+    document.getElementById('sec-current-password').value = '';
+    document.getElementById('sec-new-password').value = '';
+    document.getElementById('sec-confirm-password').value = '';
+    const envNotice = document.getElementById('security-env-notice');
+    const curGroup = document.getElementById('sec-current-pass-group');
+
+    if (location.protocol.startsWith('http')) {
+      try {
+        const res = await fetch('/api/auth/status', {
+          headers: getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {}
+        });
+        const st = await res.json();
+        document.getElementById('sec-username').value = st.username || 'admin';
+        if (envNotice) envNotice.style.display = st.envManaged ? 'block' : 'none';
+        if (curGroup) curGroup.style.display = st.configured ? 'flex' : 'none';
+      } catch (e) {}
+    } else {
+      const localCreds = getLocalAuthCreds();
+      document.getElementById('sec-username').value = (localCreds && localCreds.username) || 'admin';
+      if (curGroup) curGroup.style.display = localCreds ? 'flex' : 'none';
+    }
+    openModal('modal-security');
+  }
+
+  async function saveSecurityPasswordFromModal() {
+    const newUsername = document.getElementById('sec-username').value.trim() || 'admin';
+    const currentPassword = document.getElementById('sec-current-password').value;
+    const newPassword = document.getElementById('sec-new-password').value;
+    const confirmPassword = document.getElementById('sec-confirm-password').value;
+
+    if (!newPassword || newPassword.length < 4) {
+      showToast('New password must be at least 4 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast('New passwords do not match');
+      return;
+    }
+
+    if (location.protocol.startsWith('http')) {
+      try {
+        const stRes = await fetch('/api/auth/status');
+        const st = await stRes.json();
+        if (!st.configured) {
+          const setupRes = await fetch('/api/auth/setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: newUsername, password: newPassword })
+          });
+          const setupData = await setupRes.json();
+          if (!setupRes.ok) {
+            showToast(setupData.error || 'Could not set password');
+            return;
+          }
+          if (setupData.token) setAuthToken(setupData.token);
+          closeModal('modal-security');
+          showToast('Account login & password enabled!');
+          return;
+        }
+
+        const res = await fetch('/api/auth/change-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(getAuthToken() ? { Authorization: `Bearer ${getAuthToken()}` } : {})
+          },
+          body: JSON.stringify({
+            current_password: currentPassword,
+            new_username: newUsername,
+            new_password: newPassword
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Failed to update password');
+          return;
+        }
+        closeModal('modal-security');
+        showToast('Password updated!');
+        return;
+      } catch (e) {}
+    }
+
+    // Local fallback
+    const existing = getLocalAuthCreds();
+    if (existing && existing.password !== currentPassword) {
+      showToast('Current password is incorrect');
+      return;
+    }
+    saveLocalAuthCreds({ username: newUsername, password: newPassword });
+    memorySessionUnlocked = true;
+    closeModal('modal-security');
+    showToast('Password saved! Use 🔒 Lock App anytime to test your login screen.');
+  }
+
   async function apiRequest(url, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
     const payload = options.body ? JSON.parse(options.body) : null;
@@ -687,11 +967,23 @@
       return applyLocalMutation(url, method, payload);
     }
 
+    const token = getAuthToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {})
+    };
+
     try {
       const res = await fetch(url, {
-        headers: { 'Content-Type': 'application/json' },
-        ...options
+        ...options,
+        headers
       });
+      if (res.status === 401) {
+        const errBody = await res.json().catch(() => ({}));
+        showAuthGate(errBody.configured === false ? 'setup' : 'login', 'admin');
+        return null;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       saveLocalStore(data);
@@ -752,8 +1044,28 @@
     document.documentElement.setAttribute('data-theme', savedTheme);
 
     bindEvents();
-    // Immediately render seed/local data so UI is never blank, then sync API if available
     applyBootstrapData(getLocalStore());
+
+    if (location.protocol.startsWith('http')) {
+      try {
+        const token = getAuthToken();
+        const stRes = await fetch('/api/auth/status', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (stRes.ok) {
+          const st = await stRes.json();
+          if (!st.configured) {
+            showAuthGate('setup', st.username || 'admin');
+            return;
+          }
+          if (!st.authenticated) {
+            showAuthGate('login', st.username || 'admin');
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
     const data = await apiRequest('/api/bootstrap');
     if (data) {
       applyBootstrapData(data);
@@ -2040,6 +2352,20 @@
         saveRevenueFromModal();
       });
     }
+    const formAuth = document.getElementById('form-auth-gate');
+    if (formAuth) {
+      formAuth.addEventListener('submit', e => {
+        e.preventDefault();
+        submitAuthGateForm();
+      });
+    }
+    const formSec = document.getElementById('form-change-password');
+    if (formSec) {
+      formSec.addEventListener('submit', e => {
+        e.preventDefault();
+        saveSecurityPasswordFromModal();
+      });
+    }
 
     // Filters & Search
     const searchEl = document.getElementById('input-ledger-search');
@@ -2079,6 +2405,28 @@
 
     // Unified Delegated Click Handler for all buttons and interactive elements
     document.addEventListener('click', async e => {
+      // Auth Gate & Security Modal buttons
+      if (e.target.closest('#btn-auth-gate-submit')) {
+        e.preventDefault();
+        submitAuthGateForm();
+        return;
+      }
+      if (e.target.closest('#btn-submit-security')) {
+        e.preventDefault();
+        saveSecurityPasswordFromModal();
+        return;
+      }
+      if (e.target.closest('#btn-open-security-modal')) {
+        e.preventDefault();
+        openSecuritySettingsModal();
+        return;
+      }
+      if (e.target.closest('#btn-lock-logout, #btn-topbar-lock')) {
+        e.preventDefault();
+        lockAndLogout();
+        return;
+      }
+
       // Modal form submit buttons (handles sandboxed iframes where form submit may be restricted)
       if (e.target.closest('#btn-submit-expense')) {
         e.preventDefault();

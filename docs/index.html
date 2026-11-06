@@ -979,6 +979,89 @@
     </div>
   </div>
 
+  <!-- MODAL 6: CHANGE PASSWORD & ACCOUNT SECURITY -->
+  <div class="modal-backdrop" id="modal-security" role="dialog" aria-modal="true" aria-labelledby="modal-security-title">
+    <div class="modal-dialog" style="max-width: 460px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-security-title">🔑 Account Login &amp; Password Settings</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-security" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-change-password">
+        <div class="modal-body">
+          <div id="security-env-notice" class="help-callout-box" style="display: none; border-left: 3px solid var(--accent-sky); font-size: 12.5px;">
+            Your login credentials are currently managed by Railway environment variables (<code>APP_USERNAME</code> &amp; <code>APP_PASSWORD</code>).
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="sec-username">Account Username</label>
+            <input type="text" id="sec-username" class="form-input" value="admin" required />
+          </div>
+          <div class="form-group" id="sec-current-pass-group">
+            <label class="form-label" for="sec-current-password">Current Password</label>
+            <input type="password" id="sec-current-password" class="form-input" placeholder="Enter current password" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="sec-new-password">New Password</label>
+            <input type="password" id="sec-new-password" class="form-input" placeholder="At least 4 characters" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="sec-confirm-password">Confirm New Password</label>
+            <input type="password" id="sec-confirm-password" class="form-input" placeholder="Re-enter new password" required />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" data-close-modal="modal-security">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-security">Update Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- FULL-SCREEN LOGIN & FIRST-TIME ADMIN SETUP SCREEN -->
+  <div id="auth-gate-overlay" class="auth-gate-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="auth-gate-title">
+    <div class="auth-gate-card">
+      <div class="auth-gate-brand">
+        <img src="icon.svg" alt="Wander Wallet" class="brand-logo" style="width: 44px; height: 44px;" />
+        <div>
+          <div style="font-size: 18px; font-weight: 800; letter-spacing: -0.02em;">Wander Wallet</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Creator Road Finance &amp; Expense Vault</div>
+        </div>
+      </div>
+
+      <div id="auth-gate-badge" class="walkthrough-pill" style="align-self: flex-start;">🔒 PROTECTED WORKSPACE</div>
+      <h2 id="auth-gate-title" style="font-size: 19px; font-weight: 700; margin-top: 2px;">Sign In to Wander Wallet</h2>
+      <p id="auth-gate-subtitle" style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+        Enter your credentials to unlock your production trips, receipts, and tax exports.
+      </p>
+
+      <div id="auth-gate-error" class="auth-gate-error" style="display: none;"></div>
+
+      <form id="form-auth-gate" style="display: flex; flex-direction: column; gap: 14px; margin-top: 4px;">
+        <input type="hidden" id="auth-gate-mode" value="login" />
+        <div class="form-group">
+          <label class="form-label" for="auth-input-username">Username</label>
+          <input type="text" id="auth-input-username" class="form-input" value="admin" autocomplete="username" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="auth-input-password" id="auth-label-password">Password</label>
+          <input type="password" id="auth-input-password" class="form-input" placeholder="Enter your password" autocomplete="current-password" required />
+        </div>
+        <div class="form-group" id="auth-confirm-group" style="display: none;">
+          <label class="form-label" for="auth-input-confirm">Confirm Password</label>
+          <input type="password" id="auth-input-confirm" class="form-input" placeholder="Confirm your password" autocomplete="new-password" />
+        </div>
+
+        <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary); cursor: pointer;">
+          <input type="checkbox" id="auth-input-remember" checked />
+          <span>Keep this device signed in for 30 days (Desktop, Laptop &amp; Phone)</span>
+        </label>
+
+        <button type="submit" class="btn btn-primary" id="btn-auth-gate-submit" style="width: 100%; justify-content: center; padding: 11px 16px; font-size: 14px;">
+          Unlock Wander Wallet →
+        </button>
+      </form>
+    </div>
+  </div>
+
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <script src="app.js"></script>
