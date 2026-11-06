@@ -70,6 +70,15 @@
             </span>
           </button>
         </li>
+        <li>
+          <button type="button" class="nav-item-btn" data-view="help" id="nav-btn-help">
+            <span class="nav-item-left">
+              <span>🎓</span>
+              <span class="nav-item-text">Help &amp; Getting Started</span>
+            </span>
+            <span class="nav-badge" style="color: var(--accent-sky);">Guide</span>
+          </button>
+        </li>
       </ul>
 
       <div class="nav-section-label">Active Production Trips</div>
@@ -112,6 +121,7 @@
         </div>
 
         <div class="topbar-actions">
+          <button type="button" class="btn" id="btn-topbar-help" title="How Wander Wallet Works & Guided Tour">🎓 Help &amp; Tour</button>
           <button type="button" class="btn" id="btn-open-new-trip">+ New Trip</button>
           <button type="button" class="btn" id="btn-open-new-revenue">+ Log Revenue</button>
           <button type="button" class="btn" id="btn-export-csv-top">⬇ Export Tax CSV</button>
@@ -373,6 +383,247 @@
             </div>
           </section>
         </div>
+
+        <!-- VIEW 5: HELP & GETTING STARTED HUB -->
+        <div id="view-help" class="view-section" style="display: none;">
+          <!-- Hero Banner with Interactive Guided Tour CTA -->
+          <section class="panel-card" style="margin-bottom: 20px;">
+            <div class="panel-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 16px;">
+              <div>
+                <div style="font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-primary); margin-bottom: 4px;">
+                  CREATOR ONBOARDING &amp; ROAD HANDBOOK
+                </div>
+                <h2 class="panel-title" style="font-size: 20px;">Welcome to Wander Wallet — How Everything Works</h2>
+                <p class="panel-subtitle" style="margin-top: 4px;">
+                  Step-by-step video walkthrough, live interactive dashboard tour, phone installation guide, and YouTube production tax rules.
+                </p>
+              </div>
+              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-primary" id="btn-launch-guided-tour">✨ Launch Interactive Dashboard Tour</button>
+                <button type="button" class="btn" id="btn-help-quick-expense">+ Try Logging an Expense</button>
+              </div>
+            </div>
+
+            <!-- Interactive Video / Walkthrough Player + Custom Video Embed -->
+            <div class="help-player-grid">
+              <div class="walkthrough-stage" id="walkthrough-stage">
+                <div class="walkthrough-top-bar">
+                  <span class="walkthrough-pill" id="wt-step-pill">CHAPTER 1 OF 5</span>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" class="btn btn-sm" id="btn-wt-autoplay">▶ Auto-Play Walkthrough</button>
+                    <button type="button" class="btn btn-sm" id="btn-wt-custom-video-toggle">🎬 Embed Custom Video URL</button>
+                  </div>
+                </div>
+
+                <!-- Custom Video URL Bar (collapsible) -->
+                <div id="wt-custom-video-bar" style="display: none; padding: 10px 14px; background: var(--bg-canvas); border-bottom: 1px solid var(--border-subtle); gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <input type="url" id="input-custom-video-url" class="form-input" style="flex: 1; min-width: 220px;" placeholder="Paste YouTube or Loom URL (e.g. https://www.youtube.com/watch?v=...)" />
+                  <button type="button" class="btn btn-sm btn-primary" id="btn-save-custom-video">Load Video</button>
+                  <button type="button" class="btn btn-sm" id="btn-clear-custom-video">Use Built-In Animated Guide</button>
+                </div>
+
+                <!-- Custom iframe container (when user pastes a YouTube/Loom link) -->
+                <div id="wt-custom-iframe-wrap" style="display: none; aspect-ratio: 16 / 9; width: 100%; background: #000;">
+                  <iframe id="wt-custom-iframe" src="" style="width: 100%; height: 100%; border: 0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="Getting Started Video"></iframe>
+                </div>
+
+                <!-- Built-in Animated Visual Storyboard -->
+                <div id="wt-visual-canvas" class="wt-visual-canvas">
+                  <!-- Populated dynamically by renderWalkthroughStep() -->
+                </div>
+
+                <!-- Player Scrubber & Controls -->
+                <div class="walkthrough-controls">
+                  <button type="button" class="btn btn-sm" id="btn-wt-prev">← Prev Step</button>
+                  <div class="wt-dots" id="wt-dots-container">
+                    <button type="button" class="wt-dot active" data-wt-step="0" aria-label="Step 1"></button>
+                    <button type="button" class="wt-dot" data-wt-step="1" aria-label="Step 2"></button>
+                    <button type="button" class="wt-dot" data-wt-step="2" aria-label="Step 3"></button>
+                    <button type="button" class="wt-dot" data-wt-step="3" aria-label="Step 4"></button>
+                    <button type="button" class="wt-dot" data-wt-step="4" aria-label="Step 5"></button>
+                  </div>
+                  <button type="button" class="btn btn-sm btn-primary" id="btn-wt-next">Next Step →</button>
+                </div>
+              </div>
+
+              <!-- Chapter Playlist Sidebar -->
+              <div class="walkthrough-playlist">
+                <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 6px;">
+                  Getting Started Chapters (2 Min Watch)
+                </div>
+                <button type="button" class="wt-chapter-btn active" data-wt-step="0">
+                  <span class="wt-chap-num">01</span>
+                  <div>
+                    <div class="wt-chap-title">Create a Production Trip &amp; Budget</div>
+                    <div class="wt-chap-desc">Set destination, shoot dates, video count &amp; default currency</div>
+                  </div>
+                </button>
+                <button type="button" class="wt-chapter-btn" data-wt-step="1">
+                  <span class="wt-chap-num">02</span>
+                  <div>
+                    <div class="wt-chap-title">Snap Receipts &amp; Multi-Currency FX</div>
+                    <div class="wt-chap-desc">Log JPY, EUR, ISK, CHF or USD &amp; attach phone camera receipts</div>
+                  </div>
+                </button>
+                <button type="button" class="wt-chapter-btn" data-wt-step="2">
+                  <span class="wt-chap-num">03</span>
+                  <div>
+                    <div class="wt-chap-title">Monitor Daily Burn &amp; Cost Per Video</div>
+                    <div class="wt-chap-desc">Track remaining budget runway and daily spend spikes</div>
+                  </div>
+                </button>
+                <button type="button" class="wt-chapter-btn" data-wt-step="3">
+                  <span class="wt-chap-num">04</span>
+                  <div>
+                    <div class="wt-chap-title">Log Sponsors &amp; AdSense ROI</div>
+                    <div class="wt-chap-desc">Compare brand integrations against shoot costs for Net ROI</div>
+                  </div>
+                </button>
+                <button type="button" class="wt-chapter-btn" data-wt-step="4">
+                  <span class="wt-chap-num">05</span>
+                  <div>
+                    <div class="wt-chap-title">Export Schedule C Tax CSV &amp; PDF</div>
+                    <div class="wt-chap-desc">One-click accountant spreadsheet + 100% vs. 50% meal rules</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- 4-Step Road Workflow Cards -->
+          <section class="panel-card" style="margin-bottom: 20px;">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Step-by-Step Road Workflow</h2>
+                <p class="panel-subtitle">Follow this 4-step routine before, during, and after every travel shoot</p>
+              </div>
+            </div>
+            <div class="help-steps-grid">
+              <div class="help-step-card">
+                <div class="help-step-badge">STEP 1 • PRE-PRODUCTION</div>
+                <h3 class="help-step-title">✈️ Set Up Your Shoot Trip</h3>
+                <p class="help-step-text">
+                  Before flying out, click <strong>+ New Trip</strong>. Enter the trip name (e.g., <em>Japan Shoot - Nov 2026</em>), target budget in USD, number of planned YouTube episodes, and the local currency (e.g., <code>JPY</code>).
+                </p>
+                <button type="button" class="btn btn-sm" id="btn-help-step-trip" style="margin-top: auto;">+ Create a Trip Now</button>
+              </div>
+
+              <div class="help-step-card">
+                <div class="help-step-badge">STEP 2 • ON THE ROAD</div>
+                <h3 class="help-step-title">📸 Log Expenses &amp; Snap Receipts</h3>
+                <p class="help-step-text">
+                  Whenever you pay for a hotel, Shinkansen ticket, or crew meal, tap <strong>+ Add Expense</strong> on your phone. Pick the category, type the local amount, and tap the receipt box to snap the paper receipt with your camera.
+                </p>
+                <button type="button" class="btn btn-sm" id="btn-help-step-expense" style="margin-top: auto;">+ Add an Expense</button>
+              </div>
+
+              <div class="help-step-card">
+                <div class="help-step-badge">STEP 3 • POST-PRODUCTION</div>
+                <h3 class="help-step-title">🎬 Track Sponsor &amp; AdSense ROI</h3>
+                <p class="help-step-text">
+                  As videos go live, click <strong>+ Log Revenue</strong> to record mid-roll sponsor integrations, dedicated brand deals, and 30-day YouTube AdSense payouts. Wander Wallet calculates your exact <strong>ROI multiple</strong> and net profit.
+                </p>
+                <button type="button" class="btn btn-sm" id="btn-help-step-revenue" style="margin-top: auto;">+ Log Video Revenue</button>
+              </div>
+
+              <div class="help-step-card">
+                <div class="help-step-badge">STEP 4 • TAX TIME</div>
+                <h3 class="help-step-title">🧾 Export Schedule C CSV &amp; Reimburse</h3>
+                <p class="help-step-text">
+                  Filter by trip or view all trips, check for any <strong>Crew Reimbursable</strong> items paid on personal cards, and click <strong>⬇ Export Tax CSV</strong> to hand a clean spreadsheet to your CPA.
+                </p>
+                <button type="button" class="btn btn-sm" id="btn-help-step-tax" style="margin-top: auto;">Open Tax &amp; CSV Hub</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Phone Installation + Creator Tax Cheat Sheet (2-Column Grid) -->
+          <div class="analytics-grid">
+            <!-- Phone App Installation Guide -->
+            <section class="panel-card">
+              <div class="panel-header">
+                <div>
+                  <h2 class="panel-title">📱 Install Wander Wallet on Your Phone</h2>
+                  <p class="panel-subtitle">Use Wander Wallet as a full-screen mobile app with instant camera access</p>
+                </div>
+              </div>
+
+              <div class="help-info-stack">
+                <div class="help-callout-box">
+                  <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 6px; color: var(--accent-sky);">
+                    🍎 iPhone / iPad (iOS Safari)
+                  </div>
+                  <ol class="help-ordered-list">
+                    <li>Open your live Railway URL (<code>.up.railway.app</code>) in <strong>Safari</strong> on your iPhone.</li>
+                    <li>Tap the <strong>Share</strong> button (square with an upward arrow) at the bottom of Safari.</li>
+                    <li>Scroll down and tap <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</li>
+                    <li>Launch <strong>Wander Wallet</strong> from your home screen — it opens full-screen with a thumb-friendly bottom bar!</li>
+                  </ol>
+                </div>
+
+                <div class="help-callout-box">
+                  <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 6px; color: var(--accent-primary);">
+                    🤖 Android (Google Chrome)
+                  </div>
+                  <ol class="help-ordered-list">
+                    <li>Open your live Railway URL in <strong>Chrome</strong> on your Android phone.</li>
+                    <li>Tap the <strong>⋮</strong> (three dots) menu in the top-right corner.</li>
+                    <li>Tap <strong>Install app</strong> (or <strong>Add to Home screen</strong>).</li>
+                    <li>Tap <strong>+ Expense</strong> anytime on the road to snap receipts directly with your rear camera.</li>
+                  </ol>
+                </div>
+
+                <div class="help-callout-box" style="border-left: 3px solid var(--accent-amber);">
+                  <div style="font-weight: 700; font-size: 13px; margin-bottom: 4px;">
+                    ☁️ How Cross-Device Cloud Sync Works
+                  </div>
+                  <div style="font-size: 12.5px; color: var(--text-secondary);">
+                    When hosted on Railway, your desktop, laptop, and phone all read and write to the same live SQLite database (indicated by the green <strong>Cloud SQLite Synced</strong> badge in the top-left). If you lose cell service in a tunnel or flight, Wander Wallet falls back to local device cache until you reconnect.
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- YouTube Creator Tax & Accounting Cheat Sheet -->
+            <section class="panel-card">
+              <div class="panel-header">
+                <div>
+                  <h2 class="panel-title">🧾 YouTube Creator Tax &amp; Receipt Cheat Sheet</h2>
+                  <p class="panel-subtitle">Built-in rules to maximize your production deductions and stay audit-proof</p>
+                </div>
+              </div>
+
+              <div class="help-info-stack">
+                <div class="help-callout-box">
+                  <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 4px; color: var(--accent-primary);">
+                    🍜 100% On-Camera Food vs. 50% Travel Meals
+                  </div>
+                  <div style="font-size: 12.5px; color: var(--text-secondary);">
+                    Food, restaurants, or street food challenges featured <strong>on camera as the subject of a YouTube video</strong> are generally treated as 100% deductible Production / Cost of Goods Sold (COGS). Standard off-camera crew travel meals are typically subject to the 50% IRS limit. You can toggle between <strong>100%</strong> and <strong>50%</strong> anytime in the <strong>Tax &amp; CSV Export Hub</strong>.
+                  </div>
+                </div>
+
+                <div class="help-callout-box">
+                  <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 4px; color: var(--accent-amber);">
+                    📸 The IRS $75 Receipt Rule &amp; Hotel Folios
+                  </div>
+                  <div style="font-size: 12.5px; color: var(--text-secondary);">
+                    The IRS requires documentary receipts for any lodging expense (regardless of amount) and for any other travel/production expense of <strong>$75 USD or more</strong>. Use the <strong>Missing Receipt (&gt;$75)</strong> filter in the Dashboard Ledger before wrapping a trip to make sure no big receipts are missing.
+                  </div>
+                </div>
+
+                <div class="help-callout-box">
+                  <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 4px; color: var(--accent-sky);">
+                    💳 Crew Reimbursements (Accountable Plan)
+                  </div>
+                  <div style="font-size: 12.5px; color: var(--text-secondary);">
+                    If a camera operator, editor, or host pays for a train ticket or meal on a personal card or cash, check <strong>Needs Crew Reimbursement</strong> when logging the expense. Filter by <strong>Crew Reimbursable</strong> in the ledger to see the exact USD total to reimburse them tax-free.
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
     </main>
 
@@ -393,11 +644,27 @@
         <span>🎬</span>
         <span>ROI</span>
       </button>
-      <button type="button" class="mobile-nav-btn" data-mobile-view="tax">
-        <span>🧾</span>
-        <span>Tax CSV</span>
+      <button type="button" class="mobile-nav-btn" data-mobile-view="help">
+        <span>🎓</span>
+        <span>Help</span>
       </button>
     </nav>
+  </div>
+
+  <!-- INTERACTIVE GUIDED TOUR SPOTLIGHT POPOVER -->
+  <div id="tour-backdrop" class="tour-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="tour-step-title">
+    <div class="tour-card" id="tour-card">
+      <div class="tour-card-header">
+        <span class="walkthrough-pill" id="tour-step-counter">STEP 1 OF 5</span>
+        <button type="button" class="modal-close" id="btn-tour-close" aria-label="End Tour">&times;</button>
+      </div>
+      <h3 class="tour-card-title" id="tour-step-title">Welcome to Your Road Dashboard</h3>
+      <p class="tour-card-body" id="tour-step-body"></p>
+      <div class="tour-card-footer">
+        <button type="button" class="btn btn-sm" id="btn-tour-prev">← Back</button>
+        <button type="button" class="btn btn-sm btn-primary" id="btn-tour-next">Next →</button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL 1: QUICK ADD / EDIT EXPENSE -->

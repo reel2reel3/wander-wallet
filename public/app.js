@@ -1353,9 +1353,258 @@
     }
   }
 
+  const WALKTHROUGH_SLIDES = [
+    {
+      step: 1,
+      title: '1. Create a Production Trip & Set Your Budget',
+      subtitle: 'Organize every shoot by destination so you always know how much each trip and video episode costs.',
+      ctaLabel: '+ Open New Trip Form',
+      ctaAction: 'new-trip',
+      html: `
+        <div class="wt-demo-box">
+          <div class="wt-demo-row">
+            <div>
+              <div style="font-weight: 700; color: var(--text-primary);">✈️ Japan Shoot - Nov 2026</div>
+              <div style="font-size: 12px; color: var(--text-muted);">Tokyo, Kyoto &amp; Hokkaido • Default Currency: JPY (¥)</div>
+            </div>
+            <span class="kpi-tag positive">Active Shoot</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+            <div style="padding: 10px; background: var(--bg-elevated); border-radius: 6px; border: 1px solid var(--border-subtle);">
+              <div style="font-size: 11px; color: var(--text-muted);">TARGET BUDGET</div>
+              <div class="mono" style="font-size: 15px; font-weight: 700;">$9,500 USD</div>
+            </div>
+            <div style="padding: 10px; background: var(--bg-elevated); border-radius: 6px; border: 1px solid var(--border-subtle);">
+              <div style="font-size: 11px; color: var(--text-muted);">PLANNED VIDEOS</div>
+              <div class="mono" style="font-size: 15px; font-weight: 700;">3 Episodes</div>
+            </div>
+            <div style="padding: 10px; background: var(--bg-elevated); border-radius: 6px; border: 1px solid var(--border-subtle);">
+              <div style="font-size: 11px; color: var(--text-muted);">TARGET / VIDEO</div>
+              <div class="mono" style="font-size: 15px; font-weight: 700; color: var(--accent-sky);">$3,167 / ep</div>
+            </div>
+          </div>
+        </div>
+      `
+    },
+    {
+      step: 2,
+      title: '2. Snap Receipts & Auto-Convert Foreign Currencies',
+      subtitle: 'Enter local prices (JPY, EUR, ISK, CHF, GBP, etc.) on the road — Wander Wallet converts to USD and compresses your camera receipt photo.',
+      ctaLabel: '📸 Try Quick Add Expense',
+      ctaAction: 'new-expense',
+      html: `
+        <div class="wt-demo-box">
+          <div class="wt-demo-row">
+            <div>
+              <div style="font-weight: 700;">🏨 Shibuya Stream Excel Hotel (4 Nights)</div>
+              <div style="font-size: 12px; color: var(--text-muted);">Paid in Local Currency: <span class="mono">¥242,000 JPY</span> (Rate: 0.00658)</div>
+            </div>
+            <div style="text-align: right;">
+              <div class="mono" style="font-weight: 700; font-size: 15px; color: var(--accent-primary);">$1,592.36 USD</div>
+              <span style="font-size: 11px; color: var(--accent-sky);">📷 Verified Folio Attached</span>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: var(--text-secondary); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+            <span>✓ Supports 11 road currencies with live FX preview</span>
+            <span>✓ Auto-compresses phone camera photos into SQLite</span>
+          </div>
+        </div>
+      `
+    },
+    {
+      step: 3,
+      title: '3. Monitor Daily Burn Rate & Remaining Runway',
+      subtitle: 'Watch your real-time Trip Budget progress bar, daily burn rate ($/day), and category breakdown while shooting.',
+      ctaLabel: '📊 View Live Dashboard',
+      ctaAction: 'goto-dashboard',
+      html: `
+        <div class="wt-demo-box">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12.5px; font-weight: 600;">Japan Shoot Budget Runway ($5,635 of $9,500 used)</span>
+            <span class="mono" style="font-size: 12.5px; font-weight: 700; color: var(--accent-primary);">$3,865.00 left (59%)</span>
+          </div>
+          <div class="progress-track" style="height: 10px;">
+            <div class="progress-fill" style="width: 59%;"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+            <span>Daily Burn: <strong style="color: var(--text-primary);">$469.59/day</strong></span>
+            <span>Cost Per Episode: <strong style="color: var(--text-primary);">$1,878 / video</strong></span>
+          </div>
+        </div>
+      `
+    },
+    {
+      step: 4,
+      title: '4. Log Brand Sponsors & YouTube AdSense ROI',
+      subtitle: 'Connect sponsor integrations and AdSense payouts to each trip to see your true Net Profit and ROI multiple.',
+      ctaLabel: '🎬 Log Sponsor / AdSense',
+      ctaAction: 'new-revenue',
+      html: `
+        <div class="wt-demo-box">
+          <div class="wt-demo-row">
+            <div>
+              <div style="font-weight: 700;">🎬 60s Mid-Roll Sponsor + AdSense Payout</div>
+              <div style="font-size: 12px; color: var(--text-muted);">Japan Shoot Revenue: $12,350.00 vs. Spend: $5,635.02</div>
+            </div>
+            <div style="text-align: right;">
+              <div class="mono" style="font-weight: 700; font-size: 15px; color: var(--accent-primary);">+$6,714.98 Profit</div>
+              <span class="kpi-tag positive">2.2x Trip ROI</span>
+            </div>
+          </div>
+        </div>
+      `
+    },
+    {
+      step: 5,
+      title: '5. One-Click Schedule C Tax CSV & Crew Reimbursements',
+      subtitle: 'Toggle 100% On-Camera Food vs. 50% Travel Meals, check missing receipts >$75, and export your CPA-ready CSV.',
+      ctaLabel: '⬇ Export Tax CSV Now',
+      ctaAction: 'export-csv',
+      html: `
+        <div class="wt-demo-box">
+          <div class="wt-demo-row">
+            <div>
+              <div style="font-weight: 700;">🧾 Accountant Schedule C Export (.CSV &amp; PDF)</div>
+              <div style="font-size: 12px; color: var(--text-muted);">Includes Date, Trip, Category, Local FX, USD Total, Deductible % &amp; Reimbursements</div>
+            </div>
+            <span class="kpi-tag positive">CPA Ready</span>
+          </div>
+        </div>
+      `
+    }
+  ];
+
+  let currentWtStep = 0;
+  let wtAutoplayTimer = null;
+
+  function renderWalkthroughStep(stepIndex) {
+    currentWtStep = (stepIndex + WALKTHROUGH_SLIDES.length) % WALKTHROUGH_SLIDES.length;
+    const slide = WALKTHROUGH_SLIDES[currentWtStep];
+    const pill = document.getElementById('wt-step-pill');
+    if (pill) pill.textContent = `CHAPTER ${slide.step} OF ${WALKTHROUGH_SLIDES.length}`;
+
+    const canvas = document.getElementById('wt-visual-canvas');
+    if (canvas) {
+      canvas.innerHTML = `
+        <div class="wt-slide-header">
+          <div>
+            <div class="wt-slide-title">${slide.title}</div>
+            <div class="wt-slide-subtitle">${slide.subtitle}</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-primary" data-wt-cta="${slide.ctaAction}" style="white-space: nowrap;">
+            ${slide.ctaLabel}
+          </button>
+        </div>
+        ${slide.html}
+      `;
+    }
+
+    document.querySelectorAll('.wt-dot').forEach((d, idx) => {
+      d.classList.toggle('active', idx === currentWtStep);
+    });
+    document.querySelectorAll('.wt-chapter-btn').forEach((b, idx) => {
+      b.classList.toggle('active', idx === currentWtStep);
+    });
+  }
+
+  function toggleWtAutoplay() {
+    const btn = document.getElementById('btn-wt-autoplay');
+    if (wtAutoplayTimer) {
+      clearInterval(wtAutoplayTimer);
+      wtAutoplayTimer = null;
+      if (btn) btn.textContent = '▶ Auto-Play Walkthrough';
+    } else {
+      if (btn) btn.textContent = '⏸ Pause Walkthrough';
+      wtAutoplayTimer = setInterval(() => {
+        renderWalkthroughStep(currentWtStep + 1);
+      }, 4200);
+    }
+  }
+
+  function toEmbedUrl(rawUrl) {
+    if (!rawUrl) return '';
+    const trimmed = rawUrl.trim();
+    const ytMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([A-Za-z0-9_-]{6,})/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+    const loomMatch = trimmed.match(/loom\.com\/(?:share|embed)\/([a-f0-9]+)/i);
+    if (loomMatch) return `https://www.loom.com/embed/${loomMatch[1]}`;
+    return trimmed;
+  }
+
+  // Interactive Guided Tour across the live dashboard
+  const TOUR_STEPS = [
+    {
+      selector: '.trip-pill-selector',
+      view: 'dashboard',
+      title: '1. Filter by Production Trip',
+      body: 'Switch between "All Production Trips" or a specific shoot (like Japan Shoot - Nov 2026) to scope all KPIs, charts, and ledger items.'
+    },
+    {
+      selector: '#btn-topbar-quick-add',
+      view: 'dashboard',
+      title: '2. Quick Add Road Expenses',
+      body: 'Click "+ Add Expense" anytime to log hotels, crew meals, flights, or gear in 11 currencies and attach a photo of your receipt.'
+    },
+    {
+      selector: '.kpi-grid',
+      view: 'dashboard',
+      title: '3. Live Burn Rate, Runway & ROI KPIs',
+      body: 'Track Total Production Spend, remaining Trip Budget Runway, Daily Road Burn Rate ($/day), and Net Trip Profit at a glance.'
+    },
+    {
+      selector: '.filter-bar',
+      view: 'dashboard',
+      title: '4. Search & Audit Missing Receipts',
+      body: 'Search by vendor or filter by "Missing Receipt (>$75)" and "Crew Reimbursable" before wrapping a shoot.'
+    },
+    {
+      selector: '#btn-export-csv-top',
+      view: 'dashboard',
+      title: '5. One-Click Accountant Tax CSV',
+      body: 'Click "⬇ Export Tax CSV" whenever you need an IRS Schedule C spreadsheet with local FX conversions and deduction totals.'
+    }
+  ];
+
+  let activeTourIndex = -1;
+
+  function clearTourHighlights() {
+    document.querySelectorAll('.tour-highlight-target').forEach(el => {
+      el.classList.remove('tour-highlight-target');
+    });
+  }
+
+  function showTourStep(idx) {
+    clearTourHighlights();
+    const backdrop = document.getElementById('tour-backdrop');
+    if (idx < 0 || idx >= TOUR_STEPS.length) {
+      activeTourIndex = -1;
+      if (backdrop) backdrop.style.display = 'none';
+      return;
+    }
+    activeTourIndex = idx;
+    const step = TOUR_STEPS[idx];
+    if (state.activeView !== step.view) {
+      switchView(step.view);
+    }
+    if (backdrop) backdrop.style.display = 'block';
+    document.getElementById('tour-step-counter').textContent = `STEP ${idx + 1} OF ${TOUR_STEPS.length}`;
+    document.getElementById('tour-step-title').textContent = step.title;
+    document.getElementById('tour-step-body').textContent = step.body;
+    document.getElementById('btn-tour-prev').style.visibility = idx === 0 ? 'hidden' : 'visible';
+    document.getElementById('btn-tour-next').textContent = idx === TOUR_STEPS.length - 1 ? 'Finish Tour ✓' : 'Next →';
+
+    const target = document.querySelector(step.selector);
+    if (target) {
+      target.classList.add('tour-highlight-target');
+      try {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (e) {}
+    }
+  }
+
   function switchView(viewName) {
     state.activeView = viewName;
-    const views = ['dashboard', 'trips', 'revenue', 'tax'];
+    const views = ['dashboard', 'trips', 'revenue', 'tax', 'help'];
     for (const v of views) {
       const el = document.getElementById(`view-${v}`);
       if (el) el.style.display = v === viewName ? 'block' : 'none';
@@ -1372,10 +1621,14 @@
       dashboard: 'Road Finance Dashboard',
       trips: 'Trips & Shoot Budgets',
       revenue: 'Sponsors & AdSense ROI',
-      tax: 'Tax & Accountant Export Hub'
+      tax: 'Tax & Accountant Export Hub',
+      help: 'Help & Getting Started Guide'
     };
     const heading = document.getElementById('main-page-heading');
     if (heading) heading.textContent = titles[viewName] || 'Road Finance Dashboard';
+    if (viewName === 'help') {
+      renderWalkthroughStep(currentWtStep);
+    }
   }
 
   function openModal(id) {
@@ -1843,22 +2096,124 @@
         return;
       }
 
+      // Topbar Help button
+      if (e.target.closest('#btn-topbar-help')) {
+        e.preventDefault();
+        switchView('help');
+        return;
+      }
+
+      // Launch Interactive Guided Tour
+      if (e.target.closest('#btn-launch-guided-tour')) {
+        e.preventDefault();
+        showTourStep(0);
+        return;
+      }
+      if (e.target.closest('#btn-tour-next')) {
+        e.preventDefault();
+        showTourStep(activeTourIndex + 1);
+        return;
+      }
+      if (e.target.closest('#btn-tour-prev')) {
+        e.preventDefault();
+        showTourStep(activeTourIndex - 1);
+        return;
+      }
+      if (e.target.closest('#btn-tour-close')) {
+        e.preventDefault();
+        showTourStep(-1);
+        return;
+      }
+
+      // Walkthrough player controls
+      if (e.target.closest('#btn-wt-next')) {
+        e.preventDefault();
+        renderWalkthroughStep(currentWtStep + 1);
+        return;
+      }
+      if (e.target.closest('#btn-wt-prev')) {
+        e.preventDefault();
+        renderWalkthroughStep(currentWtStep - 1);
+        return;
+      }
+      if (e.target.closest('#btn-wt-autoplay')) {
+        e.preventDefault();
+        toggleWtAutoplay();
+        return;
+      }
+      const wtStepBtn = e.target.closest('[data-wt-step]');
+      if (wtStepBtn) {
+        e.preventDefault();
+        renderWalkthroughStep(Number(wtStepBtn.getAttribute('data-wt-step')) || 0);
+        return;
+      }
+      const wtCtaBtn = e.target.closest('[data-wt-cta]');
+      if (wtCtaBtn) {
+        e.preventDefault();
+        const act = wtCtaBtn.getAttribute('data-wt-cta');
+        if (act === 'new-trip') openTripModal(null);
+        else if (act === 'new-expense') openExpenseModal(null);
+        else if (act === 'goto-dashboard') switchView('dashboard');
+        else if (act === 'new-revenue') {
+          document.getElementById('rev-date').value = new Date().toISOString().slice(0, 10);
+          openModal('modal-revenue');
+        } else if (act === 'export-csv') triggerCsvExport();
+        return;
+      }
+
+      // Custom Video URL Embed inside Help Walkthrough
+      if (e.target.closest('#btn-wt-custom-video-toggle')) {
+        e.preventDefault();
+        const bar = document.getElementById('wt-custom-video-bar');
+        if (bar) bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
+        return;
+      }
+      if (e.target.closest('#btn-save-custom-video')) {
+        e.preventDefault();
+        const raw = document.getElementById('input-custom-video-url').value;
+        const embed = toEmbedUrl(raw);
+        if (!embed) {
+          showToast('Please paste a valid YouTube or Loom video URL');
+          return;
+        }
+        document.getElementById('wt-custom-iframe').src = embed;
+        document.getElementById('wt-custom-iframe-wrap').style.display = 'block';
+        document.getElementById('wt-visual-canvas').style.display = 'none';
+        showToast('Loaded custom Getting Started video!');
+        return;
+      }
+      if (e.target.closest('#btn-clear-custom-video')) {
+        e.preventDefault();
+        document.getElementById('wt-custom-iframe').src = '';
+        document.getElementById('wt-custom-iframe-wrap').style.display = 'none';
+        document.getElementById('wt-visual-canvas').style.display = 'flex';
+        document.getElementById('wt-custom-video-bar').style.display = 'none';
+        return;
+      }
+
+      // Help 4-step workflow shortcut buttons
+      if (e.target.closest('#btn-help-step-tax')) {
+        e.preventDefault();
+        switchView('tax');
+        return;
+      }
+
       // Quick Add Expense buttons
-      if (e.target.closest('#btn-sidebar-quick-add, #btn-topbar-quick-add, #btn-ledger-add-expense, #btn-mobile-fab-add')) {
+      if (e.target.closest('#btn-sidebar-quick-add, #btn-topbar-quick-add, #btn-ledger-add-expense, #btn-mobile-fab-add, #btn-help-quick-expense, #btn-help-step-expense')) {
         e.preventDefault();
         openExpenseModal(null);
         return;
       }
 
       // Open New Trip buttons
-      if (e.target.closest('#btn-open-new-trip, #btn-trips-view-create')) {
+      if (e.target.closest('#btn-open-new-trip, #btn-trips-view-create, #btn-help-step-trip')) {
         e.preventDefault();
         openTripModal(null);
         return;
       }
 
       // Open New Revenue buttons
-      if (e.target.closest('#btn-open-new-revenue, #btn-rev-view-create')) {
+      if (e.target.closest('#btn-open-new-revenue, #btn-rev-view-create, #btn-help-step-revenue')) {
         e.preventDefault();
         document.getElementById('rev-date').value = new Date().toISOString().slice(0, 10);
         if (state.selectedTripId !== 'all') {
