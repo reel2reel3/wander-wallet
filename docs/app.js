@@ -1825,6 +1825,23 @@
 
     // Unified Delegated Click Handler for all buttons and interactive elements
     document.addEventListener('click', async e => {
+      // Modal form submit buttons (handles sandboxed iframes where form submit may be restricted)
+      if (e.target.closest('#btn-submit-expense')) {
+        e.preventDefault();
+        saveExpenseFromModal();
+        return;
+      }
+      if (e.target.closest('#btn-submit-trip')) {
+        e.preventDefault();
+        saveTripFromModal();
+        return;
+      }
+      if (e.target.closest('#btn-submit-revenue')) {
+        e.preventDefault();
+        saveRevenueFromModal();
+        return;
+      }
+
       // Quick Add Expense buttons
       if (e.target.closest('#btn-sidebar-quick-add, #btn-topbar-quick-add, #btn-ledger-add-expense, #btn-mobile-fab-add')) {
         e.preventDefault();
