@@ -84,7 +84,7 @@
   function getInitialSeedData() {
     return {
       settings: {
-        channel_name: 'WanderWallet',
+        channel_name: 'Wander Wallet',
         home_currency: 'USD',
         meal_deduction_rate: '100',
         exchange_rates: { ...DEFAULT_FX_RATES }
@@ -778,7 +778,7 @@
   function renderAll() {
     const chEl = document.getElementById('sidebar-channel-name');
     const nameVal = state.settings.channel_name;
-    if (chEl) chEl.textContent = (!nameVal || nameVal === 'Nomad Frame Studios') ? 'WanderWallet' : nameVal;
+    if (chEl) chEl.textContent = (!nameVal || nameVal === 'Nomad Frame Studios') ? 'Wander Wallet' : nameVal;
 
     const expBadge = document.getElementById('badge-expense-count');
     if (expBadge) expBadge.textContent = state.expenses.length;
