@@ -1,4 +1,4 @@
-# Wayfarer — Creator Road Finance & Travel Expense Tracker
+# WanderWallet — Creator Road Finance & Travel Expense Tracker
 
 A full-stack, mobile-ready Progressive Web App (PWA) built for traveling YouTube channels to itemize hotels, crew meals, flights, gear, and permits across multiple currencies while tracking trip budget burn rates and sponsorship/AdSense ROI.
 
@@ -10,15 +10,22 @@ A full-stack, mobile-ready Progressive Web App (PWA) built for traveling YouTube
 - **Sponsorship & AdSense ROI Tracking**: Log brand integrations and YouTube AdSense revenue per trip to see real-time net profit and ROI multiples.
 - **Accountant-Ready CSV & PDF Tax Exports**: One-click CSV export with IRS Schedule C categories, original currency, FX rate, USD total, meal deduction rules (100% on-camera vs. 50% travel meal toggle), and crew reimbursement flags.
 
+## Deploying to Railway (Hobby Plan)
+This repository is pre-configured for **Railway** (`railway.json` + `Dockerfile` + `/api/health` endpoint):
+
+1. In your [Railway Dashboard](https://railway.com/dashboard), click **New Project** → **Deploy from GitHub repo** and select `reel2reel3/wayfarer-creator-finance`.
+2. In your Railway service settings, make sure the branch is set to **`feat/wayfarer-app`** (the default branch).
+3. **(Recommended for Persistent SQLite Storage)**: Right-click on the Railway canvas (or press `Cmd/Ctrl + K`) → **Add Volume**, attach it to your service, and set the mount path to:
+   ```text
+   /app/data
+   ```
+   (`server.js` automatically detects `RAILWAY_VOLUME_MOUNT_PATH` or `/app/data` so your trips, expenses, and receipt photos stay saved permanently across redeployments.)
+4. Go to **Settings** → **Networking** → click **Generate Domain** to get your live `.up.railway.app` URL!
+5. Open your Railway URL on your desktop, laptop, and phone (on iPhone Safari or Android Chrome, tap **Share → Add to Home Screen** to install **WanderWallet** as a full-screen mobile app).
+
 ## Running Locally
 Requires Node.js 22.5+ (uses built-in `node:sqlite` and `node:http` with zero external npm dependencies required):
 
 ```bash
 npm start
 ```
-
-## Deploying for Cross-Device Access (Desktop, Laptop & Phone)
-1. Push this repository to GitHub.
-2. Connect the repository to **Railway**, **Render**, or **Fly.io** (uses the included `Dockerfile` or `npm start`).
-3. Mount a persistent volume to `/app/data` so your SQLite database (`data/finance.db`) persists across deploys.
-4. On your phone (iOS Safari or Android Chrome), open your deployed URL and tap **"Add to Home Screen"** to install Wayfarer as a standalone full-screen mobile app.

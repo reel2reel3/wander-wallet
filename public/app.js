@@ -84,7 +84,7 @@
   function getInitialSeedData() {
     return {
       settings: {
-        channel_name: 'Nomad Frame Studios',
+        channel_name: 'WanderWallet',
         home_currency: 'USD',
         meal_deduction_rate: '100',
         exchange_rates: { ...DEFAULT_FX_RATES }
@@ -747,7 +747,7 @@
       }
     } catch (e) {}
 
-    const savedTheme = safeStorageGet('wayfarer_theme') || memoryTheme || 'dark';
+    const savedTheme = safeStorageGet('wanderwallet_theme') || memoryTheme || 'dark';
     memoryTheme = savedTheme;
     document.documentElement.setAttribute('data-theme', savedTheme);
 
@@ -777,7 +777,8 @@
 
   function renderAll() {
     const chEl = document.getElementById('sidebar-channel-name');
-    if (chEl) chEl.textContent = state.settings.channel_name || 'Nomad Frame Studios';
+    const nameVal = state.settings.channel_name;
+    if (chEl) chEl.textContent = (!nameVal || nameVal === 'Nomad Frame Studios') ? 'WanderWallet' : nameVal;
 
     const expBadge = document.getElementById('badge-expense-count');
     if (expBadge) expBadge.textContent = state.expenses.length;
@@ -1908,7 +1909,7 @@
         const next = current === 'dark' ? 'light' : 'dark';
         memoryTheme = next;
         document.documentElement.setAttribute('data-theme', next);
-        safeStorageSet('wayfarer_theme', next);
+        safeStorageSet('wanderwallet_theme', next);
         showToast(`Switched to ${next} theme`);
         return;
       }

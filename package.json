@@ -1,7 +1,7 @@
 {
-  "name": "wayfarer-creator-finance",
+  "name": "wanderwallet-creator-finance",
   "version": "1.0.0",
-  "description": "Full-stack travel expense, budget burn-rate, multi-currency, and sponsorship ROI tracker for YouTube creators on the road.",
+  "description": "WanderWallet — Full-stack travel expense, budget burn-rate, multi-currency, and sponsorship ROI tracker for YouTube creators on the road.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

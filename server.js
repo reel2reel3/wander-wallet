@@ -637,7 +637,7 @@ seedIfNeeded();
 function getSettingsMap() {
   const rows = db.prepare('SELECT key, value FROM settings').all();
   const map = {
-    channel_name: 'Nomad Frame Studios',
+    channel_name: 'WanderWallet',
     home_currency: 'USD',
     meal_deduction_rate: '100',
     exchange_rates: DEFAULT_RATES
@@ -649,6 +649,8 @@ function getSettingsMap() {
       } catch {
         map.exchange_rates = DEFAULT_RATES;
       }
+    } else if (r.key === 'channel_name' && r.value === 'Nomad Frame Studios') {
+      map.channel_name = 'WanderWallet';
     } else {
       map[r.key] = r.value;
     }
@@ -725,6 +727,11 @@ const server = http.createServer(async (req, res) => {
     const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const pathname = parsedUrl.pathname;
     const method = req.method.toUpperCase();
+
+    // Railway Healthcheck Endpoint
+    if (pathname === '/api/health' && method === 'GET') {
+      return sendJson(res, 200, { status: 'ok', app: 'WanderWallet', timestamp: new Date().toISOString() });
+    }
 
     // API Routes
     if (pathname === '/api/bootstrap' && method === 'GET') {
@@ -1027,5 +1034,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Wayfarer Creator Finance Server listening on http://localhost:${PORT}`);
+  console.log(`WanderWallet Creator Finance Server listening on http://0.0.0.0:${PORT}`);
 });
