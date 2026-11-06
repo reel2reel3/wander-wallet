@@ -979,38 +979,61 @@
     </div>
   </div>
 
-  <!-- MODAL 6: CHANGE PASSWORD & ACCOUNT SECURITY -->
+  <!-- MODAL 6: CHANGE PASSWORD & GOOGLE SIGN-IN SECURITY -->
   <div class="modal-backdrop" id="modal-security" role="dialog" aria-modal="true" aria-labelledby="modal-security-title">
-    <div class="modal-dialog" style="max-width: 460px;">
+    <div class="modal-dialog" style="max-width: 510px;">
       <div class="modal-header">
-        <h3 class="modal-title" id="modal-security-title">🔑 Account Login &amp; Password Settings</h3>
+        <h3 class="modal-title" id="modal-security-title">🔑 Account Login &amp; Google Sign-In Settings</h3>
         <button type="button" class="modal-close" data-close-modal="modal-security" aria-label="Close">&times;</button>
       </div>
       <form id="form-change-password">
         <div class="modal-body">
           <div id="security-env-notice" class="help-callout-box" style="display: none; border-left: 3px solid var(--accent-sky); font-size: 12.5px;">
-            Your login credentials are currently managed by Railway environment variables (<code>APP_USERNAME</code> &amp; <code>APP_PASSWORD</code>).
+            Your password is currently managed by Railway environment variables (<code>APP_USERNAME</code> &amp; <code>APP_PASSWORD</code>).
           </div>
+
+          <!-- Google Sign-In Configuration Section -->
+          <div class="help-callout-box" style="border-left: 3px solid var(--accent-primary);">
+            <div style="font-weight: 700; font-size: 13px; margin-bottom: 6px;">
+              🔵 Sign in with Google (Optional • Free)
+            </div>
+            <div class="form-group" style="margin-bottom: 10px;">
+              <label class="form-label" for="sec-google-client-id">Google OAuth Client ID</label>
+              <input type="text" id="sec-google-client-id" class="form-input mono" style="font-size: 12px;" placeholder="e.g. 123456789-abc...apps.googleusercontent.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="sec-allowed-emails">Allowed Google Email(s) Whitelist (comma-separated)</label>
+              <input type="text" id="sec-allowed-emails" class="form-input" placeholder="e.g. yourname@gmail.com, cohost@gmail.com" />
+              <span style="font-size: 11px; color: var(--text-muted);">Only these Gmail addresses will be allowed to unlock your Wander Wallet.</span>
+            </div>
+          </div>
+
+          <div style="font-weight: 700; font-size: 13px; color: var(--text-secondary); padding-top: 4px;">
+            🔒 Password Login Credentials
+          </div>
+
           <div class="form-group">
             <label class="form-label" for="sec-username">Account Username</label>
-            <input type="text" id="sec-username" class="form-input" value="admin" required />
+            <input type="text" id="sec-username" class="form-input" value="admin" />
           </div>
           <div class="form-group" id="sec-current-pass-group">
-            <label class="form-label" for="sec-current-password">Current Password</label>
+            <label class="form-label" for="sec-current-password">Current Password (only required if changing password)</label>
             <input type="password" id="sec-current-password" class="form-input" placeholder="Enter current password" />
           </div>
-          <div class="form-group">
-            <label class="form-label" for="sec-new-password">New Password</label>
-            <input type="password" id="sec-new-password" class="form-input" placeholder="At least 4 characters" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="sec-confirm-password">Confirm New Password</label>
-            <input type="password" id="sec-confirm-password" class="form-input" placeholder="Re-enter new password" required />
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="sec-new-password">New Password (optional)</label>
+              <input type="password" id="sec-new-password" class="form-input" placeholder="Leave blank to keep current" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="sec-confirm-password">Confirm New Password</label>
+              <input type="password" id="sec-confirm-password" class="form-input" placeholder="Re-enter new password" />
+            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn" data-close-modal="modal-security">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="btn-submit-security">Update Password</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-security">Save Security Settings</button>
         </div>
       </form>
     </div>
@@ -1030,12 +1053,22 @@
       <div id="auth-gate-badge" class="walkthrough-pill" style="align-self: flex-start;">🔒 PROTECTED WORKSPACE</div>
       <h2 id="auth-gate-title" style="font-size: 19px; font-weight: 700; margin-top: 2px;">Sign In to Wander Wallet</h2>
       <p id="auth-gate-subtitle" style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
-        Enter your credentials to unlock your production trips, receipts, and tax exports.
+        Enter your credentials or sign in with your approved Google account to unlock your trips, receipts, and tax exports.
       </p>
 
       <div id="auth-gate-error" class="auth-gate-error" style="display: none;"></div>
 
-      <form id="form-auth-gate" style="display: flex; flex-direction: column; gap: 14px; margin-top: 4px;">
+      <!-- Google Sign-In Button Container (shown automatically when Google Client ID is configured) -->
+      <div id="auth-google-signin-wrap" style="display: none; flex-direction: column; align-items: center; gap: 10px; margin: 6px 0;">
+        <div id="google-signin-btn-mount"></div>
+        <div style="width: 100%; display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 11.5px;">
+          <span style="flex: 1; height: 1px; background: var(--border-subtle);"></span>
+          <span>OR SIGN IN WITH PASSWORD</span>
+          <span style="flex: 1; height: 1px; background: var(--border-subtle);"></span>
+        </div>
+      </div>
+
+      <form id="form-auth-gate" style="display: flex; flex-direction: column; gap: 12px; margin-top: 2px;">
         <input type="hidden" id="auth-gate-mode" value="login" />
         <div class="form-group">
           <label class="form-label" for="auth-input-username">Username</label>
@@ -1043,11 +1076,18 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="auth-input-password" id="auth-label-password">Password</label>
-          <input type="password" id="auth-input-password" class="form-input" placeholder="Enter your password" autocomplete="current-password" required />
+          <input type="password" id="auth-input-password" class="form-input" placeholder="Enter your password" autocomplete="current-password" />
         </div>
         <div class="form-group" id="auth-confirm-group" style="display: none;">
           <label class="form-label" for="auth-input-confirm">Confirm Password</label>
           <input type="password" id="auth-input-confirm" class="form-input" placeholder="Confirm your password" autocomplete="new-password" />
+        </div>
+
+        <!-- Optional Google Setup during First-Time Setup -->
+        <div id="auth-setup-google-group" style="display: none; flex-direction: column; gap: 8px; padding: 10px 12px; background: var(--bg-elevated); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+          <div style="font-size: 11.5px; font-weight: 700; color: var(--accent-sky);">🔵 Optional: Enable "Sign in with Google"</div>
+          <input type="text" id="auth-setup-google-client-id" class="form-input mono" style="font-size: 11.5px;" placeholder="Google Client ID (optional — can also add later)" />
+          <input type="text" id="auth-setup-allowed-emails" class="form-input" style="font-size: 12px;" placeholder="Your Gmail address (e.g. you@gmail.com)" />
         </div>
 
         <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary); cursor: pointer;">

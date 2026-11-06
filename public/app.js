@@ -707,7 +707,74 @@
     safeStorageSet('wanderwallet_local_creds', JSON.stringify(creds));
   }
 
-  function showAuthGate(mode = 'login', defaultUsername = 'admin', errorMessage = '') {
+  let currentGoogleClientId = '';
+
+  function ensureGoogleScriptLoaded(clientId) {
+    if (!clientId || !location.protocol.startsWith('http')) return;
+    currentGoogleClientId = clientId;
+    const renderBtn = () => {
+      if (!window.google || !window.google.accounts || !window.google.accounts.id) return;
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleGoogleCredentialResponse
+        });
+        const mount = document.getElementById('google-signin-btn-mount');
+        if (mount) {
+          mount.innerHTML = '';
+          window.google.accounts.id.renderButton(mount, {
+            theme: 'filled_blue',
+            size: 'large',
+            width: 340,
+            text: 'continue_with',
+            shape: 'rectangular'
+          });
+        }
+        const wrap = document.getElementById('auth-google-signin-wrap');
+        if (wrap) wrap.style.display = 'flex';
+      } catch (e) {}
+    };
+
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+      renderBtn();
+      return;
+    }
+    if (!document.getElementById('google-gsi-script')) {
+      const s = document.createElement('script');
+      s.id = 'google-gsi-script';
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.async = true;
+      s.defer = true;
+      s.onload = renderBtn;
+      document.head.appendChild(s);
+    }
+  }
+
+  async function handleGoogleCredentialResponse(response) {
+    if (!response || !response.credential) return;
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showAuthGate('login', 'admin', data.error || 'Google Sign-In failed.', currentGoogleClientId);
+        return;
+      }
+      if (data.token) setAuthToken(data.token);
+      state.authUsername = data.username || 'Google User';
+      hideAuthGate();
+      showToast(`Signed in with Google (${state.authUsername})!`);
+      const boot = await apiRequest('/api/bootstrap');
+      if (boot) applyBootstrapData(boot);
+    } catch (err) {
+      showAuthGate('login', 'admin', 'Could not verify Google Sign-In with server.', currentGoogleClientId);
+    }
+  }
+
+  function showAuthGate(mode = 'login', defaultUsername = 'admin', errorMessage = '', googleClientId = '') {
     const overlay = document.getElementById('auth-gate-overlay');
     if (!overlay) return;
     overlay.style.display = 'flex';
@@ -722,28 +789,39 @@
     const subtitle = document.getElementById('auth-gate-subtitle');
     const passLabel = document.getElementById('auth-label-password');
     const confirmGroup = document.getElementById('auth-confirm-group');
+    const setupGoogleGroup = document.getElementById('auth-setup-google-group');
     const submitBtn = document.getElementById('btn-auth-gate-submit');
     const errEl = document.getElementById('auth-gate-error');
+    const googleWrap = document.getElementById('auth-google-signin-wrap');
+
+    const activeGoogleId = googleClientId || currentGoogleClientId;
+    if (activeGoogleId) {
+      ensureGoogleScriptLoaded(activeGoogleId);
+    } else if (googleWrap) {
+      googleWrap.style.display = 'none';
+    }
 
     if (mode === 'setup') {
       if (badge) badge.textContent = '🛡️ FIRST-TIME SECURITY SETUP';
       if (title) title.textContent = 'Create Your Admin Login';
       if (subtitle) {
         subtitle.textContent =
-          'Protect your Wander Wallet URL so only you can access your trips, receipts, and financial data.';
+          'Protect your Wander Wallet URL with a password and/or Google Sign-In so only you can access your trips and receipts.';
       }
       if (passLabel) passLabel.textContent = 'Create Password (at least 4 characters)';
       if (confirmGroup) confirmGroup.style.display = 'flex';
-      if (submitBtn) submitBtn.textContent = 'Save Password & Unlock Wander Wallet →';
+      if (setupGoogleGroup) setupGoogleGroup.style.display = 'flex';
+      if (submitBtn) submitBtn.textContent = 'Save Security & Unlock Wander Wallet →';
     } else {
       if (badge) badge.textContent = '🔒 PROTECTED WORKSPACE';
       if (title) title.textContent = 'Sign In to Wander Wallet';
       if (subtitle) {
         subtitle.textContent =
-          'Enter your credentials to unlock your production trips, receipts, and tax exports.';
+          'Enter your credentials or use Google Sign-In to unlock your production trips, receipts, and tax exports.';
       }
       if (passLabel) passLabel.textContent = 'Password';
       if (confirmGroup) confirmGroup.style.display = 'none';
+      if (setupGoogleGroup) setupGoogleGroup.style.display = 'none';
       if (submitBtn) submitBtn.textContent = 'Unlock Wander Wallet →';
     }
 
@@ -773,13 +851,26 @@
     const password = document.getElementById('auth-input-password').value;
     const confirm = document.getElementById('auth-input-confirm').value;
     const remember = document.getElementById('auth-input-remember').checked;
+    const setupGoogleIdEl = document.getElementById('auth-setup-google-client-id');
+    const setupEmailsEl = document.getElementById('auth-setup-allowed-emails');
+    const setupGoogleId = setupGoogleIdEl ? setupGoogleIdEl.value.trim() : '';
+    const setupEmails = setupEmailsEl ? setupEmailsEl.value.trim() : '';
 
-    if (!password || password.length < 4) {
-      showAuthGate(mode, username, 'Password must be at least 4 characters.');
-      return;
-    }
-    if (mode === 'setup' && password !== confirm) {
-      showAuthGate(mode, username, 'Passwords do not match. Please try again.');
+    if (mode === 'setup') {
+      if (!password && !setupGoogleId) {
+        showAuthGate(mode, username, 'Please enter a password (at least 4 characters) or a Google Client ID.');
+        return;
+      }
+      if (password && password.length < 4) {
+        showAuthGate(mode, username, 'Password must be at least 4 characters.');
+        return;
+      }
+      if (password && password !== confirm) {
+        showAuthGate(mode, username, 'Passwords do not match. Please try again.');
+        return;
+      }
+    } else if (!password || password.length < 4) {
+      showAuthGate(mode, username, 'Please enter your password.');
       return;
     }
 
@@ -789,7 +880,13 @@
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password, remember })
+          body: JSON.stringify({
+            username,
+            password,
+            remember,
+            google_client_id: setupGoogleId,
+            allowed_emails: setupEmails
+          })
         });
         const data = await res.json();
         if (!res.ok) {
@@ -799,9 +896,10 @@
         if (data.token) {
           setAuthToken(data.token);
         }
+        if (setupGoogleId) currentGoogleClientId = setupGoogleId;
         state.authUsername = data.username || username;
         hideAuthGate();
-        showToast(mode === 'setup' ? 'Admin password created & device signed in!' : `Welcome back, ${state.authUsername}!`);
+        showToast(mode === 'setup' ? 'Security configured & device signed in!' : `Welcome back, ${state.authUsername}!`);
         const boot = await apiRequest('/api/bootstrap');
         if (boot) applyBootstrapData(boot);
         return;
@@ -812,7 +910,7 @@
 
     // Local / standalone preview mode authentication
     if (mode === 'setup') {
-      saveLocalAuthCreds({ username, password });
+      saveLocalAuthCreds({ username, password, googleClientId: setupGoogleId, allowedEmails: setupEmails });
       memorySessionUnlocked = true;
       setAuthToken('local-token-' + Date.now());
       state.authUsername = username;
@@ -851,7 +949,7 @@
       try {
         const stRes = await fetch('/api/auth/status');
         const st = await stRes.json();
-        showAuthGate(st.configured ? 'login' : 'setup', st.username || 'admin');
+        showAuthGate(st.configured ? 'login' : 'setup', st.username || 'admin', '', st.googleClientId || '');
         showToast('Workspace locked');
         return;
       } catch (e) {}
@@ -867,6 +965,8 @@
     document.getElementById('sec-confirm-password').value = '';
     const envNotice = document.getElementById('security-env-notice');
     const curGroup = document.getElementById('sec-current-pass-group');
+    const gIdInput = document.getElementById('sec-google-client-id');
+    const gEmailsInput = document.getElementById('sec-allowed-emails');
 
     if (location.protocol.startsWith('http')) {
       try {
@@ -875,12 +975,16 @@
         });
         const st = await res.json();
         document.getElementById('sec-username').value = st.username || 'admin';
+        if (gIdInput) gIdInput.value = st.googleClientId || '';
+        if (gEmailsInput) gEmailsInput.value = st.allowedEmails || '';
         if (envNotice) envNotice.style.display = st.envManaged ? 'block' : 'none';
         if (curGroup) curGroup.style.display = st.configured ? 'flex' : 'none';
       } catch (e) {}
     } else {
       const localCreds = getLocalAuthCreds();
       document.getElementById('sec-username').value = (localCreds && localCreds.username) || 'admin';
+      if (gIdInput) gIdInput.value = (localCreds && localCreds.googleClientId) || '';
+      if (gEmailsInput) gEmailsInput.value = (localCreds && localCreds.allowedEmails) || '';
       if (curGroup) curGroup.style.display = localCreds ? 'flex' : 'none';
     }
     openModal('modal-security');
@@ -891,12 +995,14 @@
     const currentPassword = document.getElementById('sec-current-password').value;
     const newPassword = document.getElementById('sec-new-password').value;
     const confirmPassword = document.getElementById('sec-confirm-password').value;
+    const googleClientId = (document.getElementById('sec-google-client-id') || {}).value || '';
+    const allowedEmails = (document.getElementById('sec-allowed-emails') || {}).value || '';
 
-    if (!newPassword || newPassword.length < 4) {
+    if (newPassword && newPassword.length < 4) {
       showToast('New password must be at least 4 characters');
       return;
     }
-    if (newPassword !== confirmPassword) {
+    if (newPassword && newPassword !== confirmPassword) {
       showToast('New passwords do not match');
       return;
     }
@@ -909,16 +1015,22 @@
           const setupRes = await fetch('/api/auth/setup', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: newUsername, password: newPassword })
+            body: JSON.stringify({
+              username: newUsername,
+              password: newPassword,
+              google_client_id: googleClientId.trim(),
+              allowed_emails: allowedEmails.trim()
+            })
           });
           const setupData = await setupRes.json();
           if (!setupRes.ok) {
-            showToast(setupData.error || 'Could not set password');
+            showToast(setupData.error || 'Could not save security settings');
             return;
           }
           if (setupData.token) setAuthToken(setupData.token);
+          if (googleClientId.trim()) ensureGoogleScriptLoaded(googleClientId.trim());
           closeModal('modal-security');
-          showToast('Account login & password enabled!');
+          showToast('Account security & Google Sign-In settings saved!');
           return;
         }
 
@@ -931,30 +1043,38 @@
           body: JSON.stringify({
             current_password: currentPassword,
             new_username: newUsername,
-            new_password: newPassword
+            new_password: newPassword,
+            google_client_id: googleClientId.trim(),
+            allowed_emails: allowedEmails.trim()
           })
         });
         const data = await res.json();
         if (!res.ok) {
-          showToast(data.error || 'Failed to update password');
+          showToast(data.error || 'Failed to update security settings');
           return;
         }
+        if (googleClientId.trim()) ensureGoogleScriptLoaded(googleClientId.trim());
         closeModal('modal-security');
-        showToast('Password updated!');
+        showToast('Security & Google Sign-In settings saved!');
         return;
       } catch (e) {}
     }
 
     // Local fallback
-    const existing = getLocalAuthCreds();
-    if (existing && existing.password !== currentPassword) {
+    const existing = getLocalAuthCreds() || {};
+    if (newPassword && existing.password && existing.password !== currentPassword) {
       showToast('Current password is incorrect');
       return;
     }
-    saveLocalAuthCreds({ username: newUsername, password: newPassword });
+    saveLocalAuthCreds({
+      username: newUsername,
+      password: newPassword || existing.password || '',
+      googleClientId: googleClientId.trim(),
+      allowedEmails: allowedEmails.trim()
+    });
     memorySessionUnlocked = true;
     closeModal('modal-security');
-    showToast('Password saved! Use 🔒 Lock App anytime to test your login screen.');
+    showToast('Security settings saved! Use 🔒 Lock App anytime to test your login screen.');
   }
 
   async function apiRequest(url, options = {}) {
@@ -981,7 +1101,7 @@
       });
       if (res.status === 401) {
         const errBody = await res.json().catch(() => ({}));
-        showAuthGate(errBody.configured === false ? 'setup' : 'login', 'admin');
+        showAuthGate(errBody.configured === false ? 'setup' : 'login', 'admin', '', currentGoogleClientId);
         return null;
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1054,12 +1174,15 @@
         });
         if (stRes.ok) {
           const st = await stRes.json();
+          if (st.googleClientId) {
+            ensureGoogleScriptLoaded(st.googleClientId);
+          }
           if (!st.configured) {
-            showAuthGate('setup', st.username || 'admin');
+            showAuthGate('setup', st.username || 'admin', '', st.googleClientId || '');
             return;
           }
           if (!st.authenticated) {
-            showAuthGate('login', st.username || 'admin');
+            showAuthGate('login', st.username || 'admin', '', st.googleClientId || '');
             return;
           }
         }

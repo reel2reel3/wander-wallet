@@ -673,7 +673,24 @@ function hashPassword(password, salt) {
   return crypto.pbkdf2Sync(String(password), String(salt), 100000, 64, 'sha512').toString('hex');
 }
 
+function getGoogleAuthConfig() {
+  const clientRow = db.prepare("SELECT value FROM settings WHERE key = 'auth_google_client_id'").get();
+  const emailsRow = db.prepare("SELECT value FROM settings WHERE key = 'auth_allowed_emails'").get();
+  const googleClientId = (process.env.GOOGLE_CLIENT_ID || (clientRow && clientRow.value) || '').trim();
+  const allowedEmailsRaw = (process.env.ALLOWED_GOOGLE_EMAILS || (emailsRow && emailsRow.value) || '').trim();
+  const allowedEmails = allowedEmailsRaw
+    .split(/[\s,;]+/)
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean);
+  return {
+    googleClientId,
+    allowedEmailsRaw,
+    allowedEmails
+  };
+}
+
 function getAuthCredentials() {
+  const googleCfg = getGoogleAuthConfig();
   const envPassword = process.env.APP_PASSWORD;
   const envUsername = process.env.APP_USERNAME || 'admin';
   if (envPassword && String(envPassword).trim().length > 0) {
@@ -681,6 +698,7 @@ function getAuthCredentials() {
       configured: true,
       envManaged: true,
       username: envUsername.trim(),
+      ...googleCfg,
       verify: (inputPass) => {
         const a = Buffer.from(String(inputPass));
         const b = Buffer.from(String(envPassword));
@@ -698,6 +716,7 @@ function getAuthCredentials() {
       configured: true,
       envManaged: false,
       username: (userRow && userRow.value) ? userRow.value : 'admin',
+      ...googleCfg,
       verify: (inputPass) => {
         const computed = hashPassword(inputPass, saltRow.value);
         const a = Buffer.from(computed, 'hex');
@@ -708,9 +727,10 @@ function getAuthCredentials() {
   }
 
   return {
-    configured: false,
+    configured: Boolean(googleCfg.googleClientId),
     envManaged: false,
     username: 'admin',
+    ...googleCfg,
     verify: () => false
   };
 }
@@ -852,28 +872,94 @@ const server = http.createServer(async (req, res) => {
         configured: creds.configured,
         envManaged: creds.envManaged,
         authenticated: Boolean(session),
-        username: session ? session.username : creds.username
+        username: session ? session.username : creds.username,
+        googleClientId: creds.googleClientId || '',
+        allowedEmails: session ? creds.allowedEmailsRaw : ''
       });
+    }
+
+    // Google Sign-In Verification Endpoint
+    if (pathname === '/api/auth/google' && method === 'POST') {
+      const creds = getAuthCredentials();
+      if (!creds.googleClientId) {
+        return sendJson(res, 400, { error: 'Google Client ID is not configured yet.' });
+      }
+      const body = await readJsonBody(req);
+      const idToken = String(body.credential || '').trim();
+      if (!idToken) {
+        return sendJson(res, 400, { error: 'Missing Google credential token.' });
+      }
+
+      const verifyRes = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
+      );
+      if (!verifyRes.ok) {
+        return sendJson(res, 401, { error: 'Invalid or expired Google Sign-In token.' });
+      }
+      const tokenInfo = await verifyRes.json();
+      if (tokenInfo.aud !== creds.googleClientId) {
+        return sendJson(res, 401, { error: 'Google token Client ID mismatch.' });
+      }
+      if (String(tokenInfo.email_verified) !== 'true') {
+        return sendJson(res, 401, { error: 'Google email is not verified.' });
+      }
+
+      const email = String(tokenInfo.email || '').trim().toLowerCase();
+      if (creds.allowedEmails.length === 0) {
+        // First Google sign-in automatically whitelists the owner's Gmail
+        db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('auth_allowed_emails', email);
+      } else if (!creds.allowedEmails.includes(email)) {
+        return sendJson(res, 403, {
+          error: `Access denied: ${email} is not on the approved Google email whitelist for this account.`
+        });
+      }
+
+      const sess = createAuthSession(email, 30);
+      return sendJson(
+        res,
+        200,
+        {
+          authenticated: true,
+          configured: true,
+          username: email,
+          token: sess.token,
+          expiresAt: sess.expiresAt
+        },
+        {
+          'Set-Cookie': `ww_session=${sess.token}; Path=/; Max-Age=${sess.maxAgeSeconds}; HttpOnly; SameSite=Lax`
+        }
+      );
     }
 
     // First-Time Admin Setup Endpoint
     if (pathname === '/api/auth/setup' && method === 'POST') {
       const creds = getAuthCredentials();
       if (creds.configured) {
-        return sendJson(res, 400, { error: 'Account password is already configured. Please sign in.' });
+        return sendJson(res, 400, { error: 'Account security is already configured. Please sign in.' });
       }
-      const body = await readJsonBody(req);
-      const username = String(body.username || 'admin').trim() || 'admin';
-      const password = String(body.password || '');
-      if (password.length < 4) {
+      const reqBody = await readJsonBody(req);
+      const username = String(reqBody.username || 'admin').trim() || 'admin';
+      const password = String(reqBody.password || '');
+      const googleClientId = String(reqBody.google_client_id || '').trim();
+      const allowedEmails = String(reqBody.allowed_emails || '').trim();
+
+      if (password && password.length < 4) {
         return sendJson(res, 400, { error: 'Password must be at least 4 characters.' });
       }
-      const salt = crypto.randomBytes(16).toString('hex');
-      const hash = hashPassword(password, salt);
+      if (!password && !googleClientId) {
+        return sendJson(res, 400, { error: 'Please create a password or enter a Google Client ID.' });
+      }
+
       const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
-      upsert.run('auth_username', username);
-      upsert.run('auth_password_salt', salt);
-      upsert.run('auth_password_hash', hash);
+      if (password) {
+        const salt = crypto.randomBytes(16).toString('hex');
+        const hash = hashPassword(password, salt);
+        upsert.run('auth_username', username);
+        upsert.run('auth_password_salt', salt);
+        upsert.run('auth_password_hash', hash);
+      }
+      if (googleClientId) upsert.run('auth_google_client_id', googleClientId);
+      if (allowedEmails) upsert.run('auth_allowed_emails', allowedEmails);
 
       const sess = createAuthSession(username, 30);
       return sendJson(
@@ -941,36 +1027,46 @@ const server = http.createServer(async (req, res) => {
       );
     }
 
-    // Change Password Endpoint (requires active session)
+    // Change Password & Google OAuth Settings Endpoint (requires active session)
     if (pathname === '/api/auth/change-password' && method === 'POST') {
       const session = getAuthenticatedSession(req, parsedUrl);
       if (!session) {
         return sendJson(res, 401, { error: 'Authentication required.' });
       }
       const creds = getAuthCredentials();
-      if (creds.envManaged) {
-        return sendJson(res, 400, {
-          error: 'Password is managed via Railway APP_PASSWORD environment variable. Update it in Railway Settings.'
-        });
-      }
       const body = await readJsonBody(req);
-      const currentPass = String(body.current_password || '');
-      const newUsername = String(body.new_username || creds.username).trim() || creds.username;
-      const newPass = String(body.new_password || '');
-
-      if (!creds.verify(currentPass)) {
-        return sendJson(res, 401, { error: 'Current password is incorrect.' });
-      }
-      if (newPass.length < 4) {
-        return sendJson(res, 400, { error: 'New password must be at least 4 characters.' });
-      }
-
-      const salt = crypto.randomBytes(16).toString('hex');
-      const hash = hashPassword(newPass, salt);
       const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
-      upsert.run('auth_username', newUsername);
-      upsert.run('auth_password_salt', salt);
-      upsert.run('auth_password_hash', hash);
+
+      if (body.google_client_id !== undefined) {
+        upsert.run('auth_google_client_id', String(body.google_client_id).trim());
+      }
+      if (body.allowed_emails !== undefined) {
+        upsert.run('auth_allowed_emails', String(body.allowed_emails).trim());
+      }
+
+      const newPass = String(body.new_password || '');
+      const newUsername = String(body.new_username || creds.username).trim() || creds.username;
+
+      if (newPass) {
+        if (creds.envManaged) {
+          return sendJson(res, 400, {
+            error: 'Password is managed via Railway APP_PASSWORD environment variable. Google settings were saved.'
+          });
+        }
+        const currentPass = String(body.current_password || '');
+        const hashRow = db.prepare("SELECT value FROM settings WHERE key = 'auth_password_hash'").get();
+        if (hashRow && hashRow.value && !creds.verify(currentPass)) {
+          return sendJson(res, 401, { error: 'Current password is incorrect.' });
+        }
+        if (newPass.length < 4) {
+          return sendJson(res, 400, { error: 'New password must be at least 4 characters.' });
+        }
+        const salt = crypto.randomBytes(16).toString('hex');
+        const hash = hashPassword(newPass, salt);
+        upsert.run('auth_username', newUsername);
+        upsert.run('auth_password_salt', salt);
+        upsert.run('auth_password_hash', hash);
+      }
 
       return sendJson(res, 200, { ok: true, username: newUsername });
     }
