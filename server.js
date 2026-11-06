@@ -640,7 +640,475 @@ function seedIfNeeded() {
   }
 }
 
+const DEFAULT_REWARDS_DATA = {
+  programs: [
+    {
+      id: 'prog-chase-ur',
+      name: 'Chase Ultimate Rewards',
+      ecosystem: 'bank',
+      status_tier: 'Sapphire Reserve + Ink',
+      member_id: 'UR-8841-902',
+      points: 342500,
+      cpp: 2.0,
+      qualifying_nights: 0,
+      target_nights: 0,
+      metric_label: '',
+      expiration_policy: 'Never expires while card open',
+      transfer_partners: 'World of Hyatt (1:1 Instant), United (1:1), Aeroplan (1:1), British Airways Avios (1:1), Flying Blue (1:1), Virgin Atlantic (1:1)',
+      notes: 'Primary hotel transfer hub for World of Hyatt 1:1.'
+    },
+    {
+      id: 'prog-amex-mr',
+      name: 'Amex Membership Rewards',
+      ecosystem: 'bank',
+      status_tier: 'Biz Platinum + Gold',
+      member_id: 'MR-4410-778',
+      points: 418000,
+      cpp: 2.0,
+      qualifying_nights: 0,
+      target_nights: 0,
+      metric_label: '',
+      expiration_policy: 'Never expires while 1 MR card open',
+      transfer_partners: 'ANA (1:1 ~48h), Aeroplan (1:1 Instant), Delta (1:1), Flying Blue (1:1), Avios (1:1), Hilton (1:2)',
+      notes: 'Best for international Business Class flights (ANA, Aeroplan, Flying Blue).'
+    },
+    {
+      id: 'prog-capone',
+      name: 'Capital One Miles',
+      ecosystem: 'bank',
+      status_tier: 'Venture X',
+      member_id: 'C1-9920-314',
+      points: 165000,
+      cpp: 1.85,
+      qualifying_nights: 0,
+      target_nights: 0,
+      metric_label: '',
+      expiration_policy: 'Never expires while card open',
+      transfer_partners: 'Aeroplan (1:1), Flying Blue (1:1), British Airways (1:1), Turkish Miles&Smiles (1:1), Wyndham (1:1)',
+      notes: '2x catch-all miles + can erase miscellaneous travel purchases at 1.0¢/pt.'
+    },
+    {
+      id: 'prog-bilt',
+      name: 'Bilt Rewards',
+      ecosystem: 'bank',
+      status_tier: 'Gold Status',
+      member_id: 'BILT-5521',
+      points: 94000,
+      cpp: 2.1,
+      qualifying_nights: 0,
+      target_nights: 0,
+      metric_label: '',
+      expiration_policy: 'Never expires',
+      transfer_partners: 'World of Hyatt (1:1 Instant), Alaska Airlines (1:1), United (1:1), Aeroplan (1:1), Flying Blue (1:1)',
+      notes: 'Valuable 1:1 transfer partner for both Alaska Airlines & World of Hyatt.'
+    },
+    {
+      id: 'prog-hyatt',
+      name: 'World of Hyatt',
+      ecosystem: 'hotel',
+      status_tier: 'Globalist',
+      member_id: '520918442',
+      points: 186000,
+      cpp: 2.1,
+      qualifying_nights: 48,
+      target_nights: 60,
+      metric_label: 'Qualifying Nights toward Globalist',
+      expiration_policy: '24 months inactivity',
+      transfer_partners: 'Receive 1:1 from Chase UR & Bilt Rewards',
+      notes: 'Free suite upgrades, 4pm late checkout, waived resort fees & free breakfast for 2.'
+    },
+    {
+      id: 'prog-marriott',
+      name: 'Marriott Bonvoy',
+      ecosystem: 'hotel',
+      status_tier: 'Titanium Elite',
+      member_id: '881049215',
+      points: 274000,
+      cpp: 0.85,
+      qualifying_nights: 62,
+      target_nights: 75,
+      metric_label: 'Elite Nights (incl. 40 CC nights)',
+      expiration_policy: '24 months inactivity',
+      transfer_partners: '5th Night Free on award stays + transfers to 35+ airlines (3:1)',
+      notes: 'Stacks 25 nights (Brilliant) + 15 nights (Business card) = 40 automatic Elite Nights/yr.'
+    },
+    {
+      id: 'prog-hilton',
+      name: 'Hilton Honors',
+      ecosystem: 'hotel',
+      status_tier: 'Diamond',
+      member_id: '774190231',
+      points: 310000,
+      cpp: 0.5,
+      qualifying_nights: 28,
+      target_nights: 60,
+      metric_label: 'Nights (Auto-Diamond via Aspire)',
+      expiration_policy: '24 months inactivity',
+      transfer_partners: 'Amex MR transfers 1:2 (often 1:2.6 with bonus) • 5th Night Free on points',
+      notes: 'Automatic top-tier Diamond status via Hilton Aspire card.'
+    },
+    {
+      id: 'prog-united',
+      name: 'United MileagePlus',
+      ecosystem: 'airline',
+      status_tier: 'Premier Platinum',
+      member_id: 'UA-994120',
+      points: 142000,
+      cpp: 1.35,
+      qualifying_nights: 11400,
+      target_nights: 15000,
+      metric_label: 'PQP toward Premier 1K',
+      expiration_policy: 'Miles never expire',
+      transfer_partners: 'Star Alliance • Instant 1:1 from Chase UR & Bilt',
+      notes: 'Excursionist Perk gives a free intra-region one-way flight on multi-city award trips.'
+    },
+    {
+      id: 'prog-aeroplan',
+      name: 'Air Canada Aeroplan',
+      ecosystem: 'airline',
+      status_tier: '50K Elite (Star Gold)',
+      member_id: 'AC-3381904',
+      points: 115000,
+      cpp: 1.65,
+      qualifying_nights: 38,
+      target_nights: 50,
+      metric_label: 'Status Qualifying Segments',
+      expiration_policy: '18 months inactivity',
+      transfer_partners: 'Star Alliance + Emirates/Etihad • 1:1 from Amex, Chase, CapOne, Bilt',
+      notes: 'Add a multi-day stopover on any international one-way award for just 5,000 points!'
+    },
+    {
+      id: 'prog-ana',
+      name: 'ANA Mileage Club',
+      ecosystem: 'airline',
+      status_tier: 'Bronze',
+      member_id: 'NH-4429108',
+      points: 95000,
+      cpp: 1.9,
+      qualifying_nights: 0,
+      target_nights: 0,
+      metric_label: '',
+      expiration_policy: 'Hard 36-month expiration from transfer',
+      transfer_partners: 'Star Alliance • 1:1 from Amex MR (~48 hrs)',
+      notes: 'Sweet spot: US to Tokyo roundtrip in "The Room" Business Class for 105k–110k miles.'
+    }
+  ],
+  certificates: [
+    {
+      id: 'cert-hyatt-14',
+      title: 'World of Hyatt Cat 1–4 Free Night Award',
+      type: 'Free Night Certificate',
+      program: 'World of Hyatt',
+      source_card: 'Chase World of Hyatt Card',
+      cap_details: 'Category 1–4 Standard Room (up to 18,000 pts peak)',
+      expires_date: '2026-12-18',
+      est_value_usd: 320,
+      status: 'available',
+      notes: 'Expiring soon! Use for Hyatt Centric or pre-flight airport hotel.'
+    },
+    {
+      id: 'cert-hyatt-17',
+      title: 'World of Hyatt Cat 1–7 Free Night Award',
+      type: 'Free Night Certificate',
+      program: 'World of Hyatt',
+      source_card: '60-Night Globalist Milestone',
+      cap_details: 'Category 1–7 Standard Room (up to 35,000 pts peak)',
+      expires_date: '2027-03-15',
+      est_value_usd: 780,
+      status: 'available',
+      notes: 'Save for Park Hyatt Kyoto or Andaz Tokyo Toranomon Hills.'
+    },
+    {
+      id: 'cert-marriott-85k',
+      title: 'Marriott Bonvoy 85,000-Pt Free Night Award',
+      type: 'Free Night Certificate',
+      program: 'Marriott Bonvoy',
+      source_card: 'Amex Marriott Bonvoy Brilliant',
+      cap_details: 'Up to 85k pts + 15k point top-off (100,000 pts max)',
+      expires_date: '2027-04-30',
+      est_value_usd: 680,
+      status: 'available',
+      notes: 'Can top off up to 100k pts for Ritz-Carlton Kyoto or Tokyo EDITION.'
+    },
+    {
+      id: 'cert-marriott-35k',
+      title: 'Marriott Bonvoy 35,000-Pt Free Night Award',
+      type: 'Free Night Certificate',
+      program: 'Marriott Bonvoy',
+      source_card: 'Chase Marriott Boundless',
+      cap_details: 'Up to 35k pts + 15k point top-off (50,000 pts max)',
+      expires_date: '2027-02-10',
+      est_value_usd: 260,
+      status: 'available',
+      notes: 'Good for 40k–50k Autograph Collection or Moxy/Courtyard shoot nights.'
+    },
+    {
+      id: 'cert-hilton-aspire',
+      title: 'Hilton Honors Uncapped Free Night Reward',
+      type: 'Free Night Certificate',
+      program: 'Hilton Honors',
+      source_card: 'Amex Hilton Honors Aspire',
+      cap_details: 'Uncapped Standard Room — Any Night of the Week',
+      expires_date: '2027-06-01',
+      est_value_usd: 850,
+      status: 'available',
+      notes: 'No point cap on Standard Room rewards! Use at Waldorf Astoria, Conrad, or Roku Kyoto LXR.'
+    },
+    {
+      id: 'cert-hyatt-sua',
+      title: 'Hyatt Suite Upgrade Award (SUA — Up to 7 Nights)',
+      type: 'Suite / Flight Upgrade',
+      program: 'World of Hyatt',
+      source_card: '50-Night Milestone Reward',
+      cap_details: 'Confirm a Standard Suite at time of booking for up to 7 nights',
+      expires_date: '2027-02-28',
+      est_value_usd: 900,
+      status: 'available',
+      notes: 'Locks in a confirmed suite months before the shoot.'
+    },
+    {
+      id: 'cert-alaska-comp',
+      title: 'Alaska Airlines Famous Companion Fare ($99 + tax)',
+      type: 'Companion Pass',
+      program: 'Alaska Mileage Plan',
+      source_card: 'Alaska Airlines Visa Signature',
+      cap_details: 'Roundtrip Economy Companion Ticket for $99 + taxes ($23 min)',
+      expires_date: '2027-01-20',
+      est_value_usd: 480,
+      status: 'available',
+      notes: 'Great for 2-person crew flights across North America or Hawaii.'
+    },
+    {
+      id: 'cert-priority-pass',
+      title: 'Priority Pass Select + Centurion & CapOne Lounges',
+      type: 'Lounge & Security Perk',
+      program: 'Amex Platinum / Venture X',
+      source_card: 'Amex Business Platinum & Venture X',
+      cap_details: '1,400+ Airport Lounges Worldwide',
+      expires_date: '2027-12-31',
+      est_value_usd: 469,
+      status: 'available',
+      notes: 'Saves $60–$100 per layover on crew airport meals and Wi-Fi.'
+    },
+    {
+      id: 'cert-global-entry',
+      title: 'Global Entry / TSA PreCheck & CLEAR Plus Membership',
+      type: 'Lounge & Security Perk',
+      program: 'US CBP / CLEAR',
+      source_card: 'Amex Business Platinum ($199 CLEAR + $120 GE)',
+      cap_details: 'Expedited US Customs & TSA PreCheck lanes with Pelican camera cases',
+      expires_date: '2028-08-15',
+      est_value_usd: 319,
+      status: 'available',
+      notes: '100% covered via annual card statement credits.'
+    }
+  ],
+  cards: [
+    {
+      id: 'card-amex-biz-plat',
+      name: 'Amex Business Platinum',
+      issuer: 'American Express',
+      ecosystem: 'Amex Membership Rewards',
+      annual_fee: 695,
+      renewal_date: '2027-03-01',
+      multipliers: '5x Flights & Prepaid Hotels • 1.5x on $5,000+ & Camera Gear/Electronics',
+      best_for: 'Flights, $5k+ Invoices, Camera/Electronics & Airport Lounges',
+      ftf: 'None ($0 Foreign Tx Fee)',
+      sub_active: false,
+      sub_target_usd: 15000,
+      sub_spent_manual_usd: 15000,
+      sub_bonus_label: '150,000 Amex MR pts (Earned ✓)',
+      sub_deadline: '2026-08-01',
+      credits: [
+        { id: 'c1', name: '$400 Dell Technologies Credit ($200 Jan–Jun / $200 Jul–Dec)', total_usd: 400, used_usd: 400 },
+        { id: 'c2', name: '$200 Airline Incidental Fee Credit (Baggage / United TravelBank)', total_usd: 200, used_usd: 200 },
+        { id: 'c3', name: '$199 CLEAR Plus Annual Membership Credit', total_usd: 199, used_usd: 199 },
+        { id: 'c4', name: '$150 Adobe Creative Cloud / Premiere Pro Credit', total_usd: 150, used_usd: 150 },
+        { id: 'c5', name: '$120 Wireless Phone Service Credit ($10/mo)', total_usd: 120, used_usd: 100 }
+      ]
+    },
+    {
+      id: 'card-chase-ink',
+      name: 'Chase Ink Business Preferred',
+      issuer: 'Chase',
+      ecosystem: 'Chase Ultimate Rewards',
+      annual_fee: 95,
+      renewal_date: '2027-05-15',
+      multipliers: '3x All Travel (Hotels, JR Rail, Ferries, Flights, Campers) • 3x Internet, Shipping & Ads',
+      best_for: '3x Overseas Trains, Ferries, Campervans, Hotels & Tolls',
+      ftf: 'None ($0 Foreign Tx Fee)',
+      sub_active: true,
+      sub_target_usd: 8000,
+      sub_spent_manual_usd: 3400,
+      sub_bonus_label: '100,000 Chase UR pts ($2,000 value)',
+      sub_deadline: '2026-12-20',
+      credits: [
+        { id: 'c1', name: 'Cell Phone Protection ($1,000/claim for crew phones)', total_usd: 150, used_usd: 150 },
+        { id: 'c2', name: 'Primary Rental Car CDW Collision Coverage', total_usd: 200, used_usd: 200 }
+      ]
+    },
+    {
+      id: 'card-venture-x',
+      name: 'Capital One Venture X',
+      issuer: 'Capital One',
+      ecosystem: 'Capital One Miles',
+      annual_fee: 395,
+      renewal_date: '2027-02-01',
+      multipliers: '2x Everywhere Catch-All • 10x Portal Hotels & Rental Cars • 5x Portal Flights',
+      best_for: '2x Everywhere Catch-All (Permits, Local Fixers, Non-Category Spend)',
+      ftf: 'None ($0 Foreign Tx Fee)',
+      sub_active: false,
+      sub_target_usd: 4000,
+      sub_spent_manual_usd: 4000,
+      sub_bonus_label: '75,000 Capital One Miles (Earned ✓)',
+      sub_deadline: '2026-05-01',
+      credits: [
+        { id: 'c1', name: '$300 Annual Capital One Travel Portal Credit', total_usd: 300, used_usd: 300 },
+        { id: 'c2', name: '10,000 Anniversary Bonus Miles ($185 value)', total_usd: 185, used_usd: 185 }
+      ]
+    },
+    {
+      id: 'card-amex-gold',
+      name: 'Amex Gold Card',
+      issuer: 'American Express',
+      ecosystem: 'Amex Membership Rewards',
+      annual_fee: 325,
+      renewal_date: '2027-04-10',
+      multipliers: '4x Restaurants Worldwide • 4x US Supermarkets • 3x Flights Booked Direct',
+      best_for: '4x Crew Meals, Restaurants, Street Food & Groceries',
+      ftf: 'None ($0 Foreign Tx Fee)',
+      sub_active: true,
+      sub_target_usd: 6000,
+      sub_spent_manual_usd: 4250,
+      sub_bonus_label: '90,000 Amex MR pts ($1,800 value)',
+      sub_deadline: '2026-12-05',
+      credits: [
+        { id: 'c1', name: '$120 Uber Cash ($10/mo Rides or Uber Eats)', total_usd: 120, used_usd: 100 },
+        { id: 'c2', name: '$120 Dining Credit ($10/mo Grubhub / Five Guys)', total_usd: 120, used_usd: 90 },
+        { id: 'c3', name: '$100 Resy Restaurant Credit ($50 Jan–Jun / $50 Jul–Dec)', total_usd: 100, used_usd: 50 },
+        { id: 'c4', name: '$84 Dunkin’ Credit ($7/mo)', total_usd: 84, used_usd: 63 }
+      ]
+    },
+    {
+      id: 'card-hilton-aspire',
+      name: 'Amex Hilton Honors Aspire',
+      issuer: 'American Express',
+      ecosystem: 'Hilton Honors',
+      annual_fee: 550,
+      renewal_date: '2027-06-01',
+      multipliers: '14x Hilton Portfolio (34x total w/ Diamond) • 7x Flights & Dining',
+      best_for: 'Hilton Stays, Automatic Diamond Status, Resort & Airline Credits',
+      ftf: 'None ($0 Foreign Tx Fee)',
+      sub_active: false,
+      sub_target_usd: 6000,
+      sub_spent_manual_usd: 6000,
+      sub_bonus_label: '175,000 Hilton pts (Earned ✓)',
+      sub_deadline: '2026-06-01',
+      credits: [
+        { id: 'c1', name: '$400 Hilton Resort Credit ($200 Jan–Jun / $200 Jul–Dec)', total_usd: 400, used_usd: 200 },
+        { id: 'c2', name: '$200 Flight Credit ($50 per quarter on any airline)', total_usd: 200, used_usd: 150 },
+        { id: 'c3', name: 'Annual Uncapped Free Night Reward (worth ~$850)', total_usd: 850, used_usd: 850 }
+      ]
+    },
+    {
+      id: 'card-hyatt',
+      name: 'Chase World of Hyatt Card',
+      issuer: 'Chase',
+      ecosystem: 'World of Hyatt',
+      annual_fee: 95,
+      renewal_date: '2026-12-18',
+      multipliers: '9x Total at Hyatt (4x Card + 5x Base) • 2x Dining, Flights & Local Transit',
+      best_for: 'Hyatt Stays + 5 Automatic Elite Nights + Cat 1–4 Free Night',
+      ftf: 'None ($0 Foreign Tx Fee)',
+      sub_active: false,
+      sub_target_usd: 3000,
+      sub_spent_manual_usd: 3000,
+      sub_bonus_label: '60,000 Hyatt pts (Earned ✓)',
+      sub_deadline: '2026-03-01',
+      credits: [
+        { id: 'c1', name: 'Annual Category 1–4 Free Night Certificate (~$320 value)', total_usd: 320, used_usd: 320 },
+        { id: 'c2', name: '5 Tier-Qualifying Night Credits toward Globalist', total_usd: 100, used_usd: 100 }
+      ]
+    }
+  ],
+  redemptions: [
+    {
+      id: 'red-jp-1',
+      trip_id: 'trip-japan-2026',
+      date: '2026-11-07',
+      title: 'Park Hyatt Kyoto — 2 Nights Standard Suite (Points + SUA)',
+      program: 'World of Hyatt',
+      redemption_type: 'Points + Suite Upgrade',
+      points_used: 90000,
+      cash_price_usd: 3400,
+      taxes_fees_usd: 0,
+      net_saved_usd: 3400,
+      cpp: 3.78,
+      notes: 'Transferred 90k Chase UR -> Hyatt 1:1 instant + applied Globalist Suite Upgrade Award.'
+    },
+    {
+      id: 'red-jp-2',
+      trip_id: 'trip-japan-2026',
+      date: '2026-11-01',
+      title: 'Conrad Tokyo Bay View Suite — 1 Night Arrival Stay',
+      program: 'Hilton Honors',
+      redemption_type: 'Free Night Certificate',
+      points_used: 0,
+      cash_price_usd: 920,
+      taxes_fees_usd: 0,
+      net_saved_usd: 920,
+      cpp: 0,
+      notes: 'Used Hilton Aspire Uncapped Free Night Certificate + free Diamond breakfast.'
+    },
+    {
+      id: 'red-ch-1',
+      trip_id: 'trip-alps-2026',
+      date: '2026-09-14',
+      title: 'SWISS Business Class JFK → Zurich (2 Crew Lie-Flat Seats)',
+      program: 'Air Canada Aeroplan',
+      redemption_type: 'Airline Miles',
+      points_used: 140000,
+      cash_price_usd: 6400,
+      taxes_fees_usd: 168,
+      net_saved_usd: 6232,
+      cpp: 4.45,
+      notes: '70k Aeroplan miles per person transferred 1:1 from Amex MR with $0 fuel surcharges.'
+    },
+    {
+      id: 'red-is-1',
+      trip_id: 'trip-iceland-2026',
+      date: '2026-10-17',
+      title: 'The Reykjavik EDITION — Finale Wrap Night',
+      program: 'Marriott Bonvoy',
+      redemption_type: 'Free Night Certificate + Top-Off',
+      points_used: 12000,
+      cash_price_usd: 740,
+      taxes_fees_usd: 0,
+      net_saved_usd: 740,
+      cpp: 6.17,
+      notes: '85k Marriott Brilliant Free Night Cert + 12k point top-off.'
+    }
+  ]
+};
+
 seedIfNeeded();
+
+function getRewardsData() {
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'rewards_data'").get();
+  if (row && row.value) {
+    try {
+      const parsed = JSON.parse(row.value);
+      if (parsed && Array.isArray(parsed.programs)) {
+        return parsed;
+      }
+    } catch (e) {}
+  }
+  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
+    'rewards_data',
+    JSON.stringify(DEFAULT_REWARDS_DATA)
+  );
+  return DEFAULT_REWARDS_DATA;
+}
 
 function getSettingsMap() {
   const rows = db.prepare('SELECT key, value FROM settings').all();
@@ -651,7 +1119,7 @@ function getSettingsMap() {
     exchange_rates: DEFAULT_RATES
   };
   for (const r of rows) {
-    if (r.key.startsWith('auth_')) continue;
+    if (r.key.startsWith('auth_') || r.key === 'rewards_data') continue;
     if (r.key === 'exchange_rates') {
       try {
         map.exchange_rates = { ...DEFAULT_RATES, ...JSON.parse(r.value) };
@@ -793,12 +1261,14 @@ function getBootstrapData() {
   const trips = db.prepare('SELECT * FROM trips ORDER BY start_date DESC').all();
   const expenses = db.prepare('SELECT * FROM expenses ORDER BY expense_date DESC, created_at DESC').all();
   const revenues = db.prepare('SELECT * FROM revenues ORDER BY revenue_date DESC, created_at DESC').all();
+  const rewards = getRewardsData();
 
   return {
     settings,
     trips,
     expenses,
-    revenues
+    revenues,
+    rewards
   };
 }
 
@@ -1286,6 +1756,23 @@ const server = http.createServer(async (req, res) => {
       if (body.home_currency !== undefined) upsert.run('home_currency', String(body.home_currency));
       if (body.meal_deduction_rate !== undefined) upsert.run('meal_deduction_rate', String(body.meal_deduction_rate));
       if (body.exchange_rates !== undefined) upsert.run('exchange_rates', JSON.stringify(body.exchange_rates));
+      return sendJson(res, 200, getBootstrapData());
+    }
+
+    // Rewards & Loyalty Portfolio update
+    if (pathname === '/api/rewards' && method === 'PUT') {
+      const body = await readJsonBody(req);
+      const current = getRewardsData();
+      const nextRewards = {
+        programs: Array.isArray(body.programs) ? body.programs : current.programs,
+        certificates: Array.isArray(body.certificates) ? body.certificates : current.certificates,
+        cards: Array.isArray(body.cards) ? body.cards : current.cards,
+        redemptions: Array.isArray(body.redemptions) ? body.redemptions : current.redemptions
+      };
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
+        'rewards_data',
+        JSON.stringify(nextRewards)
+      );
       return sendJson(res, 200, getBootstrapData());
     }
 

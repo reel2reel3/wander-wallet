@@ -529,13 +529,467 @@
           status: 'paid',
           revenue_date: '2026-09-30'
         }
+      ],
+      rewards: getDefaultRewardsData()
+    };
+  }
+
+  function getDefaultRewardsData() {
+    return {
+      programs: [
+        {
+          id: 'prog-chase-ur',
+          name: 'Chase Ultimate Rewards',
+          ecosystem: 'bank',
+          status_tier: 'Sapphire Reserve + Ink',
+          member_id: 'UR-8841-902',
+          points: 342500,
+          cpp: 2.0,
+          qualifying_nights: 0,
+          target_nights: 0,
+          metric_label: '',
+          expiration_policy: 'Never expires while card open',
+          transfer_partners: 'World of Hyatt (1:1 Instant), United (1:1), Aeroplan (1:1), British Airways Avios (1:1), Flying Blue (1:1), Virgin Atlantic (1:1)',
+          notes: 'Primary hotel transfer hub for World of Hyatt 1:1.'
+        },
+        {
+          id: 'prog-amex-mr',
+          name: 'Amex Membership Rewards',
+          ecosystem: 'bank',
+          status_tier: 'Biz Platinum + Gold',
+          member_id: 'MR-4410-778',
+          points: 418000,
+          cpp: 2.0,
+          qualifying_nights: 0,
+          target_nights: 0,
+          metric_label: '',
+          expiration_policy: 'Never expires while 1 MR card open',
+          transfer_partners: 'ANA (1:1 ~48h), Aeroplan (1:1 Instant), Delta (1:1), Flying Blue (1:1), Avios (1:1), Hilton (1:2)',
+          notes: 'Best for international Business Class flights (ANA, Aeroplan, Flying Blue).'
+        },
+        {
+          id: 'prog-capone',
+          name: 'Capital One Miles',
+          ecosystem: 'bank',
+          status_tier: 'Venture X',
+          member_id: 'C1-9920-314',
+          points: 165000,
+          cpp: 1.85,
+          qualifying_nights: 0,
+          target_nights: 0,
+          metric_label: '',
+          expiration_policy: 'Never expires while card open',
+          transfer_partners: 'Aeroplan (1:1), Flying Blue (1:1), British Airways (1:1), Turkish Miles&Smiles (1:1), Wyndham (1:1)',
+          notes: '2x catch-all miles + can erase miscellaneous travel purchases at 1.0¢/pt.'
+        },
+        {
+          id: 'prog-bilt',
+          name: 'Bilt Rewards',
+          ecosystem: 'bank',
+          status_tier: 'Gold Status',
+          member_id: 'BILT-5521',
+          points: 94000,
+          cpp: 2.1,
+          qualifying_nights: 0,
+          target_nights: 0,
+          metric_label: '',
+          expiration_policy: 'Never expires',
+          transfer_partners: 'World of Hyatt (1:1 Instant), Alaska Airlines (1:1), United (1:1), Aeroplan (1:1), Flying Blue (1:1)',
+          notes: 'Valuable 1:1 transfer partner for both Alaska Airlines & World of Hyatt.'
+        },
+        {
+          id: 'prog-hyatt',
+          name: 'World of Hyatt',
+          ecosystem: 'hotel',
+          status_tier: 'Globalist',
+          member_id: '520918442',
+          points: 186000,
+          cpp: 2.1,
+          qualifying_nights: 48,
+          target_nights: 60,
+          metric_label: 'Qualifying Nights toward Globalist',
+          expiration_policy: '24 months inactivity',
+          transfer_partners: 'Receive 1:1 from Chase UR & Bilt Rewards',
+          notes: 'Free suite upgrades, 4pm late checkout, waived resort fees & free breakfast for 2.'
+        },
+        {
+          id: 'prog-marriott',
+          name: 'Marriott Bonvoy',
+          ecosystem: 'hotel',
+          status_tier: 'Titanium Elite',
+          member_id: '881049215',
+          points: 274000,
+          cpp: 0.85,
+          qualifying_nights: 62,
+          target_nights: 75,
+          metric_label: 'Elite Nights (incl. 40 CC nights)',
+          expiration_policy: '24 months inactivity',
+          transfer_partners: '5th Night Free on award stays + transfers to 35+ airlines (3:1)',
+          notes: 'Stacks 25 nights (Brilliant) + 15 nights (Business card) = 40 automatic Elite Nights/yr.'
+        },
+        {
+          id: 'prog-hilton',
+          name: 'Hilton Honors',
+          ecosystem: 'hotel',
+          status_tier: 'Diamond',
+          member_id: '774190231',
+          points: 310000,
+          cpp: 0.5,
+          qualifying_nights: 28,
+          target_nights: 60,
+          metric_label: 'Nights (Auto-Diamond via Aspire)',
+          expiration_policy: '24 months inactivity',
+          transfer_partners: 'Amex MR transfers 1:2 (often 1:2.6 with bonus) • 5th Night Free on points',
+          notes: 'Automatic top-tier Diamond status via Hilton Aspire card.'
+        },
+        {
+          id: 'prog-united',
+          name: 'United MileagePlus',
+          ecosystem: 'airline',
+          status_tier: 'Premier Platinum',
+          member_id: 'UA-994120',
+          points: 142000,
+          cpp: 1.35,
+          qualifying_nights: 11400,
+          target_nights: 15000,
+          metric_label: 'PQP toward Premier 1K',
+          expiration_policy: 'Miles never expire',
+          transfer_partners: 'Star Alliance • Instant 1:1 from Chase UR & Bilt',
+          notes: 'Excursionist Perk gives a free intra-region one-way flight on multi-city award trips.'
+        },
+        {
+          id: 'prog-aeroplan',
+          name: 'Air Canada Aeroplan',
+          ecosystem: 'airline',
+          status_tier: '50K Elite (Star Gold)',
+          member_id: 'AC-3381904',
+          points: 115000,
+          cpp: 1.65,
+          qualifying_nights: 38,
+          target_nights: 50,
+          metric_label: 'Status Qualifying Segments',
+          expiration_policy: '18 months inactivity',
+          transfer_partners: 'Star Alliance + Emirates/Etihad • 1:1 from Amex, Chase, CapOne, Bilt',
+          notes: 'Add a multi-day stopover on any international one-way award for just 5,000 points!'
+        },
+        {
+          id: 'prog-ana',
+          name: 'ANA Mileage Club',
+          ecosystem: 'airline',
+          status_tier: 'Bronze',
+          member_id: 'NH-4429108',
+          points: 95000,
+          cpp: 1.9,
+          qualifying_nights: 0,
+          target_nights: 0,
+          metric_label: '',
+          expiration_policy: 'Hard 36-month expiration from transfer',
+          transfer_partners: 'Star Alliance • 1:1 from Amex MR (~48 hrs)',
+          notes: 'Sweet spot: US to Tokyo roundtrip in "The Room" Business Class for 105k–110k miles.'
+        }
+      ],
+      certificates: [
+        {
+          id: 'cert-hyatt-14',
+          title: 'World of Hyatt Cat 1–4 Free Night Award',
+          type: 'Free Night Certificate',
+          program: 'World of Hyatt',
+          source_card: 'Chase World of Hyatt Card',
+          cap_details: 'Category 1–4 Standard Room (up to 18,000 pts peak)',
+          expires_date: '2026-12-18',
+          est_value_usd: 320,
+          status: 'available',
+          notes: 'Expiring soon! Use for Hyatt Centric or pre-flight airport hotel.'
+        },
+        {
+          id: 'cert-hyatt-17',
+          title: 'World of Hyatt Cat 1–7 Free Night Award',
+          type: 'Free Night Certificate',
+          program: 'World of Hyatt',
+          source_card: '60-Night Globalist Milestone',
+          cap_details: 'Category 1–7 Standard Room (up to 35,000 pts peak)',
+          expires_date: '2027-03-15',
+          est_value_usd: 780,
+          status: 'available',
+          notes: 'Save for Park Hyatt Kyoto or Andaz Tokyo Toranomon Hills.'
+        },
+        {
+          id: 'cert-marriott-85k',
+          title: 'Marriott Bonvoy 85,000-Pt Free Night Award',
+          type: 'Free Night Certificate',
+          program: 'Marriott Bonvoy',
+          source_card: 'Amex Marriott Bonvoy Brilliant',
+          cap_details: 'Up to 85k pts + 15k point top-off (100,000 pts max)',
+          expires_date: '2027-04-30',
+          est_value_usd: 680,
+          status: 'available',
+          notes: 'Can top off up to 100k pts for Ritz-Carlton Kyoto or Tokyo EDITION.'
+        },
+        {
+          id: 'cert-marriott-35k',
+          title: 'Marriott Bonvoy 35,000-Pt Free Night Award',
+          type: 'Free Night Certificate',
+          program: 'Marriott Bonvoy',
+          source_card: 'Chase Marriott Boundless',
+          cap_details: 'Up to 35k pts + 15k point top-off (50,000 pts max)',
+          expires_date: '2027-02-10',
+          est_value_usd: 260,
+          status: 'available',
+          notes: 'Good for 40k–50k Autograph Collection or Moxy/Courtyard shoot nights.'
+        },
+        {
+          id: 'cert-hilton-aspire',
+          title: 'Hilton Honors Uncapped Free Night Reward',
+          type: 'Free Night Certificate',
+          program: 'Hilton Honors',
+          source_card: 'Amex Hilton Honors Aspire',
+          cap_details: 'Uncapped Standard Room — Any Night of the Week',
+          expires_date: '2027-06-01',
+          est_value_usd: 850,
+          status: 'available',
+          notes: 'No point cap on Standard Room rewards! Use at Waldorf Astoria, Conrad, or Roku Kyoto LXR.'
+        },
+        {
+          id: 'cert-hyatt-sua',
+          title: 'Hyatt Suite Upgrade Award (SUA — Up to 7 Nights)',
+          type: 'Suite / Flight Upgrade',
+          program: 'World of Hyatt',
+          source_card: '50-Night Milestone Reward',
+          cap_details: 'Confirm a Standard Suite at time of booking for up to 7 nights',
+          expires_date: '2027-02-28',
+          est_value_usd: 900,
+          status: 'available',
+          notes: 'Locks in a confirmed suite months before the shoot.'
+        },
+        {
+          id: 'cert-alaska-comp',
+          title: 'Alaska Airlines Famous Companion Fare ($99 + tax)',
+          type: 'Companion Pass',
+          program: 'Alaska Mileage Plan',
+          source_card: 'Alaska Airlines Visa Signature',
+          cap_details: 'Roundtrip Economy Companion Ticket for $99 + taxes ($23 min)',
+          expires_date: '2027-01-20',
+          est_value_usd: 480,
+          status: 'available',
+          notes: 'Great for 2-person crew flights across North America or Hawaii.'
+        },
+        {
+          id: 'cert-priority-pass',
+          title: 'Priority Pass Select + Centurion & CapOne Lounges',
+          type: 'Lounge & Security Perk',
+          program: 'Amex Platinum / Venture X',
+          source_card: 'Amex Business Platinum & Venture X',
+          cap_details: '1,400+ Airport Lounges Worldwide',
+          expires_date: '2027-12-31',
+          est_value_usd: 469,
+          status: 'available',
+          notes: 'Saves $60–$100 per layover on crew airport meals and Wi-Fi.'
+        },
+        {
+          id: 'cert-global-entry',
+          title: 'Global Entry / TSA PreCheck & CLEAR Plus Membership',
+          type: 'Lounge & Security Perk',
+          program: 'US CBP / CLEAR',
+          source_card: 'Amex Business Platinum ($199 CLEAR + $120 GE)',
+          cap_details: 'Expedited US Customs & TSA PreCheck lanes with Pelican camera cases',
+          expires_date: '2028-08-15',
+          est_value_usd: 319,
+          status: 'available',
+          notes: '100% covered via annual card statement credits.'
+        }
+      ],
+      cards: [
+        {
+          id: 'card-amex-biz-plat',
+          name: 'Amex Business Platinum',
+          issuer: 'American Express',
+          ecosystem: 'Amex Membership Rewards',
+          annual_fee: 695,
+          renewal_date: '2027-03-01',
+          multipliers: '5x Flights & Prepaid Hotels • 1.5x on $5,000+ & Camera Gear/Electronics',
+          best_for: 'Flights, $5k+ Invoices, Camera/Electronics & Airport Lounges',
+          ftf: 'None ($0 Foreign Tx Fee)',
+          sub_active: false,
+          sub_target_usd: 15000,
+          sub_spent_manual_usd: 15000,
+          sub_bonus_label: '150,000 Amex MR pts (Earned ✓)',
+          sub_deadline: '2026-08-01',
+          credits: [
+            { id: 'c1', name: '$400 Dell Technologies Credit ($200 Jan–Jun / $200 Jul–Dec)', total_usd: 400, used_usd: 400 },
+            { id: 'c2', name: '$200 Airline Incidental Fee Credit (Baggage / United TravelBank)', total_usd: 200, used_usd: 200 },
+            { id: 'c3', name: '$199 CLEAR Plus Annual Membership Credit', total_usd: 199, used_usd: 199 },
+            { id: 'c4', name: '$150 Adobe Creative Cloud / Premiere Pro Credit', total_usd: 150, used_usd: 150 },
+            { id: 'c5', name: '$120 Wireless Phone Service Credit ($10/mo)', total_usd: 120, used_usd: 100 }
+          ]
+        },
+        {
+          id: 'card-chase-ink',
+          name: 'Chase Ink Business Preferred',
+          issuer: 'Chase',
+          ecosystem: 'Chase Ultimate Rewards',
+          annual_fee: 95,
+          renewal_date: '2027-05-15',
+          multipliers: '3x All Travel (Hotels, JR Rail, Ferries, Flights, Campers) • 3x Internet, Shipping & Ads',
+          best_for: '3x Overseas Trains, Ferries, Campervans, Hotels & Tolls',
+          ftf: 'None ($0 Foreign Tx Fee)',
+          sub_active: true,
+          sub_target_usd: 8000,
+          sub_spent_manual_usd: 3400,
+          sub_bonus_label: '100,000 Chase UR pts ($2,000 value)',
+          sub_deadline: '2026-12-20',
+          credits: [
+            { id: 'c1', name: 'Cell Phone Protection ($1,000/claim for crew phones)', total_usd: 150, used_usd: 150 },
+            { id: 'c2', name: 'Primary Rental Car CDW Collision Coverage', total_usd: 200, used_usd: 200 }
+          ]
+        },
+        {
+          id: 'card-venture-x',
+          name: 'Capital One Venture X',
+          issuer: 'Capital One',
+          ecosystem: 'Capital One Miles',
+          annual_fee: 395,
+          renewal_date: '2027-02-01',
+          multipliers: '2x Everywhere Catch-All • 10x Portal Hotels & Rental Cars • 5x Portal Flights',
+          best_for: '2x Everywhere Catch-All (Permits, Local Fixers, Non-Category Spend)',
+          ftf: 'None ($0 Foreign Tx Fee)',
+          sub_active: false,
+          sub_target_usd: 4000,
+          sub_spent_manual_usd: 4000,
+          sub_bonus_label: '75,000 Capital One Miles (Earned ✓)',
+          sub_deadline: '2026-05-01',
+          credits: [
+            { id: 'c1', name: '$300 Annual Capital One Travel Portal Credit', total_usd: 300, used_usd: 300 },
+            { id: 'c2', name: '10,000 Anniversary Bonus Miles ($185 value)', total_usd: 185, used_usd: 185 }
+          ]
+        },
+        {
+          id: 'card-amex-gold',
+          name: 'Amex Gold Card',
+          issuer: 'American Express',
+          ecosystem: 'Amex Membership Rewards',
+          annual_fee: 325,
+          renewal_date: '2027-04-10',
+          multipliers: '4x Restaurants Worldwide • 4x US Supermarkets • 3x Flights Booked Direct',
+          best_for: '4x Crew Meals, Restaurants, Street Food & Groceries',
+          ftf: 'None ($0 Foreign Tx Fee)',
+          sub_active: true,
+          sub_target_usd: 6000,
+          sub_spent_manual_usd: 4250,
+          sub_bonus_label: '90,000 Amex MR pts ($1,800 value)',
+          sub_deadline: '2026-12-05',
+          credits: [
+            { id: 'c1', name: '$120 Uber Cash ($10/mo Rides or Uber Eats)', total_usd: 120, used_usd: 100 },
+            { id: 'c2', name: '$120 Dining Credit ($10/mo Grubhub / Five Guys)', total_usd: 120, used_usd: 90 },
+            { id: 'c3', name: '$100 Resy Restaurant Credit ($50 Jan–Jun / $50 Jul–Dec)', total_usd: 100, used_usd: 50 },
+            { id: 'c4', name: '$84 Dunkin’ Credit ($7/mo)', total_usd: 84, used_usd: 63 }
+          ]
+        },
+        {
+          id: 'card-hilton-aspire',
+          name: 'Amex Hilton Honors Aspire',
+          issuer: 'American Express',
+          ecosystem: 'Hilton Honors',
+          annual_fee: 550,
+          renewal_date: '2027-06-01',
+          multipliers: '14x Hilton Portfolio (34x total w/ Diamond) • 7x Flights & Dining',
+          best_for: 'Hilton Stays, Automatic Diamond Status, Resort & Airline Credits',
+          ftf: 'None ($0 Foreign Tx Fee)',
+          sub_active: false,
+          sub_target_usd: 6000,
+          sub_spent_manual_usd: 6000,
+          sub_bonus_label: '175,000 Hilton pts (Earned ✓)',
+          sub_deadline: '2026-06-01',
+          credits: [
+            { id: 'c1', name: '$400 Hilton Resort Credit ($200 Jan–Jun / $200 Jul–Dec)', total_usd: 400, used_usd: 200 },
+            { id: 'c2', name: '$200 Flight Credit ($50 per quarter on any airline)', total_usd: 200, used_usd: 150 },
+            { id: 'c3', name: 'Annual Uncapped Free Night Reward (worth ~$850)', total_usd: 850, used_usd: 850 }
+          ]
+        },
+        {
+          id: 'card-hyatt',
+          name: 'Chase World of Hyatt Card',
+          issuer: 'Chase',
+          ecosystem: 'World of Hyatt',
+          annual_fee: 95,
+          renewal_date: '2026-12-18',
+          multipliers: '9x Total at Hyatt (4x Card + 5x Base) • 2x Dining, Flights & Local Transit',
+          best_for: 'Hyatt Stays + 5 Automatic Elite Nights + Cat 1–4 Free Night',
+          ftf: 'None ($0 Foreign Tx Fee)',
+          sub_active: false,
+          sub_target_usd: 3000,
+          sub_spent_manual_usd: 3000,
+          sub_bonus_label: '60,000 Hyatt pts (Earned ✓)',
+          sub_deadline: '2026-03-01',
+          credits: [
+            { id: 'c1', name: 'Annual Category 1–4 Free Night Certificate (~$320 value)', total_usd: 320, used_usd: 320 },
+            { id: 'c2', name: '5 Tier-Qualifying Night Credits toward Globalist', total_usd: 100, used_usd: 100 }
+          ]
+        }
+      ],
+      redemptions: [
+        {
+          id: 'red-jp-1',
+          trip_id: 'trip-japan-2026',
+          date: '2026-11-07',
+          title: 'Park Hyatt Kyoto — 2 Nights Standard Suite (Points + SUA)',
+          program: 'World of Hyatt',
+          redemption_type: 'Points + Suite Upgrade',
+          points_used: 90000,
+          cash_price_usd: 3400,
+          taxes_fees_usd: 0,
+          net_saved_usd: 3400,
+          cpp: 3.78,
+          notes: 'Transferred 90k Chase UR -> Hyatt 1:1 instant + applied Globalist Suite Upgrade Award.'
+        },
+        {
+          id: 'red-jp-2',
+          trip_id: 'trip-japan-2026',
+          date: '2026-11-01',
+          title: 'Conrad Tokyo Bay View Suite — 1 Night Arrival Stay',
+          program: 'Hilton Honors',
+          redemption_type: 'Free Night Certificate',
+          points_used: 0,
+          cash_price_usd: 920,
+          taxes_fees_usd: 0,
+          net_saved_usd: 920,
+          cpp: 0,
+          notes: 'Used Hilton Aspire Uncapped Free Night Certificate + free Diamond breakfast.'
+        },
+        {
+          id: 'red-ch-1',
+          trip_id: 'trip-alps-2026',
+          date: '2026-09-14',
+          title: 'SWISS Business Class JFK → Zurich (2 Crew Lie-Flat Seats)',
+          program: 'Air Canada Aeroplan',
+          redemption_type: 'Airline Miles',
+          points_used: 140000,
+          cash_price_usd: 6400,
+          taxes_fees_usd: 168,
+          net_saved_usd: 6232,
+          cpp: 4.45,
+          notes: '70k Aeroplan miles per person transferred 1:1 from Amex MR with $0 fuel surcharges.'
+        },
+        {
+          id: 'red-is-1',
+          trip_id: 'trip-iceland-2026',
+          date: '2026-10-17',
+          title: 'The Reykjavik EDITION — Finale Wrap Night',
+          program: 'Marriott Bonvoy',
+          redemption_type: 'Free Night Certificate + Top-Off',
+          points_used: 12000,
+          cash_price_usd: 740,
+          taxes_fees_usd: 0,
+          net_saved_usd: 740,
+          cpp: 6.17,
+          notes: '85k Marriott Brilliant Free Night Cert + 12k point top-off.'
+        }
       ]
     };
   }
 
   const state = {
     settings: {
-      channel_name: 'Nomad Frame Studios',
+      channel_name: 'Wander Wallet',
       home_currency: 'USD',
       meal_deduction_rate: '100',
       exchange_rates: { ...DEFAULT_FX_RATES }
@@ -543,8 +997,13 @@
     trips: [],
     expenses: [],
     revenues: [],
+    rewards: getDefaultRewardsData(),
     selectedTripId: 'trip-japan-2026',
     activeView: 'dashboard',
+    rewardsTab: 'programs',
+    rewardsEcoFilter: 'all',
+    rewardsCertFilter: 'all',
+    matrixBankFilter: 'all',
     categoryFilter: 'all',
     currencyFilter: 'all',
     specialFilter: 'all',
@@ -614,6 +1073,9 @@
 
   function getLocalStore() {
     if (memoryStore && Array.isArray(memoryStore.trips) && memoryStore.trips.length > 0) {
+      if (!memoryStore.rewards || !Array.isArray(memoryStore.rewards.programs)) {
+        memoryStore.rewards = getDefaultRewardsData();
+      }
       return memoryStore;
     }
     const raw = safeStorageGet('wayfarer_backup_state');
@@ -621,6 +1083,9 @@
       try {
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.trips) && parsed.trips.length > 0) {
+          if (!parsed.rewards || !Array.isArray(parsed.rewards.programs)) {
+            parsed.rewards = getDefaultRewardsData();
+          }
           memoryStore = parsed;
           return memoryStore;
         }
@@ -672,6 +1137,13 @@
       store.revenues = store.revenues.filter(r => r.id !== id);
     } else if (url === '/api/settings' && method === 'PUT') {
       store.settings = { ...store.settings, ...payload };
+    } else if (url === '/api/rewards' && method === 'PUT') {
+      store.rewards = {
+        programs: Array.isArray(payload.programs) ? payload.programs : store.rewards.programs,
+        certificates: Array.isArray(payload.certificates) ? payload.certificates : store.rewards.certificates,
+        cards: Array.isArray(payload.cards) ? payload.cards : store.rewards.cards,
+        redemptions: Array.isArray(payload.redemptions) ? payload.redemptions : store.rewards.redemptions
+      };
     }
     saveLocalStore(store);
     return store;
@@ -795,6 +1267,10 @@
     const googleWrap = document.getElementById('auth-google-signin-wrap');
 
     const activeGoogleId = googleClientId || currentGoogleClientId;
+    const originDisplay = document.getElementById('auth-gate-origin-display');
+    if (originDisplay) {
+      originDisplay.textContent = location.origin && location.origin !== 'null' ? location.origin : 'https://your-railway-domain.up.railway.app';
+    }
     if (activeGoogleId) {
       ensureGoogleScriptLoaded(activeGoogleId);
     } else if (googleWrap) {
@@ -967,6 +1443,12 @@
     const curGroup = document.getElementById('sec-current-pass-group');
     const gIdInput = document.getElementById('sec-google-client-id');
     const gEmailsInput = document.getElementById('sec-allowed-emails');
+    const originInput = document.getElementById('sec-exact-origin-url');
+    if (originInput) {
+      originInput.value = location.origin && location.origin !== 'null'
+        ? location.origin
+        : 'https://your-railway-domain.up.railway.app';
+    }
 
     if (location.protocol.startsWith('http')) {
       try {
@@ -1138,6 +1620,11 @@
     state.trips = data.trips || [];
     state.expenses = data.expenses || [];
     state.revenues = data.revenues || [];
+    if (data.rewards && Array.isArray(data.rewards.programs)) {
+      state.rewards = data.rewards;
+    } else if (!state.rewards || !Array.isArray(state.rewards.programs)) {
+      state.rewards = getDefaultRewardsData();
+    }
 
     if (
       state.selectedTripId !== 'all' &&
@@ -1232,6 +1719,7 @@
     renderTripsView();
     renderRevenueView();
     renderTaxView();
+    renderRewardsDashboard();
   }
 
   function renderTripSelectors() {
@@ -1268,11 +1756,30 @@
 
     const expTripSelect = document.getElementById('exp-trip-id');
     const revTripSelect = document.getElementById('rev-trip-id');
+    const rredTripSelect = document.getElementById('rred-trip-id');
     const tripOptionsHtml = state.trips.map(t =>
       `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} — ${escapeHtml(t.destination)}</option>`
     ).join('');
     if (expTripSelect) expTripSelect.innerHTML = tripOptionsHtml;
     if (revTripSelect) revTripSelect.innerHTML = tripOptionsHtml;
+    if (rredTripSelect) {
+      rredTripSelect.innerHTML = `<option value="all">General Travel / Unassigned Shoot</option>` + tripOptionsHtml;
+    }
+
+    // Ensure any custom cards from Rewards wallet also appear in Expense Payment Method selector
+    const paySelect = document.getElementById('exp-payment-method');
+    if (paySelect && state.rewards && Array.isArray(state.rewards.cards)) {
+      const existingOpts = new Set(Array.from(paySelect.options).map(o => o.value));
+      for (const c of state.rewards.cards) {
+        if (c.card_name && !existingOpts.has(c.card_name)) {
+          const opt = document.createElement('option');
+          opt.value = c.card_name;
+          opt.textContent = c.card_name;
+          paySelect.appendChild(opt);
+          existingOpts.add(c.card_name);
+        }
+      }
+    }
   }
 
   function renderTripContextBanner() {
@@ -2039,7 +2546,7 @@
 
   function switchView(viewName) {
     state.activeView = viewName;
-    const views = ['dashboard', 'trips', 'revenue', 'tax', 'help'];
+    const views = ['dashboard', 'trips', 'revenue', 'rewards', 'tax', 'help'];
     for (const v of views) {
       const el = document.getElementById(`view-${v}`);
       if (el) el.style.display = v === viewName ? 'block' : 'none';
@@ -2052,10 +2559,20 @@
       btn.classList.toggle('active', btn.getAttribute('data-mobile-view') === viewName);
     });
 
+    const topRewardsBtn = document.getElementById('btn-topbar-rewards');
+    const topRewardsLabel = document.getElementById('btn-topbar-rewards-label');
+    if (topRewardsBtn) {
+      topRewardsBtn.classList.toggle('active-rewards-mode', viewName === 'rewards');
+    }
+    if (topRewardsLabel) {
+      topRewardsLabel.textContent = viewName === 'rewards' ? '← Finance Ledger' : 'Rewards';
+    }
+
     const titles = {
       dashboard: 'Road Finance Dashboard',
       trips: 'Trips & Shoot Budgets',
       revenue: 'Sponsors & AdSense ROI',
+      rewards: 'Rewards & Loyalty Command Center',
       tax: 'Tax & Accountant Export Hub',
       help: 'Help & Getting Started Guide'
     };
@@ -2063,6 +2580,9 @@
     if (heading) heading.textContent = titles[viewName] || 'Road Finance Dashboard';
     if (viewName === 'help') {
       renderWalkthroughStep(currentWtStep);
+    }
+    if (viewName === 'rewards') {
+      renderRewardsDashboard();
     }
   }
 
@@ -2377,6 +2897,1264 @@
     showToast(`Logged revenue: ${fmtUsd(payload.amount_usd)}`);
   }
 
+  // ============================================================================
+  // REWARDS & LOYALTY COMMAND CENTER
+  // ============================================================================
+  const TRANSFER_PARTNER_MATRIX = [
+    {
+      bank: 'Chase Ultimate Rewards',
+      partner: 'World of Hyatt',
+      type: 'Hotel',
+      ratio: '1 : 1',
+      speed: 'Instant',
+      sweetSpot: 'Park Hyatt / Alila / Category 1-7 rooms at 2.1¢–4.0¢/pt value',
+      tag: 'positive'
+    },
+    {
+      bank: 'Chase Ultimate Rewards',
+      partner: 'Air Canada Aeroplan',
+      type: 'Airline (Star Alliance)',
+      ratio: '1 : 1',
+      speed: 'Instant',
+      sweetSpot: 'ANA / Lufthansa / Swiss Business Class + 5,000-pt stopovers',
+      tag: 'positive'
+    },
+    {
+      bank: 'Chase Ultimate Rewards',
+      partner: 'United MileagePlus',
+      type: 'Airline (Star Alliance)',
+      ratio: '1 : 1',
+      speed: 'Instant',
+      sweetSpot: 'No fuel surcharges + Excursionist Perk multi-city shoots',
+      tag: 'sky'
+    },
+    {
+      bank: 'Chase Ultimate Rewards',
+      partner: 'Virgin Atlantic / British Airways / Iberia',
+      type: 'Airline (SkyTeam / Oneworld)',
+      ratio: '1 : 1',
+      speed: 'Instant',
+      sweetSpot: 'ANA First/Business via Virgin; frequent 30% transfer bonuses',
+      tag: 'sky'
+    },
+    {
+      bank: 'Amex Membership Rewards',
+      partner: 'ANA Mileage Club',
+      type: 'Airline (Star Alliance)',
+      ratio: '1 : 1',
+      speed: '24–48 Hours',
+      sweetSpot: 'US to Tokyo Roundtrip Business Class from 105k–110k miles',
+      tag: 'positive'
+    },
+    {
+      bank: 'Amex Membership Rewards',
+      partner: 'Air Canada Aeroplan',
+      type: 'Airline (Star Alliance)',
+      ratio: '1 : 1',
+      speed: 'Instant',
+      sweetSpot: '75k–87.5k one-way Transpacific or Transatlantic Business Class',
+      tag: 'positive'
+    },
+    {
+      bank: 'Amex Membership Rewards',
+      partner: 'Air France / KLM Flying Blue',
+      type: 'Airline (SkyTeam)',
+      ratio: '1 : 1',
+      speed: 'Instant',
+      sweetSpot: '50k–60k Promo Rewards Business Class to Europe',
+      tag: 'sky'
+    },
+    {
+      bank: 'Amex Membership Rewards',
+      partner: 'Hilton Honors',
+      type: 'Hotel',
+      ratio: '1 : 2',
+      speed: 'Instant',
+      sweetSpot: '1:2 base ratio (1:2.6 with bonus) + 5th Night Free on luxury resorts',
+      tag: 'warning'
+    },
+    {
+      bank: 'Amex Membership Rewards',
+      partner: 'Delta SkyMiles',
+      type: 'Airline (SkyTeam)',
+      ratio: '1 : 1',
+      speed: 'Instant',
+      sweetSpot: 'Domestic flash sales + 15% TakeOff 15 cardholder discount',
+      tag: 'sky'
+    },
+    {
+      bank: 'Capital One Miles',
+      partner: 'Air Canada Aeroplan / British Airways / Flying Blue',
+      type: 'Airline',
+      ratio: '1 : 1',
+      speed: 'Instant',
+      sweetSpot: 'Stack with Venture X 2X catch-all spend for Star Alliance & SkyTeam',
+      tag: 'positive'
+    },
+    {
+      bank: 'Capital One Miles',
+      partner: 'Turkish Airlines Miles&Smiles / Wyndham',
+      type: 'Airline / Hotel',
+      ratio: '1 : 1',
+      speed: 'Instant',
+      sweetSpot: 'Star Alliance awards & Vacasa vacation rental properties',
+      tag: 'sky'
+    },
+    {
+      bank: 'Bilt Rewards',
+      partner: 'World of Hyatt & Alaska Airlines Atmos',
+      type: 'Hotel & Oneworld Airline',
+      ratio: '1 : 1',
+      speed: 'Instant',
+      sweetSpot: '1:1 transfers to Hyatt & Alaska (JAL / Cathay / American redemptions)',
+      tag: 'positive'
+    },
+    {
+      bank: 'Citi ThankYou',
+      partner: 'American Airlines / Qatar Avios / Choice Privileges (1:2)',
+      type: 'Airline & Hotel',
+      ratio: '1 : 1 / 1 : 2',
+      speed: 'Instant',
+      sweetSpot: 'Qatar Qsuites via Avios & Preferred Hotels / Nordic Choice properties',
+      tag: 'sky'
+    }
+  ];
+
+  const BEST_SWIPE_CHEAT_SHEET = [
+    {
+      cat: '✈️ Flights & Airfare',
+      winner: 'Amex Platinum (5X) or Venture X Portal (5X)',
+      detail: '5X Membership Rewards booked direct with airlines (~9.25% return) or 3X Chase Sapphire Reserve + trip delay insurance.'
+    },
+    {
+      cat: '🏨 Hotels & Lodging',
+      winner: 'World of Hyatt (9X total) or Hilton Aspire (14X)',
+      detail: '4X card + 5X base on Hyatt stays (~19.8% return); 14X card + 20X Diamond on Hilton resorts (~19.7% return).'
+    },
+    {
+      cat: '🍜 Dining, Restaurants & Crew Craft',
+      winner: 'Amex Gold (4X) or Chase Sapphire Reserve / Bilt (3X)',
+      detail: '4X Amex MR worldwide at restaurants (~7.4% return) or 6X Bilt on Rent Day (1st of month).'
+    },
+    {
+      cat: '🚄 Transit, Shinkansen, Ferries & Tolls',
+      winner: 'Chase Sapphire Reserve (3X Travel)',
+      detail: 'Counts trains, subways, ferries, parking, and tolls globally as 3X Ultimate Rewards (~6.15% return).'
+    },
+    {
+      cat: '🎥 Camera Gear, Drones, Permits & General Spend',
+      winner: 'Capital One Venture X (2X Everything)',
+      detail: 'Unlimited 2X transferable miles on every non-category expense with zero foreign transaction fees.'
+    },
+    {
+      cat: '💻 YouTube Ads, Shipping & Production Software',
+      winner: 'Chase Ink Business Preferred (3X)',
+      detail: '3X Ultimate Rewards on travel, shipping, internet/phone, and social media advertising up to $150k/yr.'
+    }
+  ];
+
+  const POPULAR_REWARD_TEMPLATES = [
+    {
+      kind: 'card',
+      title: 'Chase Sapphire Preferred®',
+      subtitle: '$95 Fee • $50 Hotel Credit • 3X Dining / 2X Travel',
+      badge: 'Credit Card',
+      data: {
+        card_name: 'Chase Sapphire Preferred',
+        issuer: 'Chase',
+        annual_fee: 95,
+        renewal_month: '2027-04',
+        points_program: 'Chase Ultimate Rewards',
+        multipliers: '3X Dining • 3X Online Grocery • 2X Travel • 10% Anniversary Boost',
+        perks: 'Primary Rental Car CDW, 1:1 Point Transfers to Hyatt & United, $0 FX Fees',
+        credits: [{ id: 'c_csp_1', label: '$50 Annual Chase Travel Hotel Credit', amount: 50, frequency: 'Annual', used: false }],
+        sub_active: true,
+        sub_bonus_text: '75,000 Ultimate Rewards pts',
+        sub_spend_target: 4000,
+        sub_base_spend: 0,
+        sub_deadline: '2027-03-01'
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Amex Gold Card®',
+      subtitle: '$325 Fee • $424 Dining/Uber/Resy/Dunkin Credits • 4X Dining',
+      badge: 'Credit Card',
+      data: {
+        card_name: 'Amex Gold Card',
+        issuer: 'American Express',
+        annual_fee: 325,
+        renewal_month: '2027-05',
+        points_program: 'Amex Membership Rewards',
+        multipliers: '4X Worldwide Restaurants • 4X US Supermarkets • 3X Flights Direct',
+        perks: '$120 Uber Cash, $120 Dining Credit, $100 Resy Credit, $84 Dunkin Credit',
+        credits: [
+          { id: 'c_ag_1', label: '$120 Uber Cash ($10/mo)', amount: 120, frequency: 'Monthly', used: true },
+          { id: 'c_ag_2', label: '$100 Resy Semi-Annual Dining Credit', amount: 100, frequency: 'Semi-Annual', used: true },
+          { id: 'c_ag_3', label: '$120 Dining Credit ($10/mo)', amount: 120, frequency: 'Monthly', used: false },
+          { id: 'c_ag_4', label: '$84 Dunkin Credit ($7/mo)', amount: 84, frequency: 'Monthly', used: false }
+        ],
+        sub_active: false,
+        sub_bonus_text: '90,000 MR Points',
+        sub_spend_target: 6000,
+        sub_base_spend: 6000,
+        sub_deadline: '2026-10-01'
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Marriott Bonvoy Brilliant® Amex',
+      subtitle: '$650 Fee • $300 Dining Credit • 85k Free Night Award + Platinum Elite',
+      badge: 'Hotel Card',
+      data: {
+        card_name: 'Marriott Bonvoy Brilliant Amex',
+        issuer: 'American Express',
+        annual_fee: 650,
+        renewal_month: '2027-06',
+        points_program: 'Marriott Bonvoy',
+        multipliers: '6X Marriott • 3X Restaurants & Flights • 2X All Other',
+        perks: 'Automatic Platinum Elite Status, 25 Elite Night Credits, 85,000-pt Free Night Award, Priority Pass',
+        credits: [
+          { id: 'c_mbb_1', label: '$300 Brilliant Worldwide Dining Credit ($25/mo)', amount: 300, frequency: 'Monthly', used: true },
+          { id: 'c_mbb_2', label: '$100 Ritz-Carlton / St. Regis Property Credit', amount: 100, frequency: 'Annual', used: false }
+        ],
+        sub_active: false,
+        sub_bonus_text: '185,000 Marriott Bonvoy pts',
+        sub_spend_target: 6000,
+        sub_base_spend: 6000,
+        sub_deadline: '2026-09-01'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'IHG One Rewards',
+      subtitle: 'Diamond / Platinum Elite • 4th Night Free on Award Stays',
+      badge: 'Hotel Program',
+      data: {
+        name: 'IHG One Rewards',
+        ecosystem: 'Hotel Loyalty',
+        icon: '🏨',
+        balance: 145000,
+        cpp_valuation: 0.65,
+        status_tier: 'Platinum Elite',
+        member_id: 'IHG-6619-048',
+        qualifying_current: 28,
+        qualifying_target: 40,
+        qualifying_label: 'Elite Nights',
+        expiration_policy: 'No expiration for Elite members',
+        transfer_partners: 'Chase 1:1, Bilt 1:1 (Best bought on 100% bonus promos at 0.5¢)',
+        notes: 'InterContinental, Kimpton & Six Senses properties; 4th Reward Night Free with IHG Premier card'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'British Airways / Qatar Airways Avios',
+      subtitle: 'Oneworld Alliance • Qatar Qsuites & Short-Haul Partner Awards',
+      badge: 'Airline Miles',
+      data: {
+        name: 'British Airways / Qatar Avios',
+        ecosystem: 'Airline Miles',
+        icon: '✈️',
+        balance: 92000,
+        cpp_valuation: 1.50,
+        status_tier: 'Oneworld Ruby',
+        member_id: 'AV-3029-881',
+        qualifying_current: 0,
+        qualifying_target: 0,
+        qualifying_label: 'Tier Points',
+        expiration_policy: '36 months without activity',
+        transfer_partners: 'Chase, Amex, Capital One, Bilt & Citi 1:1 (frequent 30% bonuses)',
+        notes: 'Instant 1:1 linking between BA, Qatar, Iberia, and Finnair Avios accounts'
+      }
+    },
+    {
+      kind: 'cert',
+      title: 'Hyatt Guest of Honor (GoH) Award',
+      subtitle: 'Share Globalist Free Breakfast, Lounge, Suite Upgrade & 4PM Checkout',
+      badge: 'Elite Perk',
+      data: {
+        title: 'Hyatt Guest of Honor (GoH) Award',
+        program: 'World of Hyatt',
+        cert_type: 'Suite / Status Upgrade',
+        points_cap: 'Up to 7 Nights (Cash or Points)',
+        estimated_value_usd: 450,
+        expiration_date: '2027-02-28',
+        status: 'available',
+        redeemed_trip_id: '',
+        redeemed_property: '',
+        notes: 'Can be applied to own stay or gifted to co-producer/crew hotel room'
+      }
+    }
+  ];
+
+  async function saveRewardsState(toastMsg) {
+    const updated = await apiRequest('/api/rewards', {
+      method: 'PUT',
+      body: JSON.stringify(state.rewards)
+    });
+    if (updated) {
+      applyBootstrapData(updated);
+    } else {
+      renderRewardsDashboard();
+      renderTripSelectors();
+    }
+    if (toastMsg) showToast(toastMsg);
+  }
+
+  function computeDaysUntil(dateStr) {
+    if (!dateStr || dateStr === 'Ongoing' || dateStr.length < 8) return 999;
+    const target = new Date(dateStr + 'T23:59:59');
+    if (isNaN(target.getTime())) return 999;
+    const now = new Date();
+    return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  function getCardLoggedSpendUsd(cardName) {
+    if (!cardName) return 0;
+    const norm = cardName.toLowerCase();
+    return state.expenses
+      .filter(e => {
+        const pm = String(e.payment_method || '').toLowerCase();
+        return pm === norm || pm.includes(norm) || norm.includes(pm);
+      })
+      .reduce((sum, e) => sum + (Number(e.amount_usd) || 0), 0);
+  }
+
+  function renderRewardsDashboard() {
+    if (!state.rewards || !Array.isArray(state.rewards.programs)) {
+      state.rewards = getDefaultRewardsData();
+    }
+    const programs = state.rewards.programs || [];
+    const certs = state.rewards.certificates || [];
+    const cards = state.rewards.cards || [];
+    const redemptions = state.rewards.redemptions || [];
+
+    // 1. Portfolio Valuation & Points KPIs
+    let totalPoints = 0;
+    let totalPortfolioVal = 0;
+    const ecoVals = {
+      'Credit Card Points': 0,
+      'Hotel Loyalty': 0,
+      'Airline Miles': 0,
+      'Cash Back / Portal': 0
+    };
+
+    for (const p of programs) {
+      const bal = Number(p.balance) || 0;
+      const cpp = Number(p.cpp_valuation) || 1;
+      const val = (bal * cpp) / 100;
+      totalPoints += bal;
+      totalPortfolioVal += val;
+      if (ecoVals[p.ecosystem] !== undefined) {
+        ecoVals[p.ecosystem] += val;
+      }
+    }
+
+    const avgPortfolioCpp = totalPoints > 0 ? ((totalPortfolioVal / totalPoints) * 100).toFixed(2) : '0.00';
+
+    const sidebarRewardsBadge = document.getElementById('badge-rewards-val');
+    if (sidebarRewardsBadge) sidebarRewardsBadge.textContent = fmtUsdCompact(totalPortfolioVal);
+
+    const rkpiVal = document.getElementById('rkpi-total-val');
+    if (rkpiVal) rkpiVal.textContent = fmtUsd(totalPortfolioVal);
+    const rkpiValTag = document.getElementById('rkpi-val-tag');
+    if (rkpiValTag) rkpiValTag.textContent = `Avg ${avgPortfolioCpp}¢ / pt`;
+    const rkpiPts = document.getElementById('rkpi-total-pts');
+    if (rkpiPts) rkpiPts.textContent = `${totalPoints.toLocaleString('en-US')} total points & miles`;
+    const rkpiEco = document.getElementById('rkpi-eco-breakdown');
+    if (rkpiEco) {
+      rkpiEco.textContent = `Cards: ${fmtUsdCompact(ecoVals['Credit Card Points'])} • Hotels: ${fmtUsdCompact(ecoVals['Hotel Loyalty'])} • Air: ${fmtUsdCompact(ecoVals['Airline Miles'])}`;
+    }
+
+    // 2. Certificates & Perks KPIs
+    const availCerts = certs.filter(c => c.status !== 'redeemed');
+    const redeemedCerts = certs.filter(c => c.status === 'redeemed');
+    const availCertVal = availCerts.reduce((s, c) => s + (Number(c.estimated_value_usd) || 0), 0);
+    const expiringSoonCerts = availCerts.filter(c => computeDaysUntil(c.expiration_date) <= 90);
+
+    const rkpiCertCount = document.getElementById('rkpi-cert-count');
+    if (rkpiCertCount) rkpiCertCount.textContent = `${availCerts.length} Available`;
+    const rkpiCertTag = document.getElementById('rkpi-cert-exp-tag');
+    if (rkpiCertTag) {
+      if (expiringSoonCerts.length > 0) {
+        rkpiCertTag.className = 'kpi-tag danger';
+        rkpiCertTag.textContent = `${expiringSoonCerts.length} Expiring <90d`;
+      } else {
+        rkpiCertTag.className = 'kpi-tag positive';
+        rkpiCertTag.textContent = 'All Healthy';
+      }
+    }
+    const rkpiCertVal = document.getElementById('rkpi-cert-val');
+    if (rkpiCertVal) rkpiCertVal.textContent = `Est. Value: ${fmtUsd(availCertVal)}`;
+    const rkpiCertRed = document.getElementById('rkpi-cert-redeemed');
+    if (rkpiCertRed) rkpiCertRed.textContent = `${redeemedCerts.length} Redeemed YTD`;
+
+    // 3. Credit Card Credits vs Annual Fees KPIs
+    let totalAnnualFees = 0;
+    let totalCreditsAvailable = 0;
+    let totalCreditsCaptured = 0;
+    for (const c of cards) {
+      totalAnnualFees += Number(c.annual_fee) || 0;
+      const crList = Array.isArray(c.credits) ? c.credits : [];
+      for (const cr of crList) {
+        const amt = Number(cr.amount) || 0;
+        totalCreditsAvailable += amt;
+        if (cr.used) totalCreditsCaptured += amt;
+      }
+    }
+    const netEffectiveFee = totalAnnualFees - totalCreditsCaptured;
+    const rkpiCredUsed = document.getElementById('rkpi-credits-used');
+    if (rkpiCredUsed) rkpiCredUsed.textContent = `${fmtUsdCompact(totalCreditsCaptured)} / ${fmtUsdCompact(totalCreditsAvailable)}`;
+    const rkpiFeeTag = document.getElementById('rkpi-net-fee-tag');
+    if (rkpiFeeTag) {
+      if (netEffectiveFee <= 0) {
+        rkpiFeeTag.className = 'kpi-tag positive';
+        rkpiFeeTag.textContent = `Paid +${fmtUsdCompact(Math.abs(netEffectiveFee))} Net`;
+      } else {
+        rkpiFeeTag.className = 'kpi-tag warning';
+        rkpiFeeTag.textContent = `Net Cost: ${fmtUsdCompact(netEffectiveFee)}`;
+      }
+    }
+    const rkpiFees = document.getElementById('rkpi-annual-fees');
+    if (rkpiFees) rkpiFees.textContent = `Annual Fees: ${fmtUsdCompact(totalAnnualFees)}`;
+    const rkpiNetFee = document.getElementById('rkpi-net-effective-fee');
+    if (rkpiNetFee) {
+      rkpiNetFee.textContent = netEffectiveFee <= 0
+        ? `Net Yield: +${fmtUsd(Math.abs(netEffectiveFee))} ahead`
+        : `Remaining to offset: ${fmtUsd(netEffectiveFee)}`;
+    }
+
+    // 4. Active Welcome Bonus (SUB) Tracker KPIs
+    const activeSubCards = cards.filter(c => c.sub_active);
+    let totalSubTarget = 0;
+    let totalSubCurrent = 0;
+    for (const c of activeSubCards) {
+      const logged = getCardLoggedSpendUsd(c.card_name);
+      const curr = (Number(c.sub_base_spend) || 0) + logged;
+      totalSubTarget += Number(c.sub_spend_target) || 0;
+      totalSubCurrent += curr;
+    }
+    const rkpiSubCount = document.getElementById('rkpi-sub-count');
+    if (rkpiSubCount) rkpiSubCount.textContent = `${activeSubCards.length} Active SUB${activeSubCards.length === 1 ? '' : 's'}`;
+    const rkpiSubTag = document.getElementById('rkpi-sub-pts-tag');
+    if (rkpiSubTag) {
+      rkpiSubTag.textContent = activeSubCards[0] ? activeSubCards[0].sub_bonus_text : 'All SUBs Completed';
+    }
+    const rkpiSubSpend = document.getElementById('rkpi-sub-spend');
+    if (rkpiSubSpend) {
+      rkpiSubSpend.textContent = totalSubTarget > 0
+        ? `${fmtUsdCompact(totalSubCurrent)} / ${fmtUsdCompact(totalSubTarget)} spend`
+        : 'All minimum spends met';
+    }
+    const rkpiSubVal = document.getElementById('rkpi-sub-val');
+    if (rkpiSubVal) {
+      const rem = Math.max(0, totalSubTarget - totalSubCurrent);
+      rkpiSubVal.textContent = rem > 0 ? `${fmtUsdCompact(rem)} left to unlock` : '🎉 Ready to trigger bonus!';
+    }
+
+    // 5. Trip Cash Saved via Redemptions KPIs
+    let totalRetailCash = 0;
+    let totalTaxesPaid = 0;
+    let totalPointsRedeemed = 0;
+    for (const r of redemptions) {
+      totalRetailCash += Number(r.cash_price_usd) || 0;
+      totalTaxesPaid += Number(r.taxes_fees_usd) || 0;
+      totalPointsRedeemed += Number(r.points_used) || 0;
+    }
+    const totalNetSaved = Math.max(0, totalRetailCash - totalTaxesPaid);
+    const avgAchievedCpp = totalPointsRedeemed > 0
+      ? ((totalNetSaved / totalPointsRedeemed) * 100).toFixed(2)
+      : '0.0';
+
+    const rkpiSaved = document.getElementById('rkpi-saved-total');
+    if (rkpiSaved) rkpiSaved.textContent = fmtUsd(totalNetSaved);
+    const rkpiCppTag = document.getElementById('rkpi-avg-cpp-tag');
+    if (rkpiCppTag) rkpiCppTag.textContent = `Avg ${avgAchievedCpp}¢ / pt`;
+    const rkpiRedCount = document.getElementById('rkpi-redemption-count');
+    if (rkpiRedCount) rkpiRedCount.textContent = `${redemptions.length} trip redemptions`;
+    const rkpiTaxes = document.getElementById('rkpi-taxes-paid');
+    if (rkpiTaxes) rkpiTaxes.textContent = `Taxes paid: ${fmtUsdCompact(totalTaxesPaid)}`;
+
+    // Tab counts
+    const cProg = document.getElementById('rtab-count-programs');
+    if (cProg) cProg.textContent = programs.length;
+    const cCert = document.getElementById('rtab-count-certs');
+    if (cCert) cCert.textContent = availCerts.length;
+    const cCard = document.getElementById('rtab-count-cards');
+    if (cCard) cCard.textContent = cards.length;
+    const cRed = document.getElementById('rtab-count-redemptions');
+    if (cRed) cRed.textContent = redemptions.length;
+
+    // Show active sub-tab
+    const rtabs = ['programs', 'certs', 'cards', 'matrix', 'redemptions'];
+    for (const t of rtabs) {
+      const panel = document.getElementById(`rtab-${t}`);
+      if (panel) panel.style.display = state.rewardsTab === t ? 'block' : 'none';
+    }
+    document.querySelectorAll('#rewards-subnav [data-rtab]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-rtab') === state.rewardsTab);
+    });
+
+    renderRewardsPrograms(programs);
+    renderRewardsCerts(certs);
+    renderRewardsCards(cards);
+    renderRewardsMatrixAndCalc();
+    renderRewardsRedemptions(redemptions);
+  }
+
+  function renderRewardsPrograms(programs) {
+    document.querySelectorAll('#rewards-eco-chips [data-reco]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-reco') === state.rewardsEcoFilter);
+    });
+
+    const grid = document.getElementById('rewards-programs-grid');
+    if (!grid) return;
+
+    const filtered = state.rewardsEcoFilter === 'all'
+      ? programs
+      : programs.filter(p => p.ecosystem === state.rewardsEcoFilter);
+
+    if (filtered.length === 0) {
+      grid.innerHTML = `<div class="panel-card" style="grid-column: 1 / -1; text-align: center; padding: 32px; color: var(--text-muted);">No loyalty programs in this category yet. Click <strong>+ Add Loyalty Program</strong> or <strong>⚡ Popular Templates</strong>.</div>`;
+      return;
+    }
+
+    grid.innerHTML = filtered.map(p => {
+      const bal = Number(p.balance) || 0;
+      const cpp = Number(p.cpp_valuation) || 1;
+      const usdVal = (bal * cpp) / 100;
+      const qCurr = Number(p.qualifying_current) || 0;
+      const qTarget = Number(p.qualifying_target) || 0;
+      const qPct = qTarget > 0 ? Math.min(100, Math.round((qCurr / qTarget) * 100)) : 0;
+      const stepAmt = p.ecosystem === 'Cash Back / Portal' ? 50 : 5000;
+
+      const ecoClass = p.ecosystem === 'Hotel Loyalty'
+        ? 'eco-hotel'
+        : p.ecosystem === 'Airline Miles'
+        ? 'eco-airline'
+        : p.ecosystem === 'Cash Back / Portal'
+        ? 'eco-cash'
+        : 'eco-bank';
+
+      return `
+        <div class="reward-item-card ${ecoClass}">
+          <div class="reward-card-top">
+            <div class="reward-program-title-wrap">
+              <div class="reward-program-icon">${escapeHtml(p.icon || '💳')}</div>
+              <div>
+                <div class="reward-program-name">${escapeHtml(p.name)}</div>
+                <div class="reward-program-eco">
+                  <span>${escapeHtml(p.ecosystem)}</span>
+                  ${p.member_id ? `• <button type="button" class="member-id-pill" data-copy-member="${escapeHtml(p.member_id)}" title="Click to copy Member ID">📋 ${escapeHtml(p.member_id)}</button>` : ''}
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="elite-tier-badge">${escapeHtml(p.status_tier || 'Member')}</span>
+              <button type="button" class="btn btn-sm" data-edit-rprog="${escapeHtml(p.id)}" title="Edit Program">✎</button>
+              <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rprog="${escapeHtml(p.id)}" title="Remove">✕</button>
+            </div>
+          </div>
+
+          <div class="reward-balance-box">
+            <div>
+              <div class="reward-pts-number tabular">${bal.toLocaleString('en-US')}</div>
+              <div class="reward-pts-unit">
+                ${p.ecosystem === 'Cash Back / Portal' ? 'Portal Credits' : 'Points / Miles'}
+                • <span class="mono">@ ${cpp.toFixed(2)}¢</span>
+              </div>
+              <div class="stepper-group" style="margin-top: 8px;">
+                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="-${stepAmt}" title="Subtract ${stepAmt.toLocaleString()}">-${stepAmt >= 1000 ? (stepAmt / 1000) + 'k' : stepAmt}</button>
+                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="${stepAmt}" title="Add ${stepAmt.toLocaleString()}">+${stepAmt >= 1000 ? (stepAmt / 1000) + 'k' : stepAmt}</button>
+              </div>
+            </div>
+            <div class="reward-usd-val">
+              <div class="reward-usd-amount tabular">${fmtUsd(usdVal)}</div>
+              <div class="reward-cpp-sub">Estimated Value</div>
+              <button type="button" class="btn btn-sm" data-quick-redeem-prog="${escapeHtml(p.name)}" style="margin-top: 8px; font-size: 11px; padding: 3px 8px;">✈️ Redeem</button>
+            </div>
+          </div>
+
+          ${qTarget > 0 ? `
+            <div class="elite-progress-wrap">
+              <div class="elite-progress-header">
+                <span>🎯 ${escapeHtml(p.qualifying_label || 'Elite Progress')}: <strong class="mono">${qCurr.toLocaleString()} / ${qTarget.toLocaleString()}</strong> (${qPct}%)</span>
+                <div class="stepper-group">
+                  <button type="button" class="btn-stepper" data-step-rnights="${escapeHtml(p.id)}" data-delta="-1">-1</button>
+                  <button type="button" class="btn-stepper" data-step-rnights="${escapeHtml(p.id)}" data-delta="1">+1</button>
+                </div>
+              </div>
+              <div class="progress-track" style="height: 7px;">
+                <div class="progress-fill ${qPct >= 100 ? '' : 'warning'}" style="width: ${qPct}%;"></div>
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="reward-meta-footer">
+            ${p.transfer_partners ? `<div><strong>Partners:</strong> ${escapeHtml(p.transfer_partners)}</div>` : ''}
+            <div style="display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+              <span>⏳ ${escapeHtml(p.expiration_policy || 'No expiration')}</span>
+              ${p.notes ? `<span style="color: var(--text-secondary);">💡 ${escapeHtml(p.notes)}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderRewardsCerts(certs) {
+    document.querySelectorAll('#rewards-cert-chips [data-rcert-filter]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-rcert-filter') === state.rewardsCertFilter);
+    });
+
+    const grid = document.getElementById('rewards-certs-grid');
+    if (!grid) return;
+
+    const filtered = certs.filter(c => {
+      const days = computeDaysUntil(c.expiration_date);
+      if (state.rewardsCertFilter === 'available') return c.status !== 'redeemed';
+      if (state.rewardsCertFilter === 'expiring') return c.status !== 'redeemed' && days <= 90;
+      if (state.rewardsCertFilter === 'redeemed') return c.status === 'redeemed';
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      grid.innerHTML = `<div class="panel-card" style="grid-column: 1 / -1; text-align: center; padding: 32px; color: var(--text-muted);">No certificates or perks match this filter. Click <strong>+ Add Certificate / Perk</strong> to add a Free Night Award or Companion Pass.</div>`;
+      return;
+    }
+
+    grid.innerHTML = filtered.map(c => {
+      const days = computeDaysUntil(c.expiration_date);
+      const isRedeemed = c.status === 'redeemed';
+      let badgeHtml = '';
+      if (isRedeemed) {
+        badgeHtml = `<span class="cert-countdown-pill redeemed">✅ Redeemed</span>`;
+      } else if (days <= 60) {
+        badgeHtml = `<span class="cert-countdown-pill urgent">🔴 Expires in ${Math.max(0, days)}d (${escapeHtml(c.expiration_date)})</span>`;
+      } else if (days <= 120) {
+        badgeHtml = `<span class="cert-countdown-pill soon">🟡 ${days}d left (${escapeHtml(c.expiration_date)})</span>`;
+      } else {
+        badgeHtml = `<span class="cert-countdown-pill safe">🟢 Valid thru ${escapeHtml(c.expiration_date)}</span>`;
+      }
+
+      return `
+        <div class="reward-item-card ${isRedeemed ? '' : 'eco-hotel'}" style="${isRedeemed ? 'opacity: 0.78;' : ''}">
+          <div class="reward-card-top">
+            <div>
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-amber); margin-bottom: 3px;">
+                ${escapeHtml(c.program)} • ${escapeHtml(c.cert_type || 'Perk')}
+              </div>
+              <div class="reward-program-name">${escapeHtml(c.title)}</div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              ${badgeHtml}
+              <button type="button" class="btn btn-sm" data-edit-rcert="${escapeHtml(c.id)}" title="Edit">✎</button>
+              <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcert="${escapeHtml(c.id)}" title="Delete">✕</button>
+            </div>
+          </div>
+
+          <div class="reward-balance-box">
+            <div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">POINT CAP / RULES</div>
+              <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">${escapeHtml(c.points_cap || 'Standard Room Award')}</div>
+              ${c.redeemed_property ? `<div style="font-size: 12px; color: var(--accent-primary); margin-top: 4px;">📍 Used: ${escapeHtml(c.redeemed_property)}</div>` : ''}
+            </div>
+            <div class="reward-usd-val">
+              <div class="reward-usd-amount tabular">${fmtUsd(c.estimated_value_usd || 0)}</div>
+              <div class="reward-cpp-sub">Target Value</div>
+            </div>
+          </div>
+
+          <div class="reward-meta-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+            <span style="flex: 1;">${escapeHtml(c.notes || '')}</span>
+            <button type="button" class="btn btn-sm ${isRedeemed ? '' : 'btn-primary'}" data-toggle-rcert="${escapeHtml(c.id)}" style="white-space: nowrap;">
+              ${isRedeemed ? '↺ Mark Available' : '✓ Mark Redeemed'}
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderRewardsCards(cards) {
+    // 1. Active SUB Tracker Grid
+    const subGrid = document.getElementById('rewards-sub-tracker-grid');
+    if (subGrid) {
+      const subCards = cards.filter(c => c.sub_active);
+      if (subCards.length === 0) {
+        subGrid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--text-muted); font-size: 13px; padding: 12px;">No active Welcome Bonus (SUB) minimum spends in progress. Click <strong>+ Add Card</strong> or edit any card below to track a new sign-up bonus!</div>`;
+      } else {
+        subGrid.innerHTML = subCards.map(c => {
+          const logged = getCardLoggedSpendUsd(c.card_name);
+          const base = Number(c.sub_base_spend) || 0;
+          const totalSpend = base + logged;
+          const target = Math.max(1, Number(c.sub_spend_target) || 4000);
+          const pct = Math.min(100, Math.round((totalSpend / target) * 100));
+          const rem = Math.max(0, target - totalSpend);
+          const daysLeft = computeDaysUntil(c.sub_deadline);
+
+          return `
+            <div class="sub-tracker-card">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                <div>
+                  <span class="kpi-tag ${pct >= 100 ? 'positive' : 'warning'}">${pct >= 100 ? '🎉 BONUS UNLOCKED' : `⏳ ${daysLeft}d left (${escapeHtml(c.sub_deadline)})`}</span>
+                  <h4 style="font-size: 15px; font-weight: 700; margin-top: 6px;">${escapeHtml(c.card_name)}</h4>
+                  <div style="font-size: 12.5px; color: var(--accent-amber); font-weight: 600;">🎁 Target Bonus: ${escapeHtml(c.sub_bonus_text)}</div>
+                </div>
+                <button type="button" class="btn btn-sm" data-edit-rcard="${escapeHtml(c.id)}">✎ Adjust Spend</button>
+              </div>
+
+              <div>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px;">
+                  <span>Total Progress: <strong class="mono">${fmtUsd(totalSpend)}</strong> of <strong class="mono">${fmtUsd(target)}</strong> (${pct}%)</span>
+                  <span class="mono" style="font-weight: 700; color: ${rem === 0 ? 'var(--accent-primary)' : 'var(--text-primary)'};">
+                    ${rem === 0 ? 'Minimum Spend Met!' : `${fmtUsd(rem)} to go`}
+                  </span>
+                </div>
+                <div class="progress-track" style="height: 9px;">
+                  <div class="progress-fill ${pct >= 100 ? '' : 'warning'}" style="width: ${pct}%;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); margin-top: 6px;">
+                  <span>Road Ledger Auto-Tracked: <strong class="mono" style="color: var(--accent-sky);">${fmtUsd(logged)}</strong></span>
+                  <span>Prior / Base Spend: <strong class="mono">${fmtUsd(base)}</strong></span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // 2. Best Card to Swipe Cheat Sheet
+    const cheatGrid = document.getElementById('best-card-cheat-grid');
+    if (cheatGrid) {
+      cheatGrid.innerHTML = BEST_SWIPE_CHEAT_SHEET.map(item => `
+        <div class="cheat-card">
+          <div class="cheat-cat">${escapeHtml(item.cat)}</div>
+          <div class="cheat-winner">🏆 ${escapeHtml(item.winner)}</div>
+          <div class="cheat-detail">${escapeHtml(item.detail)}</div>
+        </div>
+      `).join('');
+    }
+
+    // 3. Credit Card Wallet & Statement Credit Checklist Grid
+    const walletGrid = document.getElementById('rewards-cards-wallet-grid');
+    if (!walletGrid) return;
+
+    if (cards.length === 0) {
+      walletGrid.innerHTML = `<div class="panel-card" style="grid-column: 1 / -1; text-align: center; padding: 32px; color: var(--text-muted);">No travel credit cards in wallet. Click <strong>+ Add Card</strong> or <strong>⚡ Popular Templates</strong>.</div>`;
+      return;
+    }
+
+    walletGrid.innerHTML = cards.map(c => {
+      const fee = Number(c.annual_fee) || 0;
+      const credits = Array.isArray(c.credits) ? c.credits : [];
+      const captured = credits.filter(cr => cr.used).reduce((s, cr) => s + (Number(cr.amount) || 0), 0);
+      const totalCred = credits.reduce((s, cr) => s + (Number(cr.amount) || 0), 0);
+      const netFee = fee - captured;
+      const loggedSpend = getCardLoggedSpendUsd(c.card_name);
+
+      return `
+        <div class="reward-item-card eco-bank">
+          <div class="reward-card-top">
+            <div>
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-sky);">
+                ${escapeHtml(c.issuer || 'Card Issuer')} • Renews ${escapeHtml(c.renewal_month || 'Annually')}
+              </div>
+              <div class="reward-program-name" style="margin-top: 2px;">💳 ${escapeHtml(c.card_name)}</div>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Earns: <strong>${escapeHtml(c.points_program || 'Points')}</strong></div>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span class="kpi-tag ${netFee <= 0 ? 'positive' : 'warning'}">
+                ${netFee <= 0 ? `Net +${fmtUsdCompact(Math.abs(netFee))} Keeper` : `Net Fee: ${fmtUsdCompact(netFee)}`}
+              </span>
+              <button type="button" class="btn btn-sm" data-edit-rcard="${escapeHtml(c.id)}" title="Edit Card">✎</button>
+              <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcard="${escapeHtml(c.id)}" title="Remove">✕</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px; background: var(--bg-subtle); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 12px;">
+            <div>
+              <div style="color: var(--text-muted);">Annual Fee</div>
+              <div class="mono" style="font-weight: 700; font-size: 13.5px;">${fmtUsd(fee)}</div>
+            </div>
+            <div>
+              <div style="color: var(--text-muted);">Credits Used</div>
+              <div class="mono" style="font-weight: 700; font-size: 13.5px; color: var(--accent-primary);">${fmtUsd(captured)} / ${fmtUsd(totalCred)}</div>
+            </div>
+            <div>
+              <div style="color: var(--text-muted);">Road Spend Logged</div>
+              <div class="mono" style="font-weight: 700; font-size: 13.5px; color: var(--accent-sky);">${fmtUsdCompact(loggedSpend)}</div>
+            </div>
+          </div>
+
+          <div style="font-size: 12px; color: var(--text-secondary);">
+            <strong>Multipliers:</strong> ${escapeHtml(c.multipliers || '1X–5X')}
+          </div>
+
+          ${credits.length > 0 ? `
+            <div class="credit-checklist">
+              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 2px;">
+                Statement Credit Checklist (Tap to mark used)
+              </div>
+              ${credits.map((cr, idx) => `
+                <label class="credit-check-row ${cr.used ? 'checked' : ''}">
+                  <span class="credit-check-left">
+                    <input type="checkbox" data-toggle-card-credit="${escapeHtml(c.id)}" data-credit-idx="${idx}" ${cr.used ? 'checked' : ''} />
+                    <span class="credit-label-text">${escapeHtml(cr.label)}</span>
+                  </span>
+                  <span class="mono" style="font-size: 12px; font-weight: 700; color: ${cr.used ? 'var(--accent-primary)' : 'var(--text-secondary)'};">
+                    ${fmtUsd(cr.amount || 0)}
+                  </span>
+                </label>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <div class="reward-meta-footer">
+            <strong>Key Perks:</strong> ${escapeHtml(c.perks || 'No foreign transaction fees')}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function updateCppCalculator() {
+    const cashEl = document.getElementById('cpp-cash-price');
+    const taxEl = document.getElementById('cpp-taxes-fees');
+    const ptsEl = document.getElementById('cpp-points-req');
+    const benchEl = document.getElementById('cpp-program-benchmark');
+    const resEl = document.getElementById('cpp-result-val');
+    const badgeEl = document.getElementById('cpp-verdict-badge');
+    const subEl = document.getElementById('cpp-net-saved-sub');
+    if (!cashEl || !ptsEl || !resEl) return;
+
+    const cash = Number(cashEl.value) || 0;
+    const taxes = Number(taxEl ? taxEl.value : 0) || 0;
+    const pts = Math.max(1, Number(ptsEl.value) || 1);
+    const benchmark = Number(benchEl ? benchEl.value : 1.8) || 1.8;
+
+    const netSaved = Math.max(0, cash - taxes);
+    const cpp = (netSaved / pts) * 100;
+
+    resEl.textContent = `${cpp.toFixed(2)}¢ / pt`;
+    if (subEl) {
+      subEl.textContent = `Net Cash Saved: ${fmtUsd(netSaved)} vs. Benchmark (${benchmark.toFixed(2)}¢/pt = ${fmtUsd((pts * benchmark) / 100)})`;
+    }
+    if (badgeEl) {
+      if (cpp >= benchmark * 1.25) {
+        badgeEl.className = 'kpi-tag positive';
+        badgeEl.textContent = '🔥 OUTSIZED REDEMPTION — Book with Points!';
+      } else if (cpp >= benchmark * 0.95) {
+        badgeEl.className = 'kpi-tag sky';
+        badgeEl.textContent = '✅ SOLID VALUE — Above Baseline';
+      } else {
+        badgeEl.className = 'kpi-tag danger';
+        badgeEl.textContent = '⚠️ BELOW BASELINE — Consider Paying Cash';
+      }
+    }
+  }
+
+  function renderRewardsMatrixAndCalc() {
+    updateCppCalculator();
+
+    document.querySelectorAll('#matrix-bank-chips [data-mbank]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-mbank') === state.matrixBankFilter);
+    });
+
+    const tbody = document.getElementById('transfer-matrix-tbody');
+    if (!tbody) return;
+
+    const rows = state.matrixBankFilter === 'all'
+      ? TRANSFER_PARTNER_MATRIX
+      : TRANSFER_PARTNER_MATRIX.filter(r => r.bank === state.matrixBankFilter);
+
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td style="font-weight: 700;">${escapeHtml(r.bank)}</td>
+        <td>
+          <span class="kpi-tag ${escapeHtml(r.tag)}" style="margin-right: 6px;">${escapeHtml(r.type)}</span>
+          <strong>${escapeHtml(r.partner)}</strong>
+        </td>
+        <td class="mono" style="font-weight: 700;">${escapeHtml(r.ratio)}</td>
+        <td class="mono" style="font-size: 12px; color: var(--accent-primary);">${escapeHtml(r.speed)}</td>
+        <td style="font-size: 12.5px; color: var(--text-secondary);">${escapeHtml(r.sweetSpot)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function renderRewardsRedemptions(redemptions) {
+    const tbody = document.getElementById('rewards-redemptions-tbody');
+    if (!tbody) return;
+    const tripMap = new Map(state.trips.map(t => [t.id, t]));
+
+    if (redemptions.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 28px; color: var(--text-muted);">No points redemptions logged yet. Click <strong>+ Log Redemption</strong> to track how much cash your points saved on a shoot!</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = redemptions.map(r => {
+      const trip = tripMap.get(r.trip_id);
+      const cash = Number(r.cash_price_usd) || 0;
+      const taxes = Number(r.taxes_fees_usd) || 0;
+      const netSaved = Math.max(0, cash - taxes);
+      const pts = Number(r.points_used) || 0;
+      const cpp = pts > 0 ? ((netSaved / pts) * 100).toFixed(2) + '¢' : 'Cert / Perk';
+
+      return `
+        <tr>
+          <td class="mono" style="font-size: 12.5px; color: var(--text-secondary);">${escapeHtml(r.redemption_date || '')}</td>
+          <td>
+            <div class="expense-title">${escapeHtml(r.item_title)}</div>
+            ${r.notes ? `<div class="expense-vendor">${escapeHtml(r.notes)}</div>` : ''}
+          </td>
+          <td style="font-size: 12.5px;">${trip ? escapeHtml(trip.name) : 'General Travel'}</td>
+          <td><span class="cat-badge">${escapeHtml(r.program)}</span></td>
+          <td class="mono" style="text-align: right; font-weight: 600;">${pts > 0 ? pts.toLocaleString('en-US') + ' pts' : 'Free Night Cert'}</td>
+          <td class="mono" style="text-align: right;">${fmtUsd(cash)}</td>
+          <td class="mono" style="text-align: right; color: var(--text-muted);">${fmtUsd(taxes)}</td>
+          <td class="mono" style="text-align: right; font-weight: 700; color: var(--accent-primary);">
+            +${fmtUsd(netSaved)}
+            <div style="font-size: 11px; color: var(--accent-amber);">${cpp}</div>
+          </td>
+          <td>
+            <div class="row-actions">
+              <button type="button" class="btn btn-sm" data-edit-rred="${escapeHtml(r.id)}" title="Edit">✎</button>
+              <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rred="${escapeHtml(r.id)}" title="Delete">✕</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function openRewardProgramModal(editProg = null) {
+    document.getElementById('modal-rprog-title').textContent = editProg ? 'Edit Loyalty Program' : 'Add Loyalty Program';
+    document.getElementById('rprog-id').value = editProg ? editProg.id : '';
+    document.getElementById('rprog-name').value = editProg ? editProg.name : '';
+    document.getElementById('rprog-ecosystem').value = editProg ? editProg.ecosystem : 'Credit Card Points';
+    document.getElementById('rprog-icon').value = editProg ? (editProg.icon || '💳') : '💳';
+    document.getElementById('rprog-balance').value = editProg ? editProg.balance : 50000;
+    document.getElementById('rprog-cpp').value = editProg ? editProg.cpp_valuation : 1.85;
+    document.getElementById('rprog-status').value = editProg ? (editProg.status_tier || '') : '';
+    document.getElementById('rprog-member-id').value = editProg ? (editProg.member_id || '') : '';
+    document.getElementById('rprog-nights-curr').value = editProg ? (editProg.qualifying_current || 0) : 0;
+    document.getElementById('rprog-nights-target').value = editProg ? (editProg.qualifying_target || 0) : 0;
+    document.getElementById('rprog-metric-label').value = editProg ? (editProg.qualifying_label || 'Elite Nights') : 'Elite Nights';
+    document.getElementById('rprog-expiration').value = editProg ? (editProg.expiration_policy || 'No expiration while active') : 'No expiration while active';
+    document.getElementById('rprog-partners').value = editProg ? (editProg.transfer_partners || '') : '';
+    document.getElementById('rprog-notes').value = editProg ? (editProg.notes || '') : '';
+    openModal('modal-reward-program');
+  }
+
+  async function saveRewardProgramFromModal() {
+    const name = document.getElementById('rprog-name').value.trim();
+    if (!name) {
+      showToast('Please enter a Loyalty Program name');
+      return;
+    }
+    const id = document.getElementById('rprog-id').value;
+    const item = {
+      id: id || ('rp_' + Math.random().toString(36).slice(2, 9)),
+      name,
+      ecosystem: document.getElementById('rprog-ecosystem').value,
+      icon: document.getElementById('rprog-icon').value.trim() || '💳',
+      balance: Number(document.getElementById('rprog-balance').value) || 0,
+      cpp_valuation: Number(document.getElementById('rprog-cpp').value) || 1.0,
+      status_tier: document.getElementById('rprog-status').value.trim() || 'Member',
+      member_id: document.getElementById('rprog-member-id').value.trim(),
+      qualifying_current: Number(document.getElementById('rprog-nights-curr').value) || 0,
+      qualifying_target: Number(document.getElementById('rprog-nights-target').value) || 0,
+      qualifying_label: document.getElementById('rprog-metric-label').value.trim() || 'Elite Nights',
+      expiration_policy: document.getElementById('rprog-expiration').value.trim() || 'No expiration',
+      transfer_partners: document.getElementById('rprog-partners').value.trim(),
+      notes: document.getElementById('rprog-notes').value.trim()
+    };
+
+    const idx = state.rewards.programs.findIndex(p => p.id === id);
+    if (idx !== -1) {
+      state.rewards.programs[idx] = item;
+    } else {
+      state.rewards.programs.unshift(item);
+    }
+    closeModal('modal-reward-program');
+    await saveRewardsState(id ? `Updated ${name}` : `Added ${name} to Points Hub`);
+  }
+
+  function openRewardCertModal(editCert = null) {
+    document.getElementById('modal-rcert-title').textContent = editCert ? 'Edit Certificate / Travel Perk' : 'Add Free Night Certificate / Perk';
+    document.getElementById('rcert-id').value = editCert ? editCert.id : '';
+    document.getElementById('rcert-title').value = editCert ? editCert.title : '';
+    document.getElementById('rcert-program').value = editCert ? editCert.program : '';
+    document.getElementById('rcert-type').value = editCert ? (editCert.cert_type || 'Free Night Certificate') : 'Free Night Certificate';
+    document.getElementById('rcert-cap').value = editCert ? (editCert.points_cap || '') : '';
+    document.getElementById('rcert-value').value = editCert ? (editCert.estimated_value_usd || 350) : 350;
+    document.getElementById('rcert-exp').value = editCert ? (editCert.expiration_date || '2027-06-30') : '2027-06-30';
+    document.getElementById('rcert-status').value = editCert ? (editCert.status || 'available') : 'available';
+    document.getElementById('rcert-redeemed-on').value = editCert ? (editCert.redeemed_property || '') : '';
+    document.getElementById('rcert-notes').value = editCert ? (editCert.notes || '') : '';
+    openModal('modal-reward-cert');
+  }
+
+  async function saveRewardCertFromModal() {
+    const title = document.getElementById('rcert-title').value.trim();
+    if (!title) {
+      showToast('Please enter a Certificate or Perk title');
+      return;
+    }
+    const id = document.getElementById('rcert-id').value;
+    const item = {
+      id: id || ('rc_' + Math.random().toString(36).slice(2, 9)),
+      title,
+      program: document.getElementById('rcert-program').value.trim() || 'Loyalty Perk',
+      cert_type: document.getElementById('rcert-type').value,
+      points_cap: document.getElementById('rcert-cap').value.trim() || 'Standard Award',
+      estimated_value_usd: Number(document.getElementById('rcert-value').value) || 0,
+      expiration_date: document.getElementById('rcert-exp').value || '2027-12-31',
+      status: document.getElementById('rcert-status').value,
+      redeemed_property: document.getElementById('rcert-redeemed-on').value.trim(),
+      notes: document.getElementById('rcert-notes').value.trim()
+    };
+
+    const idx = state.rewards.certificates.findIndex(c => c.id === id);
+    if (idx !== -1) {
+      state.rewards.certificates[idx] = item;
+    } else {
+      state.rewards.certificates.unshift(item);
+    }
+    closeModal('modal-reward-cert');
+    await saveRewardsState(id ? `Updated ${title}` : `Added ${title} to Vault`);
+  }
+
+  function openRewardCardModal(editCard = null) {
+    document.getElementById('modal-rcard-title').textContent = editCard ? 'Edit Travel Credit Card' : 'Add Travel Credit Card';
+    document.getElementById('rcard-id').value = editCard ? editCard.id : '';
+    document.getElementById('rcard-name').value = editCard ? editCard.card_name : '';
+    document.getElementById('rcard-issuer').value = editCard ? (editCard.issuer || 'Chase') : 'Chase';
+    document.getElementById('rcard-fee').value = editCard ? (editCard.annual_fee || 0) : 95;
+    document.getElementById('rcard-renewal').value = editCard ? (editCard.renewal_month || '2027-04') : '2027-04';
+    document.getElementById('rcard-earns').value = editCard ? (editCard.points_program || '') : 'Chase Ultimate Rewards';
+    document.getElementById('rcard-multipliers').value = editCard ? (editCard.multipliers || '') : '3X Travel & Dining • 1X All Other';
+
+    const creditsLines = editCard && Array.isArray(editCard.credits)
+      ? editCard.credits.map(cr => `${cr.label} | ${cr.amount}`).join('\n')
+      : '$300 Annual Travel Credit | 300';
+    document.getElementById('rcard-credits-lines').value = creditsLines;
+
+    document.getElementById('rcard-sub-Active').checked = editCard ? Boolean(editCard.sub_active) : false;
+    document.getElementById('rcard-sub-bonus').value = editCard ? (editCard.sub_bonus_text || '') : '75,000 Bonus Points';
+    document.getElementById('rcard-sub-target').value = editCard ? (editCard.sub_spend_target || 4000) : 4000;
+    document.getElementById('rcard-sub-base').value = editCard ? (editCard.sub_base_spend || 0) : 0;
+    document.getElementById('rcard-sub-deadline').value = editCard ? (editCard.sub_deadline || '2027-03-01') : '2027-03-01';
+    document.getElementById('rcard-perks').value = editCard ? (editCard.perks || '') : 'Primary Rental Car CDW, Lounge Access, $0 Foreign Transaction Fees';
+    openModal('modal-reward-card');
+  }
+
+  async function saveRewardCardFromModal() {
+    const cardName = document.getElementById('rcard-name').value.trim();
+    if (!cardName) {
+      showToast('Please enter a Credit Card name');
+      return;
+    }
+    const id = document.getElementById('rcard-id').value;
+    const existingCard = state.rewards.cards.find(c => c.id === id);
+    const existingUsedMap = new Map(
+      (existingCard && Array.isArray(existingCard.credits) ? existingCard.credits : []).map(cr => [cr.label, cr.used])
+    );
+
+    const rawLines = document.getElementById('rcard-credits-lines').value
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean);
+
+    const parsedCredits = rawLines.map((line, i) => {
+      const parts = line.split('|').map(s => s.trim());
+      const label = parts[0] || `Statement Credit #${i + 1}`;
+      const amtMatch = parts[1] ? Number(parts[1].replace(/[^0-9.]/g, '')) : Number((label.match(/\$([0-9,]+)/) || [])[1]?.replace(/,/g, '') || 50);
+      return {
+        id: `cr_${i}_${Math.random().toString(36).slice(2, 6)}`,
+        label,
+        amount: amtMatch || 0,
+        frequency: 'Annual',
+        used: existingUsedMap.has(label) ? existingUsedMap.get(label) : false
+      };
+    });
+
+    const item = {
+      id: id || ('card_' + Math.random().toString(36).slice(2, 9)),
+      card_name: cardName,
+      issuer: document.getElementById('rcard-issuer').value,
+      annual_fee: Number(document.getElementById('rcard-fee').value) || 0,
+      renewal_month: document.getElementById('rcard-renewal').value.trim() || '2027-01',
+      points_program: document.getElementById('rcard-earns').value.trim(),
+      multipliers: document.getElementById('rcard-multipliers').value.trim(),
+      perks: document.getElementById('rcard-perks').value.trim(),
+      credits: parsedCredits,
+      sub_active: document.getElementById('rcard-sub-Active').checked,
+      sub_bonus_text: document.getElementById('rcard-sub-bonus').value.trim(),
+      sub_spend_target: Number(document.getElementById('rcard-sub-target').value) || 4000,
+      sub_base_spend: Number(document.getElementById('rcard-sub-base').value) || 0,
+      sub_deadline: document.getElementById('rcard-sub-deadline').value || '2027-03-01'
+    };
+
+    const idx = state.rewards.cards.findIndex(c => c.id === id);
+    if (idx !== -1) {
+      state.rewards.cards[idx] = item;
+    } else {
+      state.rewards.cards.unshift(item);
+    }
+    closeModal('modal-reward-card');
+    await saveRewardsState(id ? `Updated ${cardName}` : `Added ${cardName} to Card Wallet`);
+  }
+
+  function updateRedemptionModalPreview() {
+    const pts = Number(document.getElementById('rred-points')?.value) || 0;
+    const cash = Number(document.getElementById('rred-cash')?.value) || 0;
+    const taxes = Number(document.getElementById('rred-taxes')?.value) || 0;
+    const netSaved = Math.max(0, cash - taxes);
+    const cpp = pts > 0 ? ((netSaved / pts) * 100).toFixed(2) + '¢ / pt' : 'Free Night Cert';
+    const prev = document.getElementById('rred-live-preview');
+    if (prev) {
+      prev.textContent = `${fmtUsd(netSaved)} Saved (${cpp})`;
+    }
+  }
+
+  function openRewardRedemptionModal(editRed = null, prefillProgram = '') {
+    document.getElementById('modal-rred-title').textContent = editRed ? 'Edit Trip Redemption' : 'Log Points / Certificate Redemption';
+    document.getElementById('rred-id').value = editRed ? editRed.id : '';
+    document.getElementById('rred-date').value = editRed ? editRed.redemption_date : new Date().toISOString().slice(0, 10);
+    document.getElementById('rred-trip-id').value = editRed ? (editRed.trip_id || 'all') : (state.selectedTripId !== 'all' ? state.selectedTripId : (state.trips[0]?.id || 'all'));
+    document.getElementById('rred-program').value = editRed ? editRed.program : (prefillProgram || 'World of Hyatt');
+    document.getElementById('rred-item').value = editRed ? editRed.item_title : '';
+    document.getElementById('rred-points').value = editRed ? editRed.points_used : 25000;
+    document.getElementById('rred-cash').value = editRed ? editRed.cash_price_usd : 650;
+    document.getElementById('rred-taxes').value = editRed ? editRed.taxes_fees_usd : 0;
+    document.getElementById('rred-notes').value = editRed ? (editRed.notes || '') : '';
+    updateRedemptionModalPreview();
+    openModal('modal-reward-redemption');
+  }
+
+  async function saveRewardRedemptionFromModal() {
+    const itemTitle = document.getElementById('rred-item').value.trim();
+    if (!itemTitle) {
+      showToast('Please enter the hotel stay or flight booked');
+      return;
+    }
+    const id = document.getElementById('rred-id').value;
+    const cash = Number(document.getElementById('rred-cash').value) || 0;
+    const taxes = Number(document.getElementById('rred-taxes').value) || 0;
+    const pts = Number(document.getElementById('rred-points').value) || 0;
+    const netSaved = Math.max(0, cash - taxes);
+    const cpp = pts > 0 ? Number(((netSaved / pts) * 100).toFixed(2)) : 0;
+
+    const item = {
+      id: id || ('rr_' + Math.random().toString(36).slice(2, 9)),
+      redemption_date: document.getElementById('rred-date').value || new Date().toISOString().slice(0, 10),
+      trip_id: document.getElementById('rred-trip-id').value,
+      program: document.getElementById('rred-program').value.trim() || 'Loyalty Points',
+      item_title: itemTitle,
+      points_used: pts,
+      cash_price_usd: cash,
+      taxes_fees_usd: taxes,
+      cpp_achieved: cpp,
+      notes: document.getElementById('rred-notes').value.trim()
+    };
+
+    const idx = state.rewards.redemptions.findIndex(r => r.id === id);
+    if (idx !== -1) {
+      state.rewards.redemptions[idx] = item;
+    } else {
+      state.rewards.redemptions.unshift(item);
+    }
+    closeModal('modal-reward-redemption');
+    await saveRewardsState(`Logged redemption: Saved ${fmtUsd(netSaved)} on ${itemTitle}`);
+  }
+
+  function openRewardTemplatesModal() {
+    const grid = document.getElementById('reward-templates-picker-grid');
+    if (grid) {
+      grid.innerHTML = POPULAR_REWARD_TEMPLATES.map((tpl, idx) => `
+        <div class="template-pick-card">
+          <div>
+            <span class="kpi-tag sky" style="margin-bottom: 6px; display: inline-block;">${escapeHtml(tpl.badge)}</span>
+            <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">${escapeHtml(tpl.title)}</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">${escapeHtml(tpl.subtitle)}</div>
+          </div>
+          <button type="button" class="btn btn-sm btn-primary" data-add-reward-tpl="${idx}" style="width: 100%;">
+            + Add to My Rewards Hub
+          </button>
+        </div>
+      `).join('');
+    }
+    openModal('modal-reward-templates');
+  }
+
+  function triggerRewardsCsvExport() {
+    const programs = state.rewards.programs || [];
+    const certs = state.rewards.certificates || [];
+    const redemptions = state.rewards.redemptions || [];
+
+    const rows = [
+      ['SECTION', 'NAME / TITLE', 'ECOSYSTEM / PROGRAM', 'BALANCE / POINTS', 'VALUATION (CPP)', 'ESTIMATED USD VALUE / CASH SAVED', 'STATUS / EXPIRATION', 'NOTES'].map(escapeCsvCell).join(',')
+    ];
+
+    for (const p of programs) {
+      const val = (((Number(p.balance) || 0) * (Number(p.cpp_valuation) || 1)) / 100).toFixed(2);
+      rows.push([
+        'Loyalty Program',
+        p.name,
+        p.ecosystem,
+        p.balance,
+        p.cpp_valuation,
+        val,
+        p.status_tier,
+        p.notes
+      ].map(escapeCsvCell).join(','));
+    }
+
+    for (const c of certs) {
+      rows.push([
+        'Certificate / Perk',
+        c.title,
+        c.program,
+        c.points_cap,
+        '',
+        Number(c.estimated_value_usd || 0).toFixed(2),
+        `${c.status} (${c.expiration_date})`,
+        c.notes
+      ].map(escapeCsvCell).join(','));
+    }
+
+    for (const r of redemptions) {
+      const saved = Math.max(0, (Number(r.cash_price_usd) || 0) - (Number(r.taxes_fees_usd) || 0)).toFixed(2);
+      rows.push([
+        'Trip Redemption',
+        r.item_title,
+        r.program,
+        r.points_used,
+        r.cpp_achieved,
+        saved,
+        r.redemption_date,
+        r.notes
+      ].map(escapeCsvCell).join(','));
+    }
+
+    const csvContent = rows.join('\n');
+    const filename = 'wander-wallet-rewards-portfolio.csv';
+    try {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {}
+    showToast('Exported Rewards & Loyalty CSV!');
+  }
+
   function bindEvents() {
     // Global Trip Selector
     const globalSelect = document.getElementById('global-trip-select');
@@ -2489,6 +4267,65 @@
         saveSecurityPasswordFromModal();
       });
     }
+    const formRprog = document.getElementById('form-reward-program');
+    if (formRprog) {
+      formRprog.addEventListener('submit', e => {
+        e.preventDefault();
+        saveRewardProgramFromModal();
+      });
+    }
+    const formRcert = document.getElementById('form-reward-cert');
+    if (formRcert) {
+      formRcert.addEventListener('submit', e => {
+        e.preventDefault();
+        saveRewardCertFromModal();
+      });
+    }
+    const formRcard = document.getElementById('form-reward-card');
+    if (formRcard) {
+      formRcard.addEventListener('submit', e => {
+        e.preventDefault();
+        saveRewardCardFromModal();
+      });
+    }
+    const formRred = document.getElementById('form-reward-redemption');
+    if (formRred) {
+      formRred.addEventListener('submit', e => {
+        e.preventDefault();
+        saveRewardRedemptionFromModal();
+      });
+    }
+
+    // Live CPP Calculator & Redemption Modal Previews
+    ['cpp-cash-price', 'cpp-taxes-fees', 'cpp-points-req', 'cpp-program-benchmark'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', updateCppCalculator);
+        el.addEventListener('change', updateCppCalculator);
+      }
+    });
+    ['rred-points', 'rred-cash', 'rred-taxes'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', updateRedemptionModalPreview);
+    });
+
+    // Statement Credit Checkbox delegation
+    document.addEventListener('change', async e => {
+      const credCheck = e.target.closest('[data-toggle-card-credit]');
+      if (credCheck) {
+        const cardId = credCheck.getAttribute('data-toggle-card-credit');
+        const idx = Number(credCheck.getAttribute('data-credit-idx'));
+        const card = state.rewards.cards.find(c => c.id === cardId);
+        if (card && Array.isArray(card.credits) && card.credits[idx]) {
+          card.credits[idx].used = Boolean(credCheck.checked);
+          await saveRewardsState(
+            credCheck.checked
+              ? `✓ Marked "${card.credits[idx].label}" used`
+              : `Unchecked "${card.credits[idx].label}"`
+          );
+        }
+      }
+    });
 
     // Filters & Search
     const searchEl = document.getElementById('input-ledger-search');
@@ -2549,6 +4386,15 @@
         lockAndLogout();
         return;
       }
+      if (e.target.closest('#btn-copy-origin-url, #btn-auth-copy-origin')) {
+        e.preventDefault();
+        const originUrl = window.location.origin || '';
+        try {
+          await navigator.clipboard.writeText(originUrl);
+        } catch (err) {}
+        showToast(`Copied "${originUrl}" — paste into Google Cloud Authorized JavaScript origins!`);
+        return;
+      }
 
       // Modal form submit buttons (handles sandboxed iframes where form submit may be restricted)
       if (e.target.closest('#btn-submit-expense')) {
@@ -2564,6 +4410,251 @@
       if (e.target.closest('#btn-submit-revenue')) {
         e.preventDefault();
         saveRevenueFromModal();
+        return;
+      }
+      if (e.target.closest('#btn-submit-rprog')) {
+        e.preventDefault();
+        saveRewardProgramFromModal();
+        return;
+      }
+      if (e.target.closest('#btn-submit-rcert')) {
+        e.preventDefault();
+        saveRewardCertFromModal();
+        return;
+      }
+      if (e.target.closest('#btn-submit-rcard')) {
+        e.preventDefault();
+        saveRewardCardFromModal();
+        return;
+      }
+      if (e.target.closest('#btn-submit-rred')) {
+        e.preventDefault();
+        saveRewardRedemptionFromModal();
+        return;
+      }
+
+      // Topbar Rewards Command Center launcher / toggle
+      if (e.target.closest('#btn-topbar-rewards')) {
+        e.preventDefault();
+        switchView(state.activeView === 'rewards' ? 'dashboard' : 'rewards');
+        return;
+      }
+
+      // Rewards Sub-navigation Tabs
+      const rtabBtn = e.target.closest('#rewards-subnav [data-rtab]');
+      if (rtabBtn) {
+        e.preventDefault();
+        state.rewardsTab = rtabBtn.getAttribute('data-rtab');
+        renderRewardsDashboard();
+        return;
+      }
+
+      // Rewards Ecosystem Filter Chips
+      const recoChip = e.target.closest('#rewards-eco-chips [data-reco]');
+      if (recoChip) {
+        e.preventDefault();
+        state.rewardsEcoFilter = recoChip.getAttribute('data-reco');
+        renderRewardsDashboard();
+        return;
+      }
+
+      // Rewards Cert Filter Chips
+      const rcertChip = e.target.closest('#rewards-cert-chips [data-rcert-filter]');
+      if (rcertChip) {
+        e.preventDefault();
+        state.rewardsCertFilter = rcertChip.getAttribute('data-rcert-filter');
+        renderRewardsDashboard();
+        return;
+      }
+
+      // Transfer Matrix Bank Filter Chips
+      const mbankChip = e.target.closest('#matrix-bank-chips [data-mbank]');
+      if (mbankChip) {
+        e.preventDefault();
+        state.matrixBankFilter = mbankChip.getAttribute('data-mbank');
+        renderRewardsMatrixAndCalc();
+        return;
+      }
+
+      // Copy Member ID pill
+      const copyMemBtn = e.target.closest('[data-copy-member]');
+      if (copyMemBtn) {
+        e.preventDefault();
+        const memId = copyMemBtn.getAttribute('data-copy-member');
+        try {
+          await navigator.clipboard.writeText(memId);
+        } catch (err) {}
+        showToast(`Copied Member ID: ${memId}`);
+        return;
+      }
+
+      // Quick +/- points stepper on Program Card
+      const stepProgBtn = e.target.closest('[data-step-rprog]');
+      if (stepProgBtn) {
+        e.preventDefault();
+        const progId = stepProgBtn.getAttribute('data-step-rprog');
+        const delta = Number(stepProgBtn.getAttribute('data-delta')) || 0;
+        const prog = state.rewards.programs.find(p => p.id === progId);
+        if (prog) {
+          prog.balance = Math.max(0, (Number(prog.balance) || 0) + delta);
+          await saveRewardsState(`${prog.name}: ${prog.balance.toLocaleString('en-US')} balance`);
+        }
+        return;
+      }
+
+      // Quick +/- Elite Nights stepper on Program Card
+      const stepNightsBtn = e.target.closest('[data-step-rnights]');
+      if (stepNightsBtn) {
+        e.preventDefault();
+        const progId = stepNightsBtn.getAttribute('data-step-rnights');
+        const delta = Number(stepNightsBtn.getAttribute('data-delta')) || 0;
+        const prog = state.rewards.programs.find(p => p.id === progId);
+        if (prog) {
+          prog.qualifying_current = Math.max(0, (Number(prog.qualifying_current) || 0) + delta);
+          await saveRewardsState(`${prog.name}: ${prog.qualifying_current} / ${prog.qualifying_target} ${prog.qualifying_label || 'Nights'}`);
+        }
+        return;
+      }
+
+      // Open Rewards Modals (Add / Edit / Delete)
+      if (e.target.closest('#btn-rewards-add-program, #btn-rtab-add-program')) {
+        e.preventDefault();
+        openRewardProgramModal(null);
+        return;
+      }
+      const editRprogBtn = e.target.closest('[data-edit-rprog]');
+      if (editRprogBtn) {
+        e.preventDefault();
+        const prog = state.rewards.programs.find(p => p.id === editRprogBtn.getAttribute('data-edit-rprog'));
+        if (prog) openRewardProgramModal(prog);
+        return;
+      }
+      const delRprogBtn = e.target.closest('[data-del-rprog]');
+      if (delRprogBtn) {
+        e.preventDefault();
+        const id = delRprogBtn.getAttribute('data-del-rprog');
+        state.rewards.programs = state.rewards.programs.filter(p => p.id !== id);
+        await saveRewardsState('Loyalty program removed');
+        return;
+      }
+
+      if (e.target.closest('#btn-rewards-add-cert, #btn-rtab-add-cert')) {
+        e.preventDefault();
+        openRewardCertModal(null);
+        return;
+      }
+      const editRcertBtn = e.target.closest('[data-edit-rcert]');
+      if (editRcertBtn) {
+        e.preventDefault();
+        const cert = state.rewards.certificates.find(c => c.id === editRcertBtn.getAttribute('data-edit-rcert'));
+        if (cert) openRewardCertModal(cert);
+        return;
+      }
+      const delRcertBtn = e.target.closest('[data-del-rcert]');
+      if (delRcertBtn) {
+        e.preventDefault();
+        const id = delRcertBtn.getAttribute('data-del-rcert');
+        state.rewards.certificates = state.rewards.certificates.filter(c => c.id !== id);
+        await saveRewardsState('Certificate / perk removed');
+        return;
+      }
+      const toggleRcertBtn = e.target.closest('[data-toggle-rcert]');
+      if (toggleRcertBtn) {
+        e.preventDefault();
+        const cert = state.rewards.certificates.find(c => c.id === toggleRcertBtn.getAttribute('data-toggle-rcert'));
+        if (cert) {
+          cert.status = cert.status === 'redeemed' ? 'available' : 'redeemed';
+          await saveRewardsState(cert.status === 'redeemed' ? `🎉 Marked "${cert.title}" Redeemed!` : `Restored "${cert.title}" to Available`);
+        }
+        return;
+      }
+
+      if (e.target.closest('#btn-rewards-add-card, #btn-rtab-add-card')) {
+        e.preventDefault();
+        openRewardCardModal(null);
+        return;
+      }
+      const editRcardBtn = e.target.closest('[data-edit-rcard]');
+      if (editRcardBtn) {
+        e.preventDefault();
+        const card = state.rewards.cards.find(c => c.id === editRcardBtn.getAttribute('data-edit-rcard'));
+        if (card) openRewardCardModal(card);
+        return;
+      }
+      const delRcardBtn = e.target.closest('[data-del-rcard]');
+      if (delRcardBtn) {
+        e.preventDefault();
+        const id = delRcardBtn.getAttribute('data-del-rcard');
+        state.rewards.cards = state.rewards.cards.filter(c => c.id !== id);
+        await saveRewardsState('Credit card removed from wallet');
+        return;
+      }
+
+      if (e.target.closest('#btn-rewards-add-redemption, #btn-rtab-add-redemption')) {
+        e.preventDefault();
+        openRewardRedemptionModal(null);
+        return;
+      }
+      const quickRedeemBtn = e.target.closest('[data-quick-redeem-prog]');
+      if (quickRedeemBtn) {
+        e.preventDefault();
+        openRewardRedemptionModal(null, quickRedeemBtn.getAttribute('data-quick-redeem-prog'));
+        return;
+      }
+      const editRredBtn = e.target.closest('[data-edit-rred]');
+      if (editRredBtn) {
+        e.preventDefault();
+        const red = state.rewards.redemptions.find(r => r.id === editRredBtn.getAttribute('data-edit-rred'));
+        if (red) openRewardRedemptionModal(red);
+        return;
+      }
+      const delRredBtn = e.target.closest('[data-del-rred]');
+      if (delRredBtn) {
+        e.preventDefault();
+        const id = delRredBtn.getAttribute('data-del-rred');
+        state.rewards.redemptions = state.rewards.redemptions.filter(r => r.id !== id);
+        await saveRewardsState('Redemption entry removed');
+        return;
+      }
+
+      // Rewards Templates & Export buttons
+      if (e.target.closest('#btn-rewards-open-templates')) {
+        e.preventDefault();
+        openRewardTemplatesModal();
+        return;
+      }
+      const addTplBtn = e.target.closest('[data-add-reward-tpl]');
+      if (addTplBtn) {
+        e.preventDefault();
+        const tpl = POPULAR_REWARD_TEMPLATES[Number(addTplBtn.getAttribute('data-add-reward-tpl'))];
+        if (tpl) {
+          const clone = JSON.parse(JSON.stringify(tpl.data));
+          clone.id = 'tpl_' + Math.random().toString(36).slice(2, 9);
+          if (tpl.kind === 'card') state.rewards.cards.unshift(clone);
+          else if (tpl.kind === 'program') state.rewards.programs.unshift(clone);
+          else if (tpl.kind === 'cert') state.rewards.certificates.unshift(clone);
+          closeModal('modal-reward-templates');
+          await saveRewardsState(`Added ${tpl.title} to your Rewards Hub!`);
+        }
+        return;
+      }
+      if (e.target.closest('#btn-restore-default-rewards')) {
+        e.preventDefault();
+        state.rewards = getDefaultRewardsData();
+        closeModal('modal-reward-templates');
+        await saveRewardsState('Restored full sample Rewards & Loyalty lineup');
+        return;
+      }
+      if (e.target.closest('#btn-clear-all-rewards')) {
+        e.preventDefault();
+        state.rewards = { programs: [], certificates: [], cards: [], redemptions: [] };
+        closeModal('modal-reward-templates');
+        await saveRewardsState('Cleared sample rewards — ready for your custom entries!');
+        return;
+      }
+      if (e.target.closest('#btn-rewards-export-csv')) {
+        e.preventDefault();
+        triggerRewardsCsvExport();
         return;
       }
 

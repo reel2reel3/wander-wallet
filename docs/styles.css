@@ -1513,18 +1513,223 @@ body {
 }
 
 .auth-gate-error {
-  background-color: var(--accent-coral-soft);
-  border: 1px solid var(--accent-coral);
-  color: var(--accent-coral);
+  background-color: var(--accent-danger-soft);
+  border: 1px solid var(--accent-danger);
+  color: var(--accent-danger);
   padding: 9px 12px;
   border-radius: var(--radius-sm);
   font-size: 12.5px;
   font-weight: 600;
 }
 
+/* Rewards Command Center Styles */
+.btn-rewards-launch {
+  background: linear-gradient(135deg, hsla(38, 92%, 55%, 0.18), hsla(160, 84%, 39%, 0.16));
+  border: 1px solid var(--accent-amber);
+  color: var(--text-primary);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-rewards-launch:hover {
+  background: linear-gradient(135deg, hsla(38, 92%, 55%, 0.28), hsla(160, 84%, 39%, 0.24));
+  border-color: var(--accent-amber);
+}
+
+.btn-rewards-launch.active-rewards-mode {
+  background-color: var(--accent-amber);
+  color: #0b0f17;
+  border-color: var(--accent-amber);
+}
+
+.rewards-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin: 14px 0;
+}
+
+.rewards-subnav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.rewards-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rewards-tab-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.rewards-tab-btn.active {
+  background-color: var(--accent-primary-soft);
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.rewards-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 16px;
+}
+
+.reward-item-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease;
+}
+
+.reward-item-card:hover {
+  border-color: var(--border-strong);
+}
+
+.reward-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.reward-ecosystem-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.reward-balance-box {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.stepper-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-stepper {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 5px;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.btn-stepper:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+}
+
+.rewards-sub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.best-card-cheat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.best-card-tile {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.credit-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.credit-check-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+.credit-check-row.completed {
+  border-color: hsla(160, 84%, 39%, 0.35);
+  background-color: hsla(160, 84%, 39%, 0.06);
+}
+
+.template-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.template-picker-card {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: space-between;
+}
+
 /* Responsive Breakpoints */
 @media (max-width: 1120px) {
-  .kpi-grid {
+  .kpi-grid,
+  .rewards-kpi-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   .analytics-grid,

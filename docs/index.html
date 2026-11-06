@@ -63,6 +63,15 @@
           </button>
         </li>
         <li>
+          <button type="button" class="nav-item-btn" data-view="rewards" id="nav-btn-rewards">
+            <span class="nav-item-left">
+              <span>🏆</span>
+              <span class="nav-item-text">Rewards &amp; Loyalty</span>
+            </span>
+            <span class="nav-badge" id="badge-rewards-value" style="color: var(--accent-amber);">$0</span>
+          </button>
+        </li>
+        <li>
           <button type="button" class="nav-item-btn" data-view="tax" id="nav-btn-tax">
             <span class="nav-item-left">
               <span>🧾</span>
@@ -104,6 +113,14 @@
         <button type="button" class="btn btn-sm" id="btn-theme-toggle" style="width: 100%;">
           <span>◐ Switch Light / Dark Theme</span>
         </button>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+          <button type="button" class="btn btn-sm" id="btn-open-security-modal" title="Password & Google Sign-In Settings">
+            <span>🔑 Security</span>
+          </button>
+          <button type="button" class="btn btn-sm" id="btn-lock-logout" title="Lock App & Sign Out">
+            <span>🔒 Lock App</span>
+          </button>
+        </div>
       </div>
     </aside>
 
@@ -121,10 +138,15 @@
         </div>
 
         <div class="topbar-actions">
+          <button type="button" class="btn btn-rewards-launch" id="btn-topbar-rewards" title="Open Travel Rewards, Loyalty Cards, Points & Free Nights Command Center">
+            <span>🏆</span>
+            <span id="btn-topbar-rewards-label">Rewards</span>
+          </button>
           <button type="button" class="btn" id="btn-topbar-help" title="How Wander Wallet Works & Guided Tour">🎓 Help &amp; Tour</button>
           <button type="button" class="btn" id="btn-open-new-trip">+ New Trip</button>
           <button type="button" class="btn" id="btn-open-new-revenue">+ Log Revenue</button>
           <button type="button" class="btn" id="btn-export-csv-top">⬇ Export Tax CSV</button>
+          <button type="button" class="btn" id="btn-topbar-lock" title="Lock Workspace">🔒</button>
           <button type="button" class="btn btn-primary" id="btn-topbar-quick-add">+ Add Expense</button>
         </div>
       </header>
@@ -624,6 +646,299 @@
             </section>
           </div>
         </div>
+
+        <!-- VIEW 6: REWARDS & LOYALTY COMMAND CENTER -->
+        <div id="view-rewards" class="view-section" style="display: none;">
+          <!-- Rewards Top Action Banner -->
+          <section class="panel-card rewards-hero-banner" style="margin-bottom: 18px;">
+            <div class="panel-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px;">
+              <div>
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-amber); margin-bottom: 4px;">
+                  🏆 TRAVEL REWARDS, POINTS, FREE NIGHTS &amp; CARD PERKS VAULT
+                </div>
+                <h2 class="panel-title" style="font-size: 20px;">Loyalty &amp; Rewards Command Center</h2>
+                <p class="panel-subtitle" style="margin-top: 3px;">
+                  Monitor transferable bank points, hotel &amp; airline status nights, expiring free night certificates, annual card statement credits, welcome bonus minimum spend, and trip redemption savings.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <button type="button" class="btn btn-sm" id="btn-rewards-back-finance">← Back to Finance Ledger</button>
+                <button type="button" class="btn btn-sm" id="btn-open-reward-templates">⚡ Popular Card &amp; Program Templates</button>
+                <button type="button" class="btn btn-sm" id="btn-open-add-program">+ Loyalty Program</button>
+                <button type="button" class="btn btn-sm" id="btn-open-add-cert">+ Free Night / Perk</button>
+                <button type="button" class="btn btn-sm" id="btn-open-add-card">+ Credit Card</button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-open-add-redemption">+ Log Point Redemption</button>
+              </div>
+            </div>
+
+            <!-- 5 Portfolio Summary KPIs -->
+            <div class="rewards-kpi-grid" id="rewards-kpi-grid">
+              <!-- Populated dynamically by renderRewardsDashboard() -->
+            </div>
+
+            <!-- Sub-Navigation Tabs inside Rewards Command Center -->
+            <div class="rewards-subnav" role="tablist" aria-label="Rewards Sections">
+              <button type="button" class="rewards-tab-btn active" data-rewards-tab="programs">
+                <span>💎 Points, Miles &amp; Elite Status</span>
+                <span class="nav-badge" id="r-badge-programs">0</span>
+              </button>
+              <button type="button" class="rewards-tab-btn" data-rewards-tab="certs">
+                <span>🎟️ Free Nights, Companion &amp; Perks</span>
+                <span class="nav-badge" id="r-badge-certs">0</span>
+              </button>
+              <button type="button" class="rewards-tab-btn" data-rewards-tab="cards">
+                <span>💳 Credit Cards, Credits &amp; SUB Spend</span>
+                <span class="nav-badge" id="r-badge-cards">0</span>
+              </button>
+              <button type="button" class="rewards-tab-btn" data-rewards-tab="matrix">
+                <span>🔄 Transfer Partners &amp; CPP Calculator</span>
+              </button>
+              <button type="button" class="rewards-tab-btn" data-rewards-tab="redemptions">
+                <span>📓 Redemptions &amp; Trip Savings Log</span>
+                <span class="nav-badge" id="r-badge-redemptions">0</span>
+              </button>
+            </div>
+          </section>
+
+          <!-- REWARDS TAB 1: POINTS, MILES & ELITE STATUS -->
+          <div id="rewards-pane-programs" class="rewards-tab-pane">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
+              <div class="category-chips" id="rewards-ecosystem-chips">
+                <button type="button" class="chip-btn active" data-eco-filter="all">All Ecosystems</button>
+                <button type="button" class="chip-btn" data-eco-filter="bank">🏦 Transferable Bank Points</button>
+                <button type="button" class="chip-btn" data-eco-filter="hotel">🏨 Hotel Loyalty</button>
+                <button type="button" class="chip-btn" data-eco-filter="airline">✈️ Airline Frequent Flyer</button>
+                <button type="button" class="chip-btn" data-eco-filter="other">🚢 Rail / Cruise / Other</button>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-sm" id="btn-prog-open-templates">⚡ Add from Templates</button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-prog-add-custom">+ Add Loyalty Program</button>
+              </div>
+            </div>
+
+            <div class="rewards-cards-grid" id="rewards-programs-grid">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- REWARDS TAB 2: FREE NIGHT CERTIFICATES, COMPANION PASSES & PERKS -->
+          <div id="rewards-pane-certs" class="rewards-tab-pane" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
+              <div class="category-chips" id="rewards-cert-chips">
+                <button type="button" class="chip-btn active" data-cert-filter="all">All Certificates &amp; Perks</button>
+                <button type="button" class="chip-btn" data-cert-filter="available">🟢 Available Only</button>
+                <button type="button" class="chip-btn" data-cert-filter="expiring">🔴 Expiring Soon (&lt;60 Days)</button>
+                <button type="button" class="chip-btn" data-cert-filter="Free Night Certificate">🏨 Hotel Free Nights</button>
+                <button type="button" class="chip-btn" data-cert-filter="Companion Pass">✈️ Companion &amp; Upgrades</button>
+                <button type="button" class="chip-btn" data-cert-filter="Lounge & Security Perk">🛂 Lounge &amp; Security</button>
+                <button type="button" class="chip-btn" data-cert-filter="redeemed">✅ Redeemed</button>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary" id="btn-cert-add-new">+ Add Free Night / Certificate / Perk</button>
+            </div>
+
+            <div class="rewards-cards-grid" id="rewards-certs-grid">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- REWARDS TAB 3: CREDIT CARDS, ANNUAL STATEMENT CREDITS & SUB TRACKER -->
+          <div id="rewards-pane-cards" class="rewards-tab-pane" style="display: none;">
+            <!-- Active Welcome Bonus (SUB) Minimum Spend Section -->
+            <section class="panel-card" style="margin-bottom: 18px;" id="rewards-sub-tracker-panel">
+              <div class="panel-header">
+                <div>
+                  <h3 class="panel-title">🎯 Active Welcome Bonus (SUB) Minimum Spend Tracker</h3>
+                  <p class="panel-subtitle">Automatically tracks road expenses logged on each card + manual spend toward your bonus deadline</p>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-card-add-new-top">+ Add Travel Credit Card</button>
+              </div>
+              <div id="rewards-sub-list" class="rewards-sub-grid">
+                <!-- Populated dynamically -->
+              </div>
+            </section>
+
+            <!-- Best Card to Swipe by Road Spend Category Cheat Sheet -->
+            <section class="panel-card" style="margin-bottom: 18px;">
+              <div class="panel-header">
+                <div>
+                  <h3 class="panel-title">⚡ "Which Card Should I Swipe?" Road Multiplier Cheat Sheet</h3>
+                  <p class="panel-subtitle">Quick reference for maximum point return on every shoot category</p>
+                </div>
+              </div>
+              <div class="best-card-cheat-grid" id="best-card-cheat-grid">
+                <!-- Populated dynamically -->
+              </div>
+            </section>
+
+            <!-- Credit Card Wallet & Statement Credit Checklist -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <h3 style="font-size: 16px; font-weight: 700;">💳 Travel Card Wallet &amp; Annual Statement Credit Checklists</h3>
+                <p style="font-size: 12.5px; color: var(--text-muted);">Check off statement credits ($300 travel credits, airline fee credits, Uber/Dining, Dell, Resort credits) to verify each card pays for its annual fee.</p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn btn-sm" id="btn-cards-open-templates">⚡ Add Card from Template</button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-card-add-new">+ Custom Credit Card</button>
+              </div>
+            </div>
+            <div class="rewards-cards-grid" id="rewards-cards-grid">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- REWARDS TAB 4: TRANSFER PARTNER MATRIX & CPP DEAL CALCULATOR -->
+          <div id="rewards-pane-matrix" class="rewards-tab-pane" style="display: none;">
+            <div class="analytics-grid" style="margin-bottom: 18px;">
+              <!-- Live Cents-Per-Point (CPP) Redemption Evaluator -->
+              <section class="panel-card">
+                <div class="panel-header">
+                  <div>
+                    <h3 class="panel-title">🧮 Points vs. Cash Redemption Calculator (CPP)</h3>
+                    <p class="panel-subtitle">Calculate exact Cents Per Point before booking any flight or hotel</p>
+                  </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                  <div class="form-grid-2">
+                    <div class="form-group">
+                      <label class="form-label" for="calc-program">Loyalty Program</label>
+                      <select id="calc-program" class="form-select"></select>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="calc-points">Points / Miles Required</label>
+                      <input type="number" id="calc-points" class="form-input mono" value="45000" min="100" step="500" />
+                    </div>
+                  </div>
+                  <div class="form-grid-2">
+                    <div class="form-group">
+                      <label class="form-label" for="calc-cash">Retail Cash Price (USD)</label>
+                      <input type="number" id="calc-cash" class="form-input mono" value="1150" min="0" step="10" />
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label" for="calc-fees">Award Taxes &amp; Copay (USD)</label>
+                      <input type="number" id="calc-fees" class="form-input mono" value="0" min="0" step="5" />
+                    </div>
+                  </div>
+                  <div id="calc-result-box" class="help-callout-box" style="border-left: 4px solid var(--accent-primary);">
+                    <!-- Populated dynamically -->
+                  </div>
+                  <button type="button" class="btn btn-primary" id="btn-calc-log-redemption" style="align-self: flex-start;">
+                    + Log This Booking in Redemption Log
+                  </button>
+                </div>
+              </section>
+
+              <!-- Creator Award Sweet Spots Cheat Sheet -->
+              <section class="panel-card">
+                <div class="panel-header">
+                  <div>
+                    <h3 class="panel-title">🔥 Creator Travel Award Sweet Spots</h3>
+                    <p class="panel-subtitle">Highest-CPP redemptions for international production shoots</p>
+                  </div>
+                </div>
+                <div class="help-info-stack">
+                  <div class="help-callout-box">
+                    <div style="font-weight: 700; font-size: 13px; color: var(--accent-primary); margin-bottom: 3px;">
+                      🏨 World of Hyatt (1:1 from Chase UR &amp; Bilt) — 2.1¢ to 4.5¢/pt
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                      Park Hyatt Kyoto, Andaz Tokyo, or Zermatt partner hotels cost 25k–45k pts/night vs. $900–$1,800 cash, with $0 resort fees and free Globalist breakfast.
+                    </div>
+                  </div>
+                  <div class="help-callout-box">
+                    <div style="font-weight: 700; font-size: 13px; color: var(--accent-sky); margin-bottom: 3px;">
+                      ✈️ Air Canada Aeroplan (1:1 Amex, Chase, CapOne, Bilt) — 5k Stopover Trick
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                      Book SWISS, ANA, Lufthansa, Singapore Airlines, or Emirates with fixed partner pricing and add a multi-day filming stopover in a second city for only <strong>+5,000 miles</strong>.
+                    </div>
+                  </div>
+                  <div class="help-callout-box">
+                    <div style="font-weight: 700; font-size: 13px; color: var(--accent-amber); margin-bottom: 3px;">
+                      🏨 4th / 5th Night Free Stacking (Hilton, Marriott &amp; Citi/IHG)
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                      Hilton Elite &amp; Marriott Bonvoy both give the <strong>5th Night Free</strong> on standard point bookings; IHG Premier gives the <strong>4th Night Free</strong> — stretching your point balance by 20%–25% on longer shoots.
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <!-- Interactive Transfer Partner Matrix Table -->
+            <section class="panel-card">
+              <div class="panel-header">
+                <div>
+                  <h3 class="panel-title">🔄 Bank-to-Airline &amp; Hotel Transfer Partner Matrix</h3>
+                  <p class="panel-subtitle">See which transferable bank points fund each airline and hotel loyalty program</p>
+                </div>
+                <div class="category-chips" id="matrix-bank-filter-chips">
+                  <button type="button" class="chip-btn active" data-matrix-filter="all">All Partners</button>
+                  <button type="button" class="chip-btn" data-matrix-filter="chase">Chase UR</button>
+                  <button type="button" class="chip-btn" data-matrix-filter="amex">Amex MR</button>
+                  <button type="button" class="chip-btn" data-matrix-filter="capone">Capital One</button>
+                  <button type="button" class="chip-btn" data-matrix-filter="bilt">Bilt</button>
+                  <button type="button" class="chip-btn" data-matrix-filter="citi">Citi ThankYou</button>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="ledger-table">
+                  <thead>
+                    <tr>
+                      <th>Partner Airline / Hotel</th>
+                      <th>Type / Alliance</th>
+                      <th>Chase UR</th>
+                      <th>Amex MR</th>
+                      <th>Capital One</th>
+                      <th>Bilt</th>
+                      <th>Citi TY</th>
+                      <th>Transfer Speed &amp; Sweet Spot</th>
+                    </tr>
+                  </thead>
+                  <tbody id="transfer-matrix-tbody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <!-- REWARDS TAB 5: REDEMPTIONS & TRIP SAVINGS LOG -->
+          <div id="rewards-pane-redemptions" class="rewards-tab-pane" style="display: none;">
+            <section class="panel-card">
+              <div class="panel-header">
+                <div>
+                  <h3 class="panel-title">📓 Points &amp; Free Night Redemptions Log (Linked to Production Trips)</h3>
+                  <p class="panel-subtitle">Track how much cash your loyalty points and free night certificates saved on each shoot</p>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button type="button" class="btn btn-sm" id="btn-export-rewards-csv">⬇ Export Rewards CSV</button>
+                  <button type="button" class="btn btn-sm btn-primary" id="btn-redemption-pane-add">+ Log Point / Cert Redemption</button>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="ledger-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Booking / Hotel / Flight</th>
+                      <th>Production Trip</th>
+                      <th>Program &amp; Type</th>
+                      <th style="text-align: right;">Points Used</th>
+                      <th style="text-align: right;">Retail Cash</th>
+                      <th style="text-align: right;">Taxes Paid</th>
+                      <th style="text-align: right;">Net Saved ($)</th>
+                      <th style="text-align: right;">CPP Value</th>
+                      <th style="text-align: right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rewards-redemptions-tbody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
     </main>
 
@@ -633,16 +948,16 @@
         <span>📊</span>
         <span>Ledger</span>
       </button>
-      <button type="button" class="mobile-nav-btn" data-mobile-view="trips">
-        <span>✈️</span>
-        <span>Trips</span>
+      <button type="button" class="mobile-nav-btn" data-mobile-view="rewards">
+        <span>🏆</span>
+        <span>Rewards</span>
       </button>
       <button type="button" class="mobile-fab" id="btn-mobile-fab-add">
         <span>+ Expense</span>
       </button>
-      <button type="button" class="mobile-nav-btn" data-mobile-view="revenue">
-        <span>🎬</span>
-        <span>ROI</span>
+      <button type="button" class="mobile-nav-btn" data-mobile-view="trips">
+        <span>✈️</span>
+        <span>Trips</span>
       </button>
       <button type="button" class="mobile-nav-btn" data-mobile-view="help">
         <span>🎓</span>
@@ -1001,10 +1316,25 @@
               <label class="form-label" for="sec-google-client-id">Google OAuth Client ID</label>
               <input type="text" id="sec-google-client-id" class="form-input mono" style="font-size: 12px;" placeholder="e.g. 123456789-abc...apps.googleusercontent.com" />
             </div>
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom: 10px;">
               <label class="form-label" for="sec-allowed-emails">Allowed Google Email(s) Whitelist (comma-separated)</label>
               <input type="text" id="sec-allowed-emails" class="form-input" placeholder="e.g. yourname@gmail.com, cohost@gmail.com" />
               <span style="font-size: 11px; color: var(--text-muted);">Only these Gmail addresses will be allowed to unlock your Wander Wallet.</span>
+            </div>
+            <div style="padding: 9px 10px; background: var(--bg-canvas); border-radius: 6px; border: 1px solid var(--border-subtle); font-size: 11.5px; color: var(--text-secondary);">
+              <div style="font-weight: 700; color: var(--accent-amber); margin-bottom: 4px;">
+                ⚠️ Fixing "Access Blocked: Authorization Error (OAuth 2.0 Policy)"
+              </div>
+              <div style="margin-bottom: 6px;">
+                In Google Cloud Console → <strong>Credentials</strong> → click your Web Client ID and paste this <strong>exact URL</strong> under <strong>BOTH</strong> <em>Authorized JavaScript origins</em> AND <em>Authorized redirect URIs</em>, then click <strong>Save</strong>:
+              </div>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <input type="text" id="sec-exact-origin-url" class="form-input mono" style="font-size: 11.5px; padding: 5px 8px;" readonly value="" />
+                <button type="button" class="btn btn-sm" id="btn-copy-origin-url">📋 Copy URL</button>
+              </div>
+              <div style="margin-top: 5px; font-size: 11px; color: var(--text-muted);">
+                Also check <strong>OAuth consent screen / Audience</strong> → click <strong>"Publish App"</strong> (or add your Gmail under <em>Test users</em>).
+              </div>
             </div>
           </div>
 
@@ -1039,6 +1369,378 @@
     </div>
   </div>
 
+  <!-- MODAL 7: ADD / EDIT LOYALTY PROGRAM & STATUS -->
+  <div class="modal-backdrop" id="modal-reward-program" role="dialog" aria-modal="true" aria-labelledby="modal-reward-program-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-reward-program-title">Add / Edit Loyalty Program</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-reward-program" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-reward-program">
+        <input type="hidden" id="rprog-id" />
+        <div class="modal-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="rprog-name">Program Name</label>
+              <input type="text" id="rprog-name" class="form-input" placeholder="e.g., World of Hyatt, Chase Ultimate Rewards, United" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rprog-ecosystem">Ecosystem Category</label>
+              <select id="rprog-ecosystem" class="form-select">
+                <option value="bank">🏦 Transferable Bank Points (Chase, Amex, CapOne, Bilt, Citi)</option>
+                <option value="hotel">🏨 Hotel Loyalty Program (Hyatt, Marriott, Hilton, IHG)</option>
+                <option value="airline">✈️ Airline Frequent Flyer (United, Aeroplan, Delta, ANA, etc.)</option>
+                <option value="other">🚢 Rail / Cruise / Cash Back / Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label" for="rprog-points">Current Point / Mile Balance</label>
+              <input type="number" step="1" min="0" id="rprog-points" class="form-input mono" placeholder="100000" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rprog-cpp">Point Valuation (¢ / pt)</label>
+              <input type="number" step="0.05" min="0.1" id="rprog-cpp" class="form-input mono" value="1.8" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rprog-status">Current Elite Status Tier</label>
+              <input type="text" id="rprog-status" class="form-input" placeholder="e.g., Globalist, Titanium, Diamond, 1K" />
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label" for="rprog-member-id">Member / Loyalty Account #</label>
+              <input type="text" id="rprog-member-id" class="form-input mono" placeholder="e.g., 520918442" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rprog-qual-nights">Current Qualifying Nights / PQP</label>
+              <input type="number" step="1" min="0" id="rprog-qual-nights" class="form-input mono" value="0" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rprog-target-nights">Annual Target for Next Tier</label>
+              <input type="number" step="1" min="0" id="rprog-target-nights" class="form-input mono" value="60" />
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="rprog-metric-label">Status Metric Label</label>
+              <input type="text" id="rprog-metric-label" class="form-input" placeholder="e.g., Qualifying Nights toward Globalist" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rprog-expiration">Expiration Policy / Rule</label>
+              <input type="text" id="rprog-expiration" class="form-input" placeholder="e.g., 24 months inactivity or Never expires" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="rprog-partners">Key Transfer Partners &amp; Ratio Notes</label>
+            <input type="text" id="rprog-partners" class="form-input" placeholder="e.g., 1:1 from Chase UR & Bilt • 5th Night Free on awards" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="rprog-notes">Perks &amp; Strategy Notes</label>
+            <input type="text" id="rprog-notes" class="form-input" placeholder="e.g., Free breakfast for 2, 4pm late checkout, waived resort fees" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" data-close-modal="modal-reward-program">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-reward-program">Save Loyalty Program</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 8: ADD / EDIT FREE NIGHT CERTIFICATE, COMPANION PASS OR PERK -->
+  <div class="modal-backdrop" id="modal-reward-cert" role="dialog" aria-modal="true" aria-labelledby="modal-reward-cert-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-reward-cert-title">Add Free Night Certificate / Travel Perk</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-reward-cert" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-reward-cert">
+        <input type="hidden" id="rcert-id" />
+        <div class="modal-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="rcert-title">Certificate / Perk Name</label>
+              <input type="text" id="rcert-title" class="form-input" placeholder="e.g., Hyatt Cat 1-4 Free Night or Marriott 85k Award" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcert-type">Perk / Certificate Type</label>
+              <select id="rcert-type" class="form-select">
+                <option value="Free Night Certificate">🏨 Hotel Free Night Certificate (FNC)</option>
+                <option value="Companion Pass">✈️ Airline Companion Pass / Certificate</option>
+                <option value="Suite / Flight Upgrade">✨ Suite Upgrade (SUA) / Flight Upgrade</option>
+                <option value="Lounge & Security Perk">🛂 Airport Lounge / Global Entry / CLEAR</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="rcert-program">Loyalty Program</label>
+              <input type="text" id="rcert-program" class="form-input" placeholder="e.g., World of Hyatt, Marriott Bonvoy, Hilton Honors" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcert-card">Earned From Card / Milestone</label>
+              <input type="text" id="rcert-card" class="form-input" placeholder="e.g., Amex Hilton Aspire or 60-Night Milestone" />
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label" for="rcert-expires">Expiration Date</label>
+              <input type="date" id="rcert-expires" class="form-input" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcert-value">Estimated Cash Value ($)</label>
+              <input type="number" step="10" min="0" id="rcert-value" class="form-input mono" value="350" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcert-status">Status</label>
+              <select id="rcert-status" class="form-select">
+                <option value="available">🟢 Available to Use</option>
+                <option value="redeemed">✅ Redeemed / Used</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="rcert-cap">Point Cap / Category Rules</label>
+            <input type="text" id="rcert-cap" class="form-input" placeholder="e.g., Up to 85,000 pts + 15k point top-off (100k max)" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="rcert-notes">Target Redemption / Notes</label>
+            <input type="text" id="rcert-notes" class="form-input" placeholder="e.g., Save for Tokyo arrival night or Kyoto shoot" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" data-close-modal="modal-reward-cert">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-reward-cert">Save Certificate / Perk</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 9: ADD / EDIT TRAVEL CREDIT CARD, STATEMENT CREDITS & SUB TRACKER -->
+  <div class="modal-backdrop" id="modal-reward-card" role="dialog" aria-modal="true" aria-labelledby="modal-reward-card-title">
+    <div class="modal-dialog" style="max-width: 640px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-reward-card-title">Add / Edit Travel Credit Card &amp; Perks</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-reward-card" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-reward-card">
+        <input type="hidden" id="rcard-id" />
+        <div class="modal-body">
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label" for="rcard-name">Card Name</label>
+              <input type="text" id="rcard-name" class="form-input" placeholder="e.g., Capital One Venture X" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcard-issuer">Bank / Issuer</label>
+              <input type="text" id="rcard-issuer" class="form-input" placeholder="e.g., Chase, Amex, Capital One" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcard-ecosystem">Points Ecosystem</label>
+              <input type="text" id="rcard-ecosystem" class="form-input" placeholder="e.g., Chase Ultimate Rewards" />
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label" for="rcard-fee">Annual Fee (USD)</label>
+              <input type="number" step="1" min="0" id="rcard-fee" class="form-input mono" value="95" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcard-renewal">Next Renewal / Anniversary Date</label>
+              <input type="date" id="rcard-renewal" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcard-ftf">Foreign Transaction Fee</label>
+              <input type="text" id="rcard-ftf" class="form-input" value="None ($0 Foreign Tx Fee)" />
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="rcard-multipliers">Earning Multipliers (2x, 3x, 4x, 5x)</label>
+              <input type="text" id="rcard-multipliers" class="form-input" placeholder="e.g., 4x Dining • 3x Flights • 2x Transit" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcard-best-for">Best Road Category to Swipe For</label>
+              <input type="text" id="rcard-best-for" class="form-input" placeholder="e.g., Crew Meals & Overseas Trains" />
+            </div>
+          </div>
+
+          <!-- Welcome Bonus (SUB) Minimum Spend Tracker Config -->
+          <div class="help-callout-box" style="border-left: 3px solid var(--accent-sky);">
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; cursor: pointer; margin-bottom: 8px;">
+              <input type="checkbox" id="rcard-sub-active" />
+              <span>🎯 Track Active Welcome Bonus (SUB) Minimum Spend on this Card</span>
+            </label>
+            <div class="form-grid-2" style="margin-bottom: 8px;">
+              <div class="form-group">
+                <label class="form-label" for="rcard-sub-bonus">Welcome Bonus Reward</label>
+                <input type="text" id="rcard-sub-bonus" class="form-input" placeholder="e.g., 100,000 Chase UR pts ($2,000 value)" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="rcard-sub-deadline">Minimum Spend Deadline</label>
+                <input type="date" id="rcard-sub-deadline" class="form-input" />
+              </div>
+            </div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label class="form-label" for="rcard-sub-target">Required Minimum Spend ($ USD)</label>
+                <input type="number" step="100" min="0" id="rcard-sub-target" class="form-input mono" value="4000" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="rcard-sub-spent">Base Spend Outside Ledger ($ USD)</label>
+                <input type="number" step="50" min="0" id="rcard-sub-spent" class="form-input mono" value="0" />
+              </div>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+              Tip: Any road expense logged in Wander Wallet where the Payment Method matches this card’s name is automatically added to your progress!
+            </div>
+          </div>
+
+          <!-- Statement Credits Editor (1 per line: Name | Total $ | Used $) -->
+          <div class="form-group">
+            <label class="form-label" for="rcard-credits-text">
+              Annual Statement Credits &amp; Perks Checklist (One per line: <code>Perk Name | Total $ | Used $</code>)
+            </label>
+            <textarea id="rcard-credits-text" class="form-textarea mono" rows="4" style="font-size: 12px;" placeholder="$300 Annual Travel Credit | 300 | 300&#10;$120 Uber Cash ($10/mo) | 120 | 80&#10;$100 Global Entry Credit | 100 | 100"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" data-close-modal="modal-reward-card">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-reward-card">Save Credit Card</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 10: LOG POINT OR FREE NIGHT REDEMPTION (LINKED TO TRIP) -->
+  <div class="modal-backdrop" id="modal-reward-redemption" role="dialog" aria-modal="true" aria-labelledby="modal-reward-redemption-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-reward-redemption-title">Log Point / Free Night Redemption</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-reward-redemption" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-reward-redemption">
+        <input type="hidden" id="rred-id" />
+        <input type="hidden" id="rred-cert-id" />
+        <div class="modal-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="rred-trip-id">Production Trip</label>
+              <select id="rred-trip-id" class="form-select" required></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rred-date">Redemption Date</label>
+              <input type="date" id="rred-date" class="form-input" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="rred-title">Hotel Stay / Flight / Upgrade Booked</label>
+            <input type="text" id="rred-title" class="form-input" placeholder="e.g., Park Hyatt Kyoto 2 Nights or ANA Business Class to Tokyo" required />
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="rred-program">Loyalty Program Used</label>
+              <input type="text" id="rred-program" class="form-input" placeholder="e.g., World of Hyatt, Air Canada Aeroplan" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rred-type">Redemption Type</label>
+              <select id="rred-type" class="form-select">
+                <option value="Hotel Points">🏨 Hotel Points Stay</option>
+                <option value="Airline Miles">✈️ Airline Miles / Award Flight</option>
+                <option value="Free Night Certificate">🎟️ Free Night Certificate (FNC)</option>
+                <option value="Free Night Certificate + Top-Off">🎟️ Free Night Cert + Point Top-Off</option>
+                <option value="Points + Suite Upgrade">✨ Points + Suite/Cabin Upgrade</option>
+                <option value="Companion Pass">👯 Companion Pass Booking</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label class="form-label" for="rred-points">Points / Miles Used</label>
+              <input type="number" step="100" min="0" id="rred-points" class="form-input mono" value="45000" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rred-cash">Retail Cash Price ($ USD)</label>
+              <input type="number" step="10" min="0" id="rred-cash" class="form-input mono" value="1200" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rred-fees">Taxes / Copay Paid ($ USD)</label>
+              <input type="number" step="1" min="0" id="rred-fees" class="form-input mono" value="0" required />
+            </div>
+          </div>
+
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer;">
+            <input type="checkbox" id="rred-deduct-balance" checked />
+            <span>Automatically deduct these points from my matching Loyalty Program balance</span>
+          </label>
+
+          <div class="form-group">
+            <label class="form-label" for="rred-notes">Transfer / Redemption Notes</label>
+            <input type="text" id="rred-notes" class="form-input" placeholder="e.g., Transferred 1:1 from Chase UR instant" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" data-close-modal="modal-reward-redemption">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-reward-redemption">Save Redemption &amp; Savings</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 11: POPULAR TRAVEL CREDIT CARD & LOYALTY PROGRAM TEMPLATE LIBRARY -->
+  <div class="modal-backdrop" id="modal-reward-templates" role="dialog" aria-modal="true" aria-labelledby="modal-reward-templates-title">
+    <div class="modal-dialog" style="max-width: 720px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-reward-templates-title">⚡ One-Click Travel Card &amp; Loyalty Program Templates</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-reward-templates" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <p style="font-size: 12.5px; color: var(--text-secondary);">
+            Click any popular travel card or loyalty program below to add it to your Rewards Command Center with pre-configured multipliers, statement credits, and point valuations — or reset/clear sample data.
+          </p>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-sm" id="btn-rewards-reset-defaults">↺ Restore Sample Lineup</button>
+            <button type="button" class="btn btn-sm btn-danger-ghost" id="btn-rewards-clear-all">🗑️ Clear All Sample Data</button>
+          </div>
+        </div>
+
+        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-amber); margin-top: 6px;">
+          Popular Travel Credit Cards (Pre-Loaded Statement Credits &amp; Multipliers)
+        </div>
+        <div id="template-cards-list" class="template-picker-grid">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-sky); margin-top: 8px;">
+          Popular Airline, Hotel &amp; Bank Loyalty Programs
+        </div>
+        <div id="template-programs-list" class="template-picker-grid">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-close-modal="modal-reward-templates">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- FULL-SCREEN LOGIN & FIRST-TIME ADMIN SETUP SCREEN -->
   <div id="auth-gate-overlay" class="auth-gate-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="auth-gate-title">
     <div class="auth-gate-card">
@@ -1061,6 +1763,13 @@
       <!-- Google Sign-In Button Container (shown automatically when Google Client ID is configured) -->
       <div id="auth-google-signin-wrap" style="display: none; flex-direction: column; align-items: center; gap: 10px; margin: 6px 0;">
         <div id="google-signin-btn-mount"></div>
+        <div style="width: 100%; padding: 8px 10px; background: var(--bg-elevated); border-radius: 6px; border: 1px solid var(--border-subtle); font-size: 11px; color: var(--text-secondary);">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+            <span>Seeing <strong>"Access Blocked"</strong>? Add this Origin URL in Google Console:</span>
+            <button type="button" class="btn btn-sm" id="btn-auth-copy-origin" style="padding: 2px 7px; font-size: 10.5px;">📋 Copy URL</button>
+          </div>
+          <div class="mono" id="auth-gate-origin-display" style="color: var(--accent-sky); margin-top: 3px; word-break: break-all;"></div>
+        </div>
         <div style="width: 100%; display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-size: 11.5px;">
           <span style="flex: 1; height: 1px; background: var(--border-subtle);"></span>
           <span>OR SIGN IN WITH PASSWORD</span>
