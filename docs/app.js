@@ -38,6 +38,26 @@
     'Crew & Talent': { color: 'var(--cat-crew)', icon: '🎥' }
   };
 
+  // Safe Storage Wrapper (prevents SecurityError in sandboxed preview iframes)
+  let memoryStore = null;
+  let memoryTheme = 'dark';
+
+  function safeStorageGet(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function safeStorageSet(key, val) {
+    try {
+      window.localStorage.setItem(key, val);
+    } catch (e) {
+      // Sandboxed iframe: ignore storage error, memoryStore handles persistence
+    }
+  }
+
   function makeSampleReceiptSvg(vendor, dateStr, items, totalText, currency) {
     const itemLines = items.map((it, idx) =>
       `<text x="24" y="${150 + idx * 26}" fill="#334155" font-family="monospace" font-size="12">${it.label}</text>
@@ -593,32 +613,27 @@
   }
 
   function getLocalStore() {
-    try {
-      const raw = localStorage.getItem('wayfarer_backup_state');
-      if (raw) {
+    if (memoryStore && Array.isArray(memoryStore.trips) && memoryStore.trips.length > 0) {
+      return memoryStore;
+    }
+    const raw = safeStorageGet('wayfarer_backup_state');
+    if (raw) {
+      try {
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.trips) && parsed.trips.length > 0) {
-          return parsed;
+          memoryStore = parsed;
+          return memoryStore;
         }
-      }
-    } catch (e) {
-      // ignore
+      } catch (e) {}
     }
-    const seed = getInitialSeedData();
-    try {
-      localStorage.setItem('wayfarer_backup_state', JSON.stringify(seed));
-    } catch (e) {
-      // ignore
-    }
-    return seed;
+    memoryStore = getInitialSeedData();
+    safeStorageSet('wayfarer_backup_state', JSON.stringify(memoryStore));
+    return memoryStore;
   }
 
   function saveLocalStore(data) {
-    try {
-      localStorage.setItem('wayfarer_backup_state', JSON.stringify(data));
-    } catch (e) {
-      // ignore
-    }
+    memoryStore = data;
+    safeStorageSet('wayfarer_backup_state', JSON.stringify(data));
   }
 
   function applyLocalMutation(url, method, payload) {
@@ -665,6 +680,13 @@
   async function apiRequest(url, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
     const payload = options.body ? JSON.parse(options.body) : null;
+
+    if (!location.protocol.startsWith('http')) {
+      setSyncIndicator(false);
+      if (method === 'GET') return getLocalStore();
+      return applyLocalMutation(url, method, payload);
+    }
+
     try {
       const res = await fetch(url, {
         headers: { 'Content-Type': 'application/json' },
@@ -694,7 +716,7 @@
       txt.textContent = 'Cloud SQLite Synced';
     } else {
       dot.style.backgroundColor = 'var(--accent-sky)';
-      txt.textContent = 'PWA Local Storage Active';
+      txt.textContent = 'Interactive Local Mode';
     }
   }
 
@@ -714,15 +736,24 @@
     renderAll();
   }
 
+  let isInitialized = false;
   async function initApp() {
-    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
-    }
+    if (isInitialized) return;
+    isInitialized = true;
 
-    const savedTheme = localStorage.getItem('wayfarer_theme') || 'dark';
+    try {
+      if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      }
+    } catch (e) {}
+
+    const savedTheme = safeStorageGet('wayfarer_theme') || memoryTheme || 'dark';
+    memoryTheme = savedTheme;
     document.documentElement.setAttribute('data-theme', savedTheme);
 
     bindEvents();
+    // Immediately render seed/local data so UI is never blank, then sync API if available
+    applyBootstrapData(getLocalStore());
     const data = await apiRequest('/api/bootstrap');
     if (data) {
       applyBootstrapData(data);
@@ -745,12 +776,15 @@
   }
 
   function renderAll() {
-    document.getElementById('sidebar-channel-name').textContent =
-      state.settings.channel_name || 'Nomad Frame Studios';
+    const chEl = document.getElementById('sidebar-channel-name');
+    if (chEl) chEl.textContent = state.settings.channel_name || 'Nomad Frame Studios';
 
-    document.getElementById('badge-expense-count').textContent = state.expenses.length;
-    document.getElementById('badge-trip-count').textContent = state.trips.length;
-    document.getElementById('badge-revenue-count').textContent = state.revenues.length;
+    const expBadge = document.getElementById('badge-expense-count');
+    if (expBadge) expBadge.textContent = state.expenses.length;
+    const tripBadge = document.getElementById('badge-trip-count');
+    if (tripBadge) tripBadge.textContent = state.trips.length;
+    const revBadge = document.getElementById('badge-revenue-count');
+    if (revBadge) revBadge.textContent = state.revenues.length;
 
     renderTripSelectors();
     renderTripContextBanner();
@@ -766,31 +800,35 @@
 
   function renderTripSelectors() {
     const globalSelect = document.getElementById('global-trip-select');
-    const currentVal = state.selectedTripId;
-    globalSelect.innerHTML = `<option value="all">All Production Trips (${state.trips.length})</option>` +
-      state.trips.map(t =>
-        `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} (${escapeHtml(t.default_currency)})</option>`
-      ).join('');
-    globalSelect.value = currentVal;
+    if (globalSelect) {
+      const currentVal = state.selectedTripId;
+      globalSelect.innerHTML = `<option value="all">All Production Trips (${state.trips.length})</option>` +
+        state.trips.map(t =>
+          `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} (${escapeHtml(t.default_currency)})</option>`
+        ).join('');
+      globalSelect.value = currentVal;
+    }
 
     const sidebarList = document.getElementById('sidebar-trip-list');
-    sidebarList.innerHTML = state.trips.map(t => {
-      const tripSpend = state.expenses
-        .filter(e => e.trip_id === t.id)
-        .reduce((sum, e) => sum + (Number(e.amount_usd) || 0), 0);
-      const isSelected = state.selectedTripId === t.id;
-      return `
-        <li>
-          <button type="button" class="nav-item-btn ${isSelected ? 'active' : ''}" data-select-trip="${escapeHtml(t.id)}">
-            <span class="nav-item-left">
-              <span>${t.status === 'active' ? '🟢' : '📁'}</span>
-              <span class="nav-item-text">${escapeHtml(t.name)}</span>
-            </span>
-            <span class="nav-badge mono">${fmtUsdCompact(tripSpend)}</span>
-          </button>
-        </li>
-      `;
-    }).join('');
+    if (sidebarList) {
+      sidebarList.innerHTML = state.trips.map(t => {
+        const tripSpend = state.expenses
+          .filter(e => e.trip_id === t.id)
+          .reduce((sum, e) => sum + (Number(e.amount_usd) || 0), 0);
+        const isSelected = state.selectedTripId === t.id;
+        return `
+          <li>
+            <button type="button" class="nav-item-btn ${isSelected ? 'active' : ''}" data-select-trip="${escapeHtml(t.id)}">
+              <span class="nav-item-left">
+                <span>${t.status === 'active' ? '🟢' : '📁'}</span>
+                <span class="nav-item-text">${escapeHtml(t.name)}</span>
+              </span>
+              <span class="nav-badge mono">${fmtUsdCompact(tripSpend)}</span>
+            </button>
+          </li>
+        `;
+      }).join('');
+    }
 
     const expTripSelect = document.getElementById('exp-trip-id');
     const revTripSelect = document.getElementById('rev-trip-id');
@@ -803,6 +841,7 @@
 
   function renderTripContextBanner() {
     const banner = document.getElementById('trip-context-banner');
+    if (!banner) return;
     if (state.selectedTripId === 'all') {
       const totalDays = state.trips.reduce((acc, t) => acc + computeDaysBetween(t.start_date, t.end_date), 0);
       const totalVideos = state.trips.reduce((acc, t) => acc + (Number(t.video_count) || 1), 0);
@@ -949,7 +988,7 @@
     const totalSpend = expenses.reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
 
     const clearBtn = document.getElementById('btn-clear-cat-filter');
-    clearBtn.style.display = state.categoryFilter === 'all' ? 'none' : 'inline-flex';
+    if (clearBtn) clearBtn.style.display = state.categoryFilter === 'all' ? 'none' : 'inline-flex';
 
     const totalsByCat = {};
     for (const cat of Object.keys(CATEGORY_META)) {
@@ -961,6 +1000,7 @@
 
     const sortedCats = Object.entries(totalsByCat).sort((a, b) => b[1] - a[1]);
     const listEl = document.getElementById('category-breakdown-list');
+    if (!listEl) return;
 
     listEl.innerHTML = sortedCats.map(([cat, amount]) => {
       const pct = totalSpend > 0 ? Math.round((amount / totalSpend) * 100) : 0;
@@ -990,6 +1030,7 @@
     const expenses = getScopedExpenses();
     const chartEl = document.getElementById('daily-burn-chart');
     const peakTag = document.getElementById('chart-peak-day-tag');
+    if (!chartEl || !peakTag) return;
 
     if (expenses.length === 0) {
       peakTag.textContent = 'Peak: $0';
@@ -1029,6 +1070,7 @@
 
   function renderLedgerCategoryChips() {
     const container = document.getElementById('ledger-category-chips');
+    if (!container) return;
     const categories = ['all', ...Object.keys(CATEGORY_META)];
     container.innerHTML = categories.map(cat => {
       const active = state.categoryFilter === cat ? 'active' : '';
@@ -1056,6 +1098,7 @@
     });
 
     const tbody = document.getElementById('ledger-table-body');
+    if (!tbody) return;
     if (filtered.length === 0) {
       tbody.innerHTML = `
         <tr>
@@ -1130,6 +1173,7 @@
 
   function renderTripsView() {
     const grid = document.getElementById('trips-cards-grid');
+    if (!grid) return;
     grid.innerHTML = state.trips.map(t => {
       const exps = state.expenses.filter(e => e.trip_id === t.id);
       const revs = state.revenues.filter(r => r.trip_id === t.id);
@@ -1196,6 +1240,7 @@
     const revenues = getScopedRevenues();
     const tripMap = new Map(state.trips.map(t => [t.id, t]));
     const tbody = document.getElementById('revenue-table-body');
+    if (!tbody) return;
 
     if (revenues.length === 0) {
       tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 28px; color: var(--text-muted);">No revenue entries logged for this selection.</td></tr>`;
@@ -1265,42 +1310,46 @@
     }
 
     const kpiContainer = document.getElementById('tax-summary-kpis');
-    kpiContainer.innerHTML = `
-      <div class="kpi-card">
-        <span class="kpi-label">Gross Production Spend</span>
-        <div class="kpi-value tabular">${fmtUsd(grossTotal)}</div>
-        <span class="kpi-subtext">${expenses.length} total transactions</span>
-      </div>
-      <div class="kpi-card">
-        <span class="kpi-label">Estimated Tax-Deductible Total</span>
-        <div class="kpi-value tabular" style="color: var(--accent-primary);">${fmtUsd(deductibleTotal)}</div>
-        <span class="kpi-subtext">Schedule C / Production Write-Off</span>
-      </div>
-      <div class="kpi-card">
-        <span class="kpi-label">Pending Crew Reimbursements</span>
-        <div class="kpi-value tabular" style="color: var(--accent-amber);">${fmtUsd(reimbursableTotal)}</div>
-        <span class="kpi-subtext">Paid out-of-pocket by host/crew</span>
-      </div>
-      <div class="kpi-card">
-        <span class="kpi-label">Verified Receipt Vault</span>
-        <div class="kpi-value tabular">${receiptsCount} / ${expenses.length}</div>
-        <span class="kpi-subtext">Digital folios attached</span>
-      </div>
-    `;
+    if (kpiContainer) {
+      kpiContainer.innerHTML = `
+        <div class="kpi-card">
+          <span class="kpi-label">Gross Production Spend</span>
+          <div class="kpi-value tabular">${fmtUsd(grossTotal)}</div>
+          <span class="kpi-subtext">${expenses.length} total transactions</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Estimated Tax-Deductible Total</span>
+          <div class="kpi-value tabular" style="color: var(--accent-primary);">${fmtUsd(deductibleTotal)}</div>
+          <span class="kpi-subtext">Schedule C / Production Write-Off</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Pending Crew Reimbursements</span>
+          <div class="kpi-value tabular" style="color: var(--accent-amber);">${fmtUsd(reimbursableTotal)}</div>
+          <span class="kpi-subtext">Paid out-of-pocket by host/crew</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Verified Receipt Vault</span>
+          <div class="kpi-value tabular">${receiptsCount} / ${expenses.length}</div>
+          <span class="kpi-subtext">Digital folios attached</span>
+        </div>
+      `;
+    }
 
     const taxTbody = document.getElementById('tax-category-table-body');
-    taxTbody.innerHTML = Object.entries(catStats).map(([cat, st]) => {
-      const meta = CATEGORY_META[cat] || { icon: '📌' };
-      return `
-        <tr>
-          <td style="font-weight: 600;">${meta.icon} ${escapeHtml(cat)}</td>
-          <td class="tabular">${st.count} items</td>
-          <td class="tabular">${st.receipts} attached</td>
-          <td class="mono" style="text-align: right;">${fmtUsd(st.gross)}</td>
-          <td class="mono" style="text-align: right; font-weight: 700; color: var(--accent-primary);">${fmtUsd(st.deductible)}</td>
-        </tr>
-      `;
-    }).join('');
+    if (taxTbody) {
+      taxTbody.innerHTML = Object.entries(catStats).map(([cat, st]) => {
+        const meta = CATEGORY_META[cat] || { icon: '📌' };
+        return `
+          <tr>
+            <td style="font-weight: 600;">${meta.icon} ${escapeHtml(cat)}</td>
+            <td class="tabular">${st.count} items</td>
+            <td class="tabular">${st.receipts} attached</td>
+            <td class="mono" style="text-align: right;">${fmtUsd(st.gross)}</td>
+            <td class="mono" style="text-align: right; font-weight: 700; color: var(--accent-primary);">${fmtUsd(st.deductible)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
   }
 
   function switchView(viewName) {
@@ -1324,7 +1373,8 @@
       revenue: 'Sponsors & AdSense ROI',
       tax: 'Tax & Accountant Export Hub'
     };
-    document.getElementById('main-page-heading').textContent = titles[viewName] || 'Road Finance Dashboard';
+    const heading = document.getElementById('main-page-heading');
+    if (heading) heading.textContent = titles[viewName] || 'Road Finance Dashboard';
   }
 
   function openModal(id) {
@@ -1341,7 +1391,8 @@
     const amt = Number(document.getElementById('exp-amount-original').value) || 0;
     const rate = Number(document.getElementById('exp-rate').value) || 1;
     const usd = amt * rate;
-    document.getElementById('exp-usd-preview').textContent = `${fmtUsd(usd)} USD`;
+    const prev = document.getElementById('exp-usd-preview');
+    if (prev) prev.textContent = `${fmtUsd(usd)} USD`;
   }
 
   function openExpenseModal(editExpense = null) {
@@ -1513,265 +1564,403 @@
     }
 
     const csvContent = rows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = state.selectedTripId === 'all'
+    const filename = state.selectedTripId === 'all'
       ? 'creator-tax-expenses-all-trips.csv'
       : `creator-tax-expenses-${state.selectedTripId}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('Downloaded Accountant Tax CSV');
+
+    const textarea = document.getElementById('csv-export-textarea');
+    const dlBtn = document.getElementById('btn-direct-csv-download');
+    if (textarea) textarea.value = csvContent;
+    if (dlBtn) {
+      dlBtn.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
+      dlBtn.download = filename;
+    }
+
+    openModal('modal-csv-export');
+
+    try {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {}
+
+    showToast('Generated Accountant Tax CSV');
+  }
+
+  async function saveExpenseFromModal() {
+    const titleVal = document.getElementById('exp-title').value.trim();
+    const amtOrig = Number(document.getElementById('exp-amount-original').value) || 0;
+    if (!titleVal) {
+      showToast('Please enter an expense description');
+      document.getElementById('exp-title').focus();
+      return;
+    }
+    const id = document.getElementById('exp-id').value;
+    const rate = Number(document.getElementById('exp-rate').value) || 1;
+    const payload = {
+      trip_id: document.getElementById('exp-trip-id').value,
+      expense_date: document.getElementById('exp-date').value || new Date().toISOString().slice(0, 10),
+      title: titleVal,
+      vendor: document.getElementById('exp-vendor').value.trim(),
+      category: document.getElementById('exp-category').value,
+      amount_original: amtOrig,
+      currency: document.getElementById('exp-currency').value,
+      exchange_rate: rate,
+      amount_usd: Number((amtOrig * rate).toFixed(2)),
+      payment_method: document.getElementById('exp-payment-method').value,
+      paid_by: document.getElementById('exp-paid-by').value.trim() || 'Channel Card',
+      tax_deductible: document.getElementById('exp-tax-deductible').checked ? 1 : 0,
+      reimbursable: document.getElementById('exp-reimbursable').checked ? 1 : 0,
+      receipt_data: state.pendingReceiptData,
+      receipt_name: state.pendingReceiptName,
+      notes: document.getElementById('exp-notes').value.trim()
+    };
+
+    const url = id ? `/api/expenses/${encodeURIComponent(id)}` : '/api/expenses';
+    const method = id ? 'PUT' : 'POST';
+    const updated = await apiRequest(url, { method, body: JSON.stringify(payload) });
+    if (updated) applyBootstrapData(updated);
+    closeModal('modal-expense');
+    showToast(id ? 'Expense updated' : `Saved ${payload.title} (${fmtUsd(payload.amount_usd)})`);
+  }
+
+  async function saveTripFromModal() {
+    const nameVal = document.getElementById('trip-name').value.trim();
+    if (!nameVal) {
+      showToast('Please enter a Trip / Series Name');
+      document.getElementById('trip-name').focus();
+      return;
+    }
+    const id = document.getElementById('trip-id').value;
+    const payload = {
+      name: nameVal,
+      destination: document.getElementById('trip-destination').value.trim() || 'On the Road',
+      start_date: document.getElementById('trip-start').value,
+      end_date: document.getElementById('trip-end').value,
+      default_currency: document.getElementById('trip-currency').value,
+      budget_usd: Number(document.getElementById('trip-budget').value) || 5000,
+      video_count: Number(document.getElementById('trip-videos').value) || 1,
+      status: document.getElementById('trip-status').value,
+      notes: document.getElementById('trip-notes').value.trim()
+    };
+    const url = id ? `/api/trips/${encodeURIComponent(id)}` : '/api/trips';
+    const method = id ? 'PUT' : 'POST';
+    const updated = await apiRequest(url, { method, body: JSON.stringify(payload) });
+    if (updated) {
+      if (!id && updated.trips && updated.trips[0]) {
+        state.selectedTripId = updated.trips[0].id;
+      }
+      applyBootstrapData(updated);
+    }
+    closeModal('modal-trip');
+    showToast(id ? 'Trip updated' : `Created trip: ${payload.name}`);
+  }
+
+  async function saveRevenueFromModal() {
+    const titleVal = document.getElementById('rev-title').value.trim();
+    if (!titleVal) {
+      showToast('Please enter a deliverable or revenue description');
+      document.getElementById('rev-title').focus();
+      return;
+    }
+    const payload = {
+      trip_id: document.getElementById('rev-trip-id').value,
+      source_type: document.getElementById('rev-source').value,
+      title: titleVal,
+      sponsor_name: document.getElementById('rev-sponsor').value.trim(),
+      amount_usd: Number(document.getElementById('rev-amount').value) || 0,
+      status: document.getElementById('rev-status').value,
+      revenue_date: document.getElementById('rev-date').value,
+      video_title: document.getElementById('rev-video').value.trim()
+    };
+    const updated = await apiRequest('/api/revenues', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    if (updated) applyBootstrapData(updated);
+    closeModal('modal-revenue');
+    showToast(`Logged revenue: ${fmtUsd(payload.amount_usd)}`);
   }
 
   function bindEvents() {
-    document.querySelectorAll('[data-view]').forEach(btn => {
-      btn.addEventListener('click', () => switchView(btn.getAttribute('data-view')));
-    });
-    document.querySelectorAll('[data-mobile-view]').forEach(btn => {
-      btn.addEventListener('click', () => switchView(btn.getAttribute('data-mobile-view')));
-    });
-
-    document.getElementById('global-trip-select').addEventListener('change', e => {
-      state.selectedTripId = e.target.value;
-      renderAll();
-    });
-
-    document.getElementById('btn-theme-toggle').addEventListener('click', () => {
-      const current = document.documentElement.getAttribute('data-theme') || 'dark';
-      const next = current === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('wayfarer_theme', next);
-    });
-
-    ['btn-sidebar-quick-add', 'btn-topbar-quick-add', 'btn-ledger-add-expense', 'btn-mobile-fab-add'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener('click', () => openExpenseModal(null));
-    });
-
-    ['btn-open-new-trip', 'btn-trips-view-create'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener('click', () => openTripModal(null));
-    });
-
-    ['btn-open-new-revenue', 'btn-rev-view-create'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.addEventListener('click', () => {
-          document.getElementById('rev-date').value = new Date().toISOString().slice(0, 10);
-          if (state.selectedTripId !== 'all') {
-            document.getElementById('rev-trip-id').value = state.selectedTripId;
-          }
-          openModal('modal-revenue');
-        });
-      }
-    });
-
-    ['btn-export-csv-top', 'btn-ledger-export-csv', 'btn-tax-download-csv'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener('click', triggerCsvExport);
-    });
-
-    document.getElementById('btn-print-pdf-report').addEventListener('click', () => {
-      window.print();
-    });
-
-    document.querySelectorAll('[data-close-modal]').forEach(btn => {
-      btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close-modal')));
-    });
-
-    document.getElementById('exp-quick-cat-grid').addEventListener('click', e => {
-      const btn = e.target.closest('[data-cat]');
-      if (!btn) return;
-      const cat = btn.getAttribute('data-cat');
-      document.getElementById('exp-category').value = cat;
-      document.querySelectorAll('#exp-quick-cat-grid .quick-cat-btn').forEach(b => {
-        b.classList.toggle('selected', b === btn);
+    // Global Trip Selector
+    const globalSelect = document.getElementById('global-trip-select');
+    if (globalSelect) {
+      globalSelect.addEventListener('change', e => {
+        state.selectedTripId = e.target.value;
+        renderAll();
       });
-    });
+    }
 
-    document.getElementById('exp-currency').addEventListener('change', e => {
-      const curr = e.target.value;
-      const rate = state.settings.exchange_rates[curr] || DEFAULT_FX_RATES[curr] || 1;
-      document.getElementById('exp-rate').value = rate;
-      updateExpenseConversionPreview();
-    });
-    document.getElementById('exp-amount-original').addEventListener('input', updateExpenseConversionPreview);
-    document.getElementById('exp-rate').addEventListener('input', updateExpenseConversionPreview);
-
-    document.getElementById('exp-trip-id').addEventListener('change', e => {
-      const t = state.trips.find(tr => tr.id === e.target.value);
-      if (t && !document.getElementById('exp-id').value) {
-        document.getElementById('exp-currency').value = t.default_currency;
-        const rate = state.settings.exchange_rates[t.default_currency] || DEFAULT_FX_RATES[t.default_currency] || 1;
+    // Currency & Amount live conversion inside Expense modal
+    const currEl = document.getElementById('exp-currency');
+    if (currEl) {
+      currEl.addEventListener('change', e => {
+        const curr = e.target.value;
+        const rate = state.settings.exchange_rates[curr] || DEFAULT_FX_RATES[curr] || 1;
         document.getElementById('exp-rate').value = rate;
         updateExpenseConversionPreview();
-      }
-    });
+      });
+    }
+    const amtEl = document.getElementById('exp-amount-original');
+    if (amtEl) amtEl.addEventListener('input', updateExpenseConversionPreview);
+    const rateEl = document.getElementById('exp-rate');
+    if (rateEl) rateEl.addEventListener('input', updateExpenseConversionPreview);
 
-    document.getElementById('exp-receipt-input').addEventListener('change', e => {
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      state.pendingReceiptName = file.name;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const maxDim = 900;
-          let w = img.width;
-          let h = img.height;
-          if (w > maxDim || h > maxDim) {
-            if (w > h) {
-              h = Math.round((h * maxDim) / w);
-              w = maxDim;
-            } else {
-              w = Math.round((w * maxDim) / h);
-              h = maxDim;
-            }
-          }
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
-          state.pendingReceiptData = canvas.toDataURL('image/jpeg', 0.8);
-          document.getElementById('exp-receipt-status').textContent =
-            `✓ Attached ${file.name} (${w}x${h}px compressed)`;
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
-
-    document.getElementById('form-expense').addEventListener('submit', async e => {
-      e.preventDefault();
-      const id = document.getElementById('exp-id').value;
-      const amtOrig = Number(document.getElementById('exp-amount-original').value) || 0;
-      const rate = Number(document.getElementById('exp-rate').value) || 1;
-      const payload = {
-        trip_id: document.getElementById('exp-trip-id').value,
-        expense_date: document.getElementById('exp-date').value,
-        title: document.getElementById('exp-title').value.trim(),
-        vendor: document.getElementById('exp-vendor').value.trim(),
-        category: document.getElementById('exp-category').value,
-        amount_original: amtOrig,
-        currency: document.getElementById('exp-currency').value,
-        exchange_rate: rate,
-        amount_usd: Number((amtOrig * rate).toFixed(2)),
-        payment_method: document.getElementById('exp-payment-method').value,
-        paid_by: document.getElementById('exp-paid-by').value.trim() || 'Channel Card',
-        tax_deductible: document.getElementById('exp-tax-deductible').checked ? 1 : 0,
-        reimbursable: document.getElementById('exp-reimbursable').checked ? 1 : 0,
-        receipt_data: state.pendingReceiptData,
-        receipt_name: state.pendingReceiptName,
-        notes: document.getElementById('exp-notes').value.trim()
-      };
-
-      const url = id ? `/api/expenses/${encodeURIComponent(id)}` : '/api/expenses';
-      const method = id ? 'PUT' : 'POST';
-      const updated = await apiRequest(url, { method, body: JSON.stringify(payload) });
-      if (updated) applyBootstrapData(updated);
-      closeModal('modal-expense');
-      showToast(id ? 'Expense updated' : `Saved ${payload.title} (${fmtUsd(payload.amount_usd)})`);
-    });
-
-    document.getElementById('form-trip').addEventListener('submit', async e => {
-      e.preventDefault();
-      const id = document.getElementById('trip-id').value;
-      const payload = {
-        name: document.getElementById('trip-name').value.trim(),
-        destination: document.getElementById('trip-destination').value.trim(),
-        start_date: document.getElementById('trip-start').value,
-        end_date: document.getElementById('trip-end').value,
-        default_currency: document.getElementById('trip-currency').value,
-        budget_usd: Number(document.getElementById('trip-budget').value) || 5000,
-        video_count: Number(document.getElementById('trip-videos').value) || 1,
-        status: document.getElementById('trip-status').value,
-        notes: document.getElementById('trip-notes').value.trim()
-      };
-      const url = id ? `/api/trips/${encodeURIComponent(id)}` : '/api/trips';
-      const method = id ? 'PUT' : 'POST';
-      const updated = await apiRequest(url, { method, body: JSON.stringify(payload) });
-      if (updated) {
-        if (!id && updated.trips && updated.trips[0]) {
-          state.selectedTripId = updated.trips[0].id;
+    const expTripEl = document.getElementById('exp-trip-id');
+    if (expTripEl) {
+      expTripEl.addEventListener('change', e => {
+        const t = state.trips.find(tr => tr.id === e.target.value);
+        if (t && !document.getElementById('exp-id').value) {
+          document.getElementById('exp-currency').value = t.default_currency;
+          const rate = state.settings.exchange_rates[t.default_currency] || DEFAULT_FX_RATES[t.default_currency] || 1;
+          document.getElementById('exp-rate').value = rate;
+          updateExpenseConversionPreview();
         }
-        applyBootstrapData(updated);
+      });
+    }
+
+    // Receipt file / camera upload
+    const receiptInput = document.getElementById('exp-receipt-input');
+    if (receiptInput) {
+      receiptInput.addEventListener('change', e => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        state.pendingReceiptName = file.name;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxDim = 900;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            state.pendingReceiptData = canvas.toDataURL('image/jpeg', 0.8);
+            document.getElementById('exp-receipt-status').textContent =
+              `✓ Attached ${file.name} (${w}x${h}px compressed)`;
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Form submit listeners
+    const formExp = document.getElementById('form-expense');
+    if (formExp) {
+      formExp.addEventListener('submit', e => {
+        e.preventDefault();
+        saveExpenseFromModal();
+      });
+    }
+    const formTrip = document.getElementById('form-trip');
+    if (formTrip) {
+      formTrip.addEventListener('submit', e => {
+        e.preventDefault();
+        saveTripFromModal();
+      });
+    }
+    const formRev = document.getElementById('form-revenue');
+    if (formRev) {
+      formRev.addEventListener('submit', e => {
+        e.preventDefault();
+        saveRevenueFromModal();
+      });
+    }
+
+    // Filters & Search
+    const searchEl = document.getElementById('input-ledger-search');
+    if (searchEl) {
+      searchEl.addEventListener('input', e => {
+        state.searchQuery = e.target.value;
+        renderExpenseLedger();
+      });
+    }
+    const currFilterEl = document.getElementById('select-currency-filter');
+    if (currFilterEl) {
+      currFilterEl.addEventListener('change', e => {
+        state.currencyFilter = e.target.value;
+        renderExpenseLedger();
+      });
+    }
+    const specFilterEl = document.getElementById('select-special-filter');
+    if (specFilterEl) {
+      specFilterEl.addEventListener('change', e => {
+        state.specialFilter = e.target.value;
+        renderExpenseLedger();
+      });
+    }
+
+    const mealRateEl = document.getElementById('select-meal-deduction-rate');
+    if (mealRateEl) {
+      mealRateEl.addEventListener('change', async e => {
+        const rate = e.target.value;
+        const updated = await apiRequest('/api/settings', {
+          method: 'PUT',
+          body: JSON.stringify({ meal_deduction_rate: rate })
+        });
+        if (updated) applyBootstrapData(updated);
+        showToast(`Updated meal deduction rule to ${rate}%`);
+      });
+    }
+
+    // Unified Delegated Click Handler for all buttons and interactive elements
+    document.addEventListener('click', async e => {
+      // Quick Add Expense buttons
+      if (e.target.closest('#btn-sidebar-quick-add, #btn-topbar-quick-add, #btn-ledger-add-expense, #btn-mobile-fab-add')) {
+        e.preventDefault();
+        openExpenseModal(null);
+        return;
       }
-      closeModal('modal-trip');
-      showToast(id ? 'Trip updated' : `Created trip: ${payload.name}`);
-    });
 
-    document.getElementById('form-revenue').addEventListener('submit', async e => {
-      e.preventDefault();
-      const payload = {
-        trip_id: document.getElementById('rev-trip-id').value,
-        source_type: document.getElementById('rev-source').value,
-        title: document.getElementById('rev-title').value.trim(),
-        sponsor_name: document.getElementById('rev-sponsor').value.trim(),
-        amount_usd: Number(document.getElementById('rev-amount').value) || 0,
-        status: document.getElementById('rev-status').value,
-        revenue_date: document.getElementById('rev-date').value,
-        video_title: document.getElementById('rev-video').value.trim()
-      };
-      const updated = await apiRequest('/api/revenues', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      if (updated) applyBootstrapData(updated);
-      closeModal('modal-revenue');
-      showToast(`Logged revenue: ${fmtUsd(payload.amount_usd)}`);
-    });
+      // Open New Trip buttons
+      if (e.target.closest('#btn-open-new-trip, #btn-trips-view-create')) {
+        e.preventDefault();
+        openTripModal(null);
+        return;
+      }
 
-    document.getElementById('input-ledger-search').addEventListener('input', e => {
-      state.searchQuery = e.target.value;
-      renderExpenseLedger();
-    });
-    document.getElementById('select-currency-filter').addEventListener('change', e => {
-      state.currencyFilter = e.target.value;
-      renderExpenseLedger();
-    });
-    document.getElementById('select-special-filter').addEventListener('change', e => {
-      state.specialFilter = e.target.value;
-      renderExpenseLedger();
-    });
-    document.getElementById('btn-clear-cat-filter').addEventListener('click', () => {
-      state.categoryFilter = 'all';
-      renderCategoryBreakdown();
-      renderLedgerCategoryChips();
-      renderExpenseLedger();
-    });
+      // Open New Revenue buttons
+      if (e.target.closest('#btn-open-new-revenue, #btn-rev-view-create')) {
+        e.preventDefault();
+        document.getElementById('rev-date').value = new Date().toISOString().slice(0, 10);
+        if (state.selectedTripId !== 'all') {
+          document.getElementById('rev-trip-id').value = state.selectedTripId;
+        }
+        openModal('modal-revenue');
+        return;
+      }
 
-    document.getElementById('select-meal-deduction-rate').addEventListener('change', async e => {
-      const rate = e.target.value;
-      const updated = await apiRequest('/api/settings', {
-        method: 'PUT',
-        body: JSON.stringify({ meal_deduction_rate: rate })
-      });
-      if (updated) applyBootstrapData(updated);
-      showToast(`Updated meal deduction rule to ${rate}%`);
-    });
+      // Export CSV buttons
+      if (e.target.closest('#btn-export-csv-top, #btn-ledger-export-csv, #btn-tax-download-csv')) {
+        e.preventDefault();
+        triggerCsvExport();
+        return;
+      }
 
-    document.body.addEventListener('click', async e => {
+      // Copy CSV to clipboard button
+      if (e.target.closest('#btn-copy-csv-clipboard')) {
+        e.preventDefault();
+        const textarea = document.getElementById('csv-export-textarea');
+        if (textarea) {
+          textarea.select();
+          try {
+            await navigator.clipboard.writeText(textarea.value);
+            showToast('Copied CSV to clipboard!');
+          } catch (err) {
+            document.execCommand('copy');
+            showToast('Copied CSV to clipboard!');
+          }
+        }
+        return;
+      }
+
+      // Print / PDF button
+      if (e.target.closest('#btn-print-pdf-report')) {
+        e.preventDefault();
+        showToast('Opening Print / Save PDF dialog...');
+        try {
+          window.print();
+        } catch (err) {}
+        return;
+      }
+
+      // Theme toggle button
+      if (e.target.closest('#btn-theme-toggle')) {
+        e.preventDefault();
+        const current = document.documentElement.getAttribute('data-theme') || 'dark';
+        const next = current === 'dark' ? 'light' : 'dark';
+        memoryTheme = next;
+        document.documentElement.setAttribute('data-theme', next);
+        safeStorageSet('wayfarer_theme', next);
+        showToast(`Switched to ${next} theme`);
+        return;
+      }
+
+      // Clear category filter
+      if (e.target.closest('#btn-clear-cat-filter')) {
+        e.preventDefault();
+        state.categoryFilter = 'all';
+        renderCategoryBreakdown();
+        renderLedgerCategoryChips();
+        renderExpenseLedger();
+        return;
+      }
+
+      // View switcher buttons (Sidebar & Mobile Bottom Nav)
+      const viewBtn = e.target.closest('[data-view]');
+      if (viewBtn) {
+        e.preventDefault();
+        switchView(viewBtn.getAttribute('data-view'));
+        return;
+      }
+      const mobViewBtn = e.target.closest('[data-mobile-view]');
+      if (mobViewBtn) {
+        e.preventDefault();
+        switchView(mobViewBtn.getAttribute('data-mobile-view'));
+        return;
+      }
+
+      // Modal close buttons
+      const closeBtn = e.target.closest('[data-close-modal]');
+      if (closeBtn) {
+        e.preventDefault();
+        closeModal(closeBtn.getAttribute('data-close-modal'));
+        return;
+      }
+
+      // Quick category button inside Expense Modal
+      const quickCatBtn = e.target.closest('#exp-quick-cat-grid [data-cat]');
+      if (quickCatBtn) {
+        e.preventDefault();
+        const cat = quickCatBtn.getAttribute('data-cat');
+        document.getElementById('exp-category').value = cat;
+        document.querySelectorAll('#exp-quick-cat-grid .quick-cat-btn').forEach(b => {
+          b.classList.toggle('selected', b === quickCatBtn);
+        });
+        return;
+      }
+
+      // Select trip from sidebar
       const selTripBtn = e.target.closest('[data-select-trip]');
       if (selTripBtn) {
+        e.preventDefault();
         state.selectedTripId = selTripBtn.getAttribute('data-select-trip');
         switchView('dashboard');
         renderAll();
         return;
       }
 
+      // Open trip dashboard from Trips view
       const openTripBtn = e.target.closest('[data-open-trip-dashboard]');
       if (openTripBtn) {
+        e.preventDefault();
         state.selectedTripId = openTripBtn.getAttribute('data-open-trip-dashboard');
         switchView('dashboard');
         renderAll();
         return;
       }
 
+      // Filter by category row or chip
       const catRow = e.target.closest('[data-filter-cat]');
       if (catRow) {
         const cat = catRow.getAttribute('data-filter-cat');
@@ -1791,8 +1980,10 @@
         return;
       }
 
+      // View receipt modal
       const viewRecBtn = e.target.closest('[data-view-receipt]');
       if (viewRecBtn) {
+        e.preventDefault();
         const expId = viewRecBtn.getAttribute('data-view-receipt');
         const exp = state.expenses.find(x => x.id === expId);
         if (exp && exp.receipt_data) {
@@ -1807,15 +1998,19 @@
         return;
       }
 
+      // Edit Expense
       const editExpBtn = e.target.closest('[data-edit-expense]');
       if (editExpBtn) {
+        e.preventDefault();
         const exp = state.expenses.find(x => x.id === editExpBtn.getAttribute('data-edit-expense'));
         if (exp) openExpenseModal(exp);
         return;
       }
 
+      // Delete Expense
       const delExpBtn = e.target.closest('[data-delete-expense]');
       if (delExpBtn) {
+        e.preventDefault();
         const expId = delExpBtn.getAttribute('data-delete-expense');
         const updated = await apiRequest(`/api/expenses/${encodeURIComponent(expId)}`, { method: 'DELETE' });
         if (updated) applyBootstrapData(updated);
@@ -1823,15 +2018,19 @@
         return;
       }
 
+      // Edit Trip
       const editTripBtn = e.target.closest('[data-edit-trip]');
       if (editTripBtn) {
+        e.preventDefault();
         const tr = state.trips.find(x => x.id === editTripBtn.getAttribute('data-edit-trip'));
         if (tr) openTripModal(tr);
         return;
       }
 
+      // Delete Trip
       const delTripBtn = e.target.closest('[data-delete-trip]');
       if (delTripBtn) {
+        e.preventDefault();
         const tripId = delTripBtn.getAttribute('data-delete-trip');
         const updated = await apiRequest(`/api/trips/${encodeURIComponent(tripId)}`, { method: 'DELETE' });
         if (updated) applyBootstrapData(updated);
@@ -1839,8 +2038,10 @@
         return;
       }
 
+      // Delete Revenue
       const delRevBtn = e.target.closest('[data-delete-revenue]');
       if (delRevBtn) {
+        e.preventDefault();
         const revId = delRevBtn.getAttribute('data-delete-revenue');
         const updated = await apiRequest(`/api/revenues/${encodeURIComponent(revId)}`, { method: 'DELETE' });
         if (updated) applyBootstrapData(updated);
@@ -1849,5 +2050,9 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', initApp);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
 })();

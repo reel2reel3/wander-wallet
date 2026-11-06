@@ -520,7 +520,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn" data-close-modal="modal-expense">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Expense</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-expense">Save Expense</button>
         </div>
       </form>
     </div>
@@ -600,7 +600,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn" data-close-modal="modal-trip">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Production Trip</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-trip">Save Production Trip</button>
         </div>
       </form>
     </div>
@@ -668,7 +668,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn" data-close-modal="modal-revenue">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Revenue Entry</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-revenue">Save Revenue Entry</button>
         </div>
       </form>
     </div>
@@ -688,6 +688,26 @@
       <div class="modal-footer">
         <a id="receipt-download-link" href="#" download="receipt.png" class="btn btn-sm">⬇ Download Receipt</a>
         <button type="button" class="btn btn-primary btn-sm" data-close-modal="modal-receipt-preview">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: CSV EXPORT PREVIEW & COPY -->
+  <div class="modal-backdrop" id="modal-csv-export" role="dialog" aria-modal="true" aria-labelledby="modal-csv-export-title">
+    <div class="modal-dialog" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-csv-export-title">Accountant Schedule C Tax CSV Export</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-csv-export" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size: 12.5px; color: var(--text-secondary);">
+          Your CSV file has been generated. If your browser or preview pane blocks automatic file downloads, you can copy the raw CSV below and paste it directly into Google Sheets or Excel:
+        </div>
+        <textarea id="csv-export-textarea" class="form-textarea mono" rows="10" readonly style="font-size: 11.5px; white-space: pre; overflow-x: auto;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn" id="btn-copy-csv-clipboard">📋 Copy CSV to Clipboard</button>
+        <a id="btn-direct-csv-download" href="#" download="creator-tax-expenses.csv" class="btn btn-primary">⬇ Download .CSV File</a>
       </div>
     </div>
   </div>
