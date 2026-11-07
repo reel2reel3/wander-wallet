@@ -6,7 +6,18 @@ const { URL } = require('node:url');
 const { DatabaseSync } = require('node:sqlite');
 
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || path.join(__dirname, 'data');
+const AUTO_VOLUME_DIR = (() => {
+  if (process.env.RAILWAY_VOLUME_MOUNT_PATH) return process.env.RAILWAY_VOLUME_MOUNT_PATH;
+  if (process.env.DATA_DIR) return process.env.DATA_DIR;
+  try {
+    if (fs.existsSync('/data')) {
+      fs.accessSync('/data', fs.constants.W_OK);
+      return '/data';
+    }
+  } catch (e) {}
+  return path.join(__dirname, 'data');
+})();
+const DATA_DIR = AUTO_VOLUME_DIR;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 if (!fs.existsSync(DATA_DIR)) {
@@ -88,6 +99,8 @@ db.exec(`
 
 const DEFAULT_RATES = {
   USD: 1.0,
+  ARS: 0.00098,   // ~1,020 ARS per USD (Argentina)
+  BRL: 0.175,     // ~5.70 BRL per USD (Brazil)
   JPY: 0.00658,   // ~152 JPY per USD
   EUR: 1.085,     // ~0.92 EUR per USD
   GBP: 1.295,     // ~0.77 GBP per USD
@@ -105,10 +118,12 @@ function seedIfNeeded() {
   if (countRow && countRow.count > 0) return;
 
   const insertSetting = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
-  insertSetting.run('channel_name', 'Nomad Frame Studios');
+  insertSetting.run('channel_name', 'Wander Wallet');
   insertSetting.run('home_currency', 'USD');
   insertSetting.run('meal_deduction_rate', '100');
   insertSetting.run('exchange_rates', JSON.stringify(DEFAULT_RATES));
+  insertSetting.run('user_modified', 'false');
+  insertSetting.run('updated_at', '0');
 
   const now = new Date().toISOString();
 
@@ -1203,13 +1218,51 @@ function getAuthCredentials() {
   };
 }
 
+// Signing secret must never be a value visible in the public repo.
+// Priority: SESSION_SECRET env var -> derived from private env vars (APP_PASSWORD etc.) -> random per-process secret.
+const TOKEN_SIGNING_SECRET = (() => {
+  if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim()) return process.env.SESSION_SECRET.trim();
+  const privateMaterial = [process.env.APP_PASSWORD, process.env.APP_USERNAME, process.env.GOOGLE_CLIENT_ID, process.env.ALLOWED_GOOGLE_EMAILS]
+    .filter(Boolean)
+    .join('|');
+  if (process.env.APP_PASSWORD && privateMaterial) {
+    return crypto.createHash('sha256').update('ww-session-v1|' + privateMaterial).digest('hex');
+  }
+  console.warn('[auth] SESSION_SECRET/APP_PASSWORD not set: login sessions will reset on each restart. Set SESSION_SECRET in Railway Variables.');
+  return crypto.randomBytes(32).toString('hex');
+})();
+
+function signStatelessToken(username, expiresAt) {
+  const safeUser = Buffer.from(String(username || 'admin'), 'utf8').toString('base64url');
+  const payload = `${safeUser}.${expiresAt}`;
+  const sig = crypto.createHmac('sha256', TOKEN_SIGNING_SECRET).update(payload).digest('base64url');
+  return `ww1.${payload}.${sig}`;
+}
+
+function verifyStatelessToken(token) {
+  if (!token || !token.startsWith('ww1.')) return null;
+  const parts = token.split('.');
+  if (parts.length !== 4) return null;
+  const [, safeUser, expStr, sig] = parts;
+  const expiresAt = Number(expStr);
+  if (!expiresAt || expiresAt < Date.now()) return null;
+  const payload = `${safeUser}.${expStr}`;
+  const expectedSig = crypto.createHmac('sha256', TOKEN_SIGNING_SECRET).update(payload).digest('base64url');
+  if (sig !== expectedSig) return null;
+  let username = 'admin';
+  try {
+    username = Buffer.from(safeUser, 'base64url').toString('utf8') || 'admin';
+  } catch (e) {}
+  return { token, username, expires_at: expiresAt };
+}
+
 function createAuthSession(username, rememberDays = 30) {
-  const token = crypto.randomBytes(32).toString('hex');
   const durationMs = (Number(rememberDays) || 30) * 24 * 60 * 60 * 1000;
   const expiresAt = Date.now() + durationMs;
+  const token = signStatelessToken(username, expiresAt);
   const now = new Date().toISOString();
   db.prepare('DELETE FROM auth_sessions WHERE expires_at < ?').run(Date.now());
-  db.prepare('INSERT INTO auth_sessions (token, username, expires_at, created_at) VALUES (?, ?, ?, ?)').run(
+  db.prepare('INSERT OR REPLACE INTO auth_sessions (token, username, expires_at, created_at) VALUES (?, ?, ?, ?)').run(
     token,
     username,
     expiresAt,
@@ -1247,6 +1300,11 @@ function getAuthenticatedSession(req, parsedUrl) {
   }
   if (!token) return null;
 
+  // 1. Check stateless signed token first (survives container restarts/redeploys!)
+  const stateless = verifyStatelessToken(token);
+  if (stateless) return stateless;
+
+  // 2. Fallback to SQLite auth_sessions table
   const row = db.prepare('SELECT token, username, expires_at FROM auth_sessions WHERE token = ?').get(token);
   if (!row) return null;
   if (row.expires_at < Date.now()) {
@@ -1256,19 +1314,29 @@ function getAuthenticatedSession(req, parsedUrl) {
   return row;
 }
 
+function markServerModified(ts = Date.now()) {
+  const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+  upsert.run('user_modified', 'true');
+  upsert.run('updated_at', String(ts));
+}
+
 function getBootstrapData() {
   const settings = getSettingsMap();
   const trips = db.prepare('SELECT * FROM trips ORDER BY start_date DESC').all();
   const expenses = db.prepare('SELECT * FROM expenses ORDER BY expense_date DESC, created_at DESC').all();
   const revenues = db.prepare('SELECT * FROM revenues ORDER BY revenue_date DESC, created_at DESC').all();
   const rewards = getRewardsData();
+  const modRow = db.prepare("SELECT value FROM settings WHERE key = 'user_modified'").get();
+  const updRow = db.prepare("SELECT value FROM settings WHERE key = 'updated_at'").get();
 
   return {
     settings,
     trips,
     expenses,
     revenues,
-    rewards
+    rewards,
+    user_modified: modRow ? modRow.value === 'true' : false,
+    updated_at: updRow ? Number(updRow.value) || 0 : 0
   };
 }
 
@@ -1339,7 +1407,7 @@ const server = http.createServer(async (req, res) => {
       const creds = getAuthCredentials();
       const session = getAuthenticatedSession(req, parsedUrl);
       return sendJson(res, 200, {
-        configured: creds.configured,
+        configured: creds.configured || Boolean(session),
         envManaged: creds.envManaged,
         authenticated: Boolean(session),
         username: session ? session.username : creds.username,
@@ -1357,7 +1425,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const idToken = String(body.credential || '').trim();
       if (!idToken) {
-        return sendJson(res, 400, { error: 'Missing Google credential token.' });
+        return sendJson(res, 0 + 400, { error: 'Missing Google credential token.' });
       }
 
       const verifyRes = await fetch(
@@ -1500,10 +1568,10 @@ const server = http.createServer(async (req, res) => {
     // Change Password & Google OAuth Settings Endpoint (requires active session)
     if (pathname === '/api/auth/change-password' && method === 'POST') {
       const session = getAuthenticatedSession(req, parsedUrl);
-      if (!session) {
+      const creds = getAuthCredentials();
+      if (!session && creds.configured) {
         return sendJson(res, 401, { error: 'Authentication required.' });
       }
-      const creds = getAuthCredentials();
       const body = await readJsonBody(req);
       const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
 
@@ -1541,11 +1609,11 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, username: newUsername });
     }
 
-    // Protect all /api/* routes with session authentication
+    // Protect /api/* routes when authentication is configured
     if (pathname.startsWith('/api/')) {
       const session = getAuthenticatedSession(req, parsedUrl);
-      if (!session) {
-        const creds = getAuthCredentials();
+      const creds = getAuthCredentials();
+      if (!session && creds.configured) {
         return sendJson(res, 401, {
           error: 'Unauthorized',
           configured: creds.configured,
@@ -1559,13 +1627,122 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, getBootstrapData());
     }
 
+    // Full Two-Way Sync / Auto-Heal Endpoint (restores client local backup if container restarted)
+    if (pathname === '/api/sync' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const now = new Date().toISOString();
+
+      if (Array.isArray(body.trips) && body.trips.length > 0) {
+        db.exec('PRAGMA foreign_keys = OFF;');
+        db.exec('DELETE FROM trips;');
+        const insTrip = db.prepare(`
+          INSERT OR REPLACE INTO trips (id, name, destination, country_code, default_currency, start_date, end_date, budget_usd, video_count, status, notes, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const t of body.trips) {
+          insTrip.run(
+            t.id || ('trip-' + Date.now() + Math.random().toString(36).slice(2, 5)),
+            t.name || 'Untitled Trip',
+            t.destination || 'On the Road',
+            t.country_code || 'US',
+            t.default_currency || 'USD',
+            t.start_date || now.slice(0, 10),
+            t.end_date || now.slice(0, 10),
+            Number(t.budget_usd) || 5000,
+            Number(t.video_count) || 1,
+            t.status || 'active',
+            t.notes || '',
+            t.created_at || now
+          );
+        }
+
+        if (Array.isArray(body.expenses)) {
+          db.exec('DELETE FROM expenses;');
+          const insExp = db.prepare(`
+            INSERT OR REPLACE INTO expenses (
+              id, trip_id, title, vendor, category, expense_date,
+              amount_original, currency, exchange_rate, amount_usd,
+              payment_method, paid_by, tax_deductible, reimbursable,
+              receipt_data, receipt_name, notes, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          for (const e of body.expenses) {
+            insExp.run(
+              e.id || ('exp-' + Date.now() + Math.random().toString(36).slice(2, 5)),
+              e.trip_id,
+              e.title || 'Untitled Expense',
+              e.vendor || '',
+              e.category || 'Meals & Craft',
+              e.expense_date || now.slice(0, 10),
+              Number(e.amount_original) || 0,
+              e.currency || 'USD',
+              Number(e.exchange_rate) || 1,
+              Number(e.amount_usd) || 0,
+              e.payment_method || 'Amex Business Platinum',
+              e.paid_by || 'Channel Card',
+              e.tax_deductible === false || e.tax_deductible === 0 ? 0 : 1,
+              e.reimbursable ? 1 : 0,
+              e.receipt_data || '',
+              e.receipt_name || '',
+              e.notes || '',
+              e.created_at || now
+            );
+          }
+        }
+
+        if (Array.isArray(body.revenues)) {
+          db.exec('DELETE FROM revenues;');
+          const insRev = db.prepare(`
+            INSERT OR REPLACE INTO revenues (
+              id, trip_id, title, source_type, sponsor_name, video_title,
+              amount_usd, status, revenue_date, notes, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `);
+          for (const r of body.revenues) {
+            insRev.run(
+              r.id || ('rev-' + Date.now() + Math.random().toString(36).slice(2, 5)),
+              r.trip_id,
+              r.title || 'Sponsor Revenue',
+              r.source_type || 'Sponsor Integration',
+              r.sponsor_name || '',
+              r.video_title || '',
+              Number(r.amount_usd) || 0,
+              r.status || 'paid',
+              r.revenue_date || now.slice(0, 10),
+              r.notes || '',
+              r.created_at || now
+            );
+          }
+        }
+        db.exec('PRAGMA foreign_keys = ON;');
+      }
+
+      if (body.rewards && Array.isArray(body.rewards.programs)) {
+        db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
+          'rewards_data',
+          JSON.stringify(body.rewards)
+        );
+      }
+
+      if (body.settings && typeof body.settings === 'object') {
+        const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+        if (body.settings.channel_name) upsert.run('channel_name', String(body.settings.channel_name));
+        if (body.settings.home_currency) upsert.run('home_currency', String(body.settings.home_currency));
+        if (body.settings.meal_deduction_rate) upsert.run('meal_deduction_rate', String(body.settings.meal_deduction_rate));
+        if (body.settings.exchange_rates) upsert.run('exchange_rates', JSON.stringify(body.settings.exchange_rates));
+      }
+
+      markServerModified(Number(body.updated_at) || Date.now());
+      return sendJson(res, 200, getBootstrapData());
+    }
+
     // Trips CRUD
     if (pathname === '/api/trips' && method === 'POST') {
       const body = await readJsonBody(req);
       const id = body.id || ('trip-' + Date.now());
       const now = new Date().toISOString();
       db.prepare(`
-        INSERT INTO trips (id, name, destination, country_code, default_currency, start_date, end_date, budget_usd, video_count, status, notes, created_at)
+        INSERT OR REPLACE INTO trips (id, name, destination, country_code, default_currency, start_date, end_date, budget_usd, video_count, status, notes, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
@@ -1581,6 +1758,7 @@ const server = http.createServer(async (req, res) => {
         body.notes || '',
         now
       );
+      markServerModified();
       return sendJson(res, 201, getBootstrapData());
     }
 
@@ -1588,6 +1766,7 @@ const server = http.createServer(async (req, res) => {
       const id = decodeURIComponent(pathname.replace('/api/trips/', ''));
       if (method === 'DELETE') {
         db.prepare('DELETE FROM trips WHERE id = ?').run(id);
+        markServerModified();
         return sendJson(res, 200, getBootstrapData());
       }
       const body = await readJsonBody(req);
@@ -1609,6 +1788,7 @@ const server = http.createServer(async (req, res) => {
         body.notes || '',
         id
       );
+      markServerModified();
       return sendJson(res, 200, getBootstrapData());
     }
 
@@ -1624,7 +1804,7 @@ const server = http.createServer(async (req, res) => {
         : Number((amountOriginal * exchangeRate).toFixed(2));
 
       db.prepare(`
-        INSERT INTO expenses (
+        INSERT OR REPLACE INTO expenses (
           id, trip_id, title, vendor, category, expense_date,
           amount_original, currency, exchange_rate, amount_usd,
           payment_method, paid_by, tax_deductible, reimbursable,
@@ -1650,6 +1830,7 @@ const server = http.createServer(async (req, res) => {
         body.notes || '',
         now
       );
+      markServerModified();
       return sendJson(res, 201, getBootstrapData());
     }
 
@@ -1657,6 +1838,7 @@ const server = http.createServer(async (req, res) => {
       const id = decodeURIComponent(pathname.replace('/api/expenses/', ''));
       if (method === 'DELETE') {
         db.prepare('DELETE FROM expenses WHERE id = ?').run(id);
+        markServerModified();
         return sendJson(res, 200, getBootstrapData());
       }
       const body = await readJsonBody(req);
@@ -1692,6 +1874,7 @@ const server = http.createServer(async (req, res) => {
         body.notes || '',
         id
       );
+      markServerModified();
       return sendJson(res, 200, getBootstrapData());
     }
 
@@ -1701,7 +1884,7 @@ const server = http.createServer(async (req, res) => {
       const id = body.id || ('rev-' + Date.now());
       const now = new Date().toISOString();
       db.prepare(`
-        INSERT INTO revenues (
+        INSERT OR REPLACE INTO revenues (
           id, trip_id, title, source_type, sponsor_name, video_title,
           amount_usd, status, revenue_date, notes, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1718,6 +1901,7 @@ const server = http.createServer(async (req, res) => {
         body.notes || '',
         now
       );
+      markServerModified();
       return sendJson(res, 201, getBootstrapData());
     }
 
@@ -1725,6 +1909,7 @@ const server = http.createServer(async (req, res) => {
       const id = decodeURIComponent(pathname.replace('/api/revenues/', ''));
       if (method === 'DELETE') {
         db.prepare('DELETE FROM revenues WHERE id = ?').run(id);
+        markServerModified();
         return sendJson(res, 200, getBootstrapData());
       }
       const body = await readJsonBody(req);
@@ -1745,6 +1930,7 @@ const server = http.createServer(async (req, res) => {
         body.notes || '',
         id
       );
+      markServerModified();
       return sendJson(res, 200, getBootstrapData());
     }
 
@@ -1756,6 +1942,7 @@ const server = http.createServer(async (req, res) => {
       if (body.home_currency !== undefined) upsert.run('home_currency', String(body.home_currency));
       if (body.meal_deduction_rate !== undefined) upsert.run('meal_deduction_rate', String(body.meal_deduction_rate));
       if (body.exchange_rates !== undefined) upsert.run('exchange_rates', JSON.stringify(body.exchange_rates));
+      markServerModified();
       return sendJson(res, 200, getBootstrapData());
     }
 
@@ -1773,6 +1960,7 @@ const server = http.createServer(async (req, res) => {
         'rewards_data',
         JSON.stringify(nextRewards)
       );
+      markServerModified();
       return sendJson(res, 200, getBootstrapData());
     }
 
@@ -1843,7 +2031,7 @@ const server = http.createServer(async (req, res) => {
       return res.end(rows.join('\n'));
     }
 
-    // Static Files
+    // Static Files (with no-cache headers so browser/Service Worker never serves stale JS/HTML)
     let filePath = pathname === '/' ? '/index.html' : pathname;
     const safePath = path.normalize(filePath).replace(/^(\.\.[/\\])+/, '');
     const absPath = path.join(PUBLIC_DIR, safePath);
@@ -1851,7 +2039,10 @@ const server = http.createServer(async (req, res) => {
     if (fs.existsSync(absPath) && fs.statSync(absPath).isFile()) {
       const ext = path.extname(absPath).toLowerCase();
       const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-      res.writeHead(200, { 'Content-Type': contentType });
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      });
       fs.createReadStream(absPath).pipe(res);
       return;
     }
@@ -1859,7 +2050,10 @@ const server = http.createServer(async (req, res) => {
     // SPA fallback
     const indexHtml = path.join(PUBLIC_DIR, 'index.html');
     if (fs.existsSync(indexHtml)) {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      });
       fs.createReadStream(indexHtml).pipe(res);
       return;
     }

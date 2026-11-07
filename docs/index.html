@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
   <div class="app-shell">
@@ -269,6 +269,8 @@
                 <select id="select-currency-filter" class="select-filter" aria-label="Filter by currency">
                   <option value="all">All Currencies</option>
                   <option value="USD">USD ($)</option>
+                  <option value="ARS">ARS ($ Argentina)</option>
+                  <option value="BRL">BRL (R$ Brazil)</option>
                   <option value="JPY">JPY (¥)</option>
                   <option value="ISK">ISK (kr)</option>
                   <option value="CHF">CHF (Fr)</option>
@@ -1036,6 +1038,8 @@
               <label class="form-label" for="exp-currency">Currency</label>
               <select id="exp-currency" class="form-select mono">
                 <option value="USD">USD ($)</option>
+                <option value="ARS">ARS ($ Argentina)</option>
+                <option value="BRL">BRL (R$ Brazil)</option>
                 <option value="JPY">JPY (¥)</option>
                 <option value="EUR">EUR (€)</option>
                 <option value="GBP">GBP (£)</option>
@@ -1121,11 +1125,11 @@
           <div class="form-grid-2">
             <div class="form-group">
               <label class="form-label" for="trip-name">Trip / Series Name</label>
-              <input type="text" id="trip-name" class="form-input" placeholder="e.g., Vietnam Street Food Series - Dec 2026" required />
+              <input type="text" id="trip-name" class="form-input" placeholder="e.g., Argentina Shoot - Dec 2026" required />
             </div>
             <div class="form-group">
               <label class="form-label" for="trip-destination">Cities / Locations</label>
-              <input type="text" id="trip-destination" class="form-input" placeholder="e.g., Hanoi & Da Nang" required />
+              <input type="text" id="trip-destination" class="form-input" placeholder="e.g., Buenos Aires, Mendoza & Patagonia" required />
             </div>
           </div>
 
@@ -1142,6 +1146,8 @@
               <label class="form-label" for="trip-currency">Local Currency</label>
               <select id="trip-currency" class="form-select mono">
                 <option value="USD">USD</option>
+                <option value="ARS">ARS (Argentina)</option>
+                <option value="BRL">BRL (Brazil)</option>
                 <option value="JPY">JPY</option>
                 <option value="EUR">EUR</option>
                 <option value="GBP">GBP</option>
@@ -1813,6 +1819,6 @@
 
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
