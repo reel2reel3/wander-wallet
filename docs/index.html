@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <link rel="stylesheet" href="styles.css?v=7" />
 </head>
 <body>
   <div class="app-shell">
@@ -80,6 +80,15 @@
           </button>
         </li>
         <li>
+          <button type="button" class="nav-item-btn" data-view="admin" id="nav-btn-admin">
+            <span class="nav-item-left">
+              <span>⚙️</span>
+              <span class="nav-item-text">Admin</span>
+            </span>
+            <span class="nav-badge" style="color: var(--accent-amber);">Config</span>
+          </button>
+        </li>
+        <li>
           <button type="button" class="nav-item-btn" data-view="help" id="nav-btn-help">
             <span class="nav-item-left">
               <span>🎓</span>
@@ -117,8 +126,8 @@
           <button type="button" class="btn btn-sm" id="btn-open-security-modal" title="Password & Google Sign-In Settings">
             <span>🔑 Security</span>
           </button>
-          <button type="button" class="btn btn-sm" id="btn-lock-logout" title="Lock App & Sign Out">
-            <span>🔒 Lock App</span>
+          <button type="button" class="btn btn-sm" id="btn-lock-logout" title="Exit App & Sign Out">
+            <span>🚪 Exit App</span>
           </button>
         </div>
       </div>
@@ -146,7 +155,7 @@
           <button type="button" class="btn" id="btn-open-new-trip">+ New Trip</button>
           <button type="button" class="btn" id="btn-open-new-revenue">+ Log Revenue</button>
           <button type="button" class="btn" id="btn-export-csv-top">⬇ Export Tax CSV</button>
-          <button type="button" class="btn" id="btn-topbar-lock" title="Lock Workspace">🔒</button>
+          <button type="button" class="btn" id="btn-topbar-lock" title="Exit App & Sign Out">🚪 Exit</button>
           <button type="button" class="btn btn-primary" id="btn-topbar-quick-add">+ Add Expense</button>
         </div>
       </header>
@@ -940,6 +949,115 @@
               </div>
             </section>
           </div>
+        </div>
+
+        <!-- VIEW 7: ADMIN WORKSPACE -->
+        <div id="view-admin" class="view-section" style="display: none;">
+          <!-- Admin Hero Header -->
+          <section class="panel-card" style="margin-bottom: 20px;">
+            <div class="panel-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px;">
+              <div>
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-amber); margin-bottom: 4px;">
+                  ⚙️ WORKSPACE ADMINISTRATION &amp; CONFIGURATION
+                </div>
+                <h2 class="panel-title" style="font-size: 20px;">Admin Command Center</h2>
+                <p class="panel-subtitle" style="margin-top: 3px;">
+                  Customize your business tax categories, Schedule C line mappings, deduction rules, and channel settings.
+                </p>
+              </div>
+              <div class="panel-actions">
+                <button type="button" class="btn btn-sm" id="btn-admin-reset-categories" title="Restore default tax categories">
+                  ↺ Restore Default Categories
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-admin-add-category">
+                  + Add Tax Category
+                </button>
+              </div>
+            </div>
+
+            <!-- Admin Category KPI Grid -->
+            <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-top: 14px;">
+              <div class="kpi-card">
+                <span class="kpi-label">Active Tax Categories</span>
+                <span class="kpi-value mono" id="admin-kpi-total-cats">0</span>
+                <span class="kpi-subtext">Configured for expenses &amp; ledger</span>
+              </div>
+              <div class="kpi-card">
+                <span class="kpi-label">100% Deductible</span>
+                <span class="kpi-value mono" id="admin-kpi-full-ded-cats" style="color: var(--accent-primary);">0</span>
+                <span class="kpi-subtext">Standard production write-offs</span>
+              </div>
+              <div class="kpi-card">
+                <span class="kpi-label">Special Rules (e.g. Meals)</span>
+                <span class="kpi-value mono" id="admin-kpi-special-cats" style="color: var(--accent-amber);">0</span>
+                <span class="kpi-subtext" id="admin-kpi-meal-subtext">Governed by meal deduction rate</span>
+              </div>
+              <div class="kpi-card">
+                <span class="kpi-label">Logged Expenses Mapped</span>
+                <span class="kpi-value mono" id="admin-kpi-mapped-expenses">0</span>
+                <span class="kpi-subtext">Expenses in current active trips</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Tax Categories Management Panel -->
+          <section class="panel-card" style="margin-bottom: 20px;">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Tax Categories &amp; Schedule C Mapping</h3>
+                <p class="panel-subtitle">
+                  Categories configured here automatically appear in the <strong>+ Add Expense</strong> modal, the Ledger Category filter chips, and the Schedule C Accountant CSV export.
+                </p>
+              </div>
+            </div>
+
+            <div class="table-container" style="margin-top: 10px;">
+              <table class="ledger-table" id="admin-categories-table">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">Icon</th>
+                    <th>Category Name</th>
+                    <th>IRS Schedule C Line / Box</th>
+                    <th style="text-align: center; width: 150px;">Default Tax Treatment</th>
+                    <th style="text-align: right; width: 130px;">Current Usage</th>
+                    <th style="text-align: right; width: 140px;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-categories-tbody">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- General Workspace Settings Card -->
+          <section class="panel-card">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Production &amp; Accounting Rules</h3>
+                <p class="panel-subtitle">Fine-tune global accounting parameters applied across all trips.</p>
+              </div>
+            </div>
+            <div class="form-grid-2" style="margin-top: 14px;">
+              <div class="form-group">
+                <label class="form-label" for="admin-setting-channel-name">Channel / Production Entity Name</label>
+                <input type="text" id="admin-setting-channel-name" class="form-input" placeholder="e.g. Wander Wallet Productions" />
+                <span style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px; display: block;">Appears in the header and accountant export files.</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="admin-setting-meal-rate">IRS Business Meal Deduction Rate</label>
+                <select id="admin-setting-meal-rate" class="form-select">
+                  <option value="100">100% Deductible (Temporary Travel / Special Rule)</option>
+                  <option value="50">50% Deductible (Standard IRS Schedule C Rule)</option>
+                  <option value="0">0% Deductible (Non-Deductible)</option>
+                </select>
+                <span style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px; display: block;">Applies automatically to all meal and dining categories.</span>
+              </div>
+            </div>
+            <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
+              <button type="button" class="btn btn-primary" id="btn-admin-save-general-settings">Save Workspace Rules</button>
+            </div>
+          </section>
         </div>
       </div>
     </main>
@@ -1747,6 +1865,74 @@
     </div>
   </div>
 
+  <!-- MODAL: ADD / EDIT TAX CATEGORY -->
+  <div class="modal-backdrop" id="modal-admin-tax-category" role="dialog" aria-modal="true" aria-labelledby="modal-admin-tax-category-title">
+    <div class="modal-dialog" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-admin-tax-category-title">Add Tax Category</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-admin-tax-category" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-admin-tax-category">
+        <input type="hidden" id="taxcat-original-name" />
+        <div class="modal-body">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="taxcat-name">Category Name</label>
+              <input type="text" id="taxcat-name" class="form-input" placeholder="e.g. Production Insurance" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="taxcat-icon">Emoji / Icon</label>
+              <input type="text" id="taxcat-icon" class="form-input" placeholder="e.g. 🛡️ or 🚗" maxlength="4" value="🏷️" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="taxcat-schedule-c">IRS Schedule C Line / Box Mapping</label>
+            <input type="text" id="taxcat-schedule-c" class="form-input" placeholder="e.g. Line 15 (Insurance), Line 24b (Meals), Line 27a (Other)" value="Line 27a (Other Expenses)" required />
+            <span style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px; display: block;">
+              Used directly by the Accountant Schedule C CSV Export and tax summary tables.
+            </span>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="taxcat-deductible">Default Tax Treatment</label>
+              <select id="taxcat-deductible" class="form-select">
+                <option value="1">100% Tax Deductible (Standard)</option>
+                <option value="meal">Meal Deduction Rule (50% or 100%)</option>
+                <option value="0">Non-Deductible (Personal / Capitalized)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="taxcat-color">Chart / Badge Color</label>
+              <select id="taxcat-color" class="form-select">
+                <option value="#38bdf8">Sky Blue (#38bdf8)</option>
+                <option value="#f59e0b">Amber Gold (#f59e0b)</option>
+                <option value="#10b981">Emerald Green (#10b981)</option>
+                <option value="#a855f7">Purple (#a855f7)</option>
+                <option value="#ec4899">Pink (#ec4899)</option>
+                <option value="#f97316">Orange (#f97316)</option>
+                <option value="#64748b">Slate Gray (#64748b)</option>
+                <option value="#14b8a6">Teal (#14b8a6)</option>
+                <option value="#ef4444">Rose Red (#ef4444)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="taxcat-notes">Notes / Tax Rules Guidance (Optional)</label>
+            <input type="text" id="taxcat-notes" class="form-input" placeholder="e.g. Retain certificate of insurance or policy rider" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn" data-close-modal="modal-admin-tax-category">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-admin-tax-category">Save Tax Category</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- GENERIC DELETE CONFIRMATION MODAL -->
   <div class="modal-backdrop" id="modal-confirm-delete" role="alertdialog" aria-modal="true" aria-labelledby="modal-confirm-title" aria-describedby="modal-confirm-desc">
     <div class="modal-dialog" style="max-width: 440px;">
@@ -1845,6 +2031,6 @@
 
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

@@ -1131,7 +1131,8 @@ function getSettingsMap() {
     channel_name: 'Wander Wallet',
     home_currency: 'USD',
     meal_deduction_rate: '100',
-    exchange_rates: DEFAULT_RATES
+    exchange_rates: DEFAULT_RATES,
+    tax_categories: null
   };
   for (const r of rows) {
     if (r.key.startsWith('auth_') || r.key === 'rewards_data') continue;
@@ -1140,6 +1141,12 @@ function getSettingsMap() {
         map.exchange_rates = { ...DEFAULT_RATES, ...JSON.parse(r.value) };
       } catch {
         map.exchange_rates = DEFAULT_RATES;
+      }
+    } else if (r.key === 'tax_categories') {
+      try {
+        map.tax_categories = JSON.parse(r.value);
+      } catch {
+        map.tax_categories = null;
       }
     } else if (r.key === 'channel_name' && r.value === 'Nomad Frame Studios') {
       map.channel_name = 'Wander Wallet';
@@ -1730,6 +1737,7 @@ const server = http.createServer(async (req, res) => {
         if (body.settings.home_currency) upsert.run('home_currency', String(body.settings.home_currency));
         if (body.settings.meal_deduction_rate) upsert.run('meal_deduction_rate', String(body.settings.meal_deduction_rate));
         if (body.settings.exchange_rates) upsert.run('exchange_rates', JSON.stringify(body.settings.exchange_rates));
+        if (body.settings.tax_categories) upsert.run('tax_categories', JSON.stringify(body.settings.tax_categories));
       }
 
       markServerModified(Number(body.updated_at) || Date.now());
@@ -1942,6 +1950,7 @@ const server = http.createServer(async (req, res) => {
       if (body.home_currency !== undefined) upsert.run('home_currency', String(body.home_currency));
       if (body.meal_deduction_rate !== undefined) upsert.run('meal_deduction_rate', String(body.meal_deduction_rate));
       if (body.exchange_rates !== undefined) upsert.run('exchange_rates', JSON.stringify(body.exchange_rates));
+      if (body.tax_categories !== undefined) upsert.run('tax_categories', JSON.stringify(body.tax_categories));
       markServerModified();
       return sendJson(res, 200, getBootstrapData());
     }

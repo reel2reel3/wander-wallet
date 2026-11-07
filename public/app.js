@@ -33,14 +33,46 @@
     THB: '฿'
   };
 
-  const CATEGORY_META = {
-    'Hotels & Lodging': { color: 'var(--cat-hotel)', icon: '🏨' },
-    'Meals & Craft': { color: 'var(--cat-meal)', icon: '🍜' },
-    'Flights & Transit': { color: 'var(--cat-flight)', icon: '🚄' },
-    'Gear & Rentals': { color: 'var(--cat-gear)', icon: '📷' },
-    'Permits & Locations': { color: 'var(--cat-permit)', icon: '🎟️' },
-    'Crew & Talent': { color: 'var(--cat-crew)', icon: '🎥' }
-  };
+  const DEFAULT_TAX_CATEGORIES = [
+    { name: 'Hotels & Lodging', icon: '🏨', color: 'var(--cat-hotel)', schedule_c: 'Line 24a (Travel / Lodging)', deductible: '1', notes: 'Deductible lodging while away from tax home overnight' },
+    { name: 'Meals & Craft', icon: '🍜', color: 'var(--cat-meal)', schedule_c: 'Line 24b (Deductible Meals)', deductible: 'meal', notes: 'Subject to IRS business meal percentage (50% or 100%)' },
+    { name: 'Flights & Transit', icon: '🚄', color: 'var(--cat-flight)', schedule_c: 'Line 24a (Travel / Airfare / Transit)', deductible: '1', notes: 'Airfare, trains, ferries, taxis & rideshares' },
+    { name: 'Gear & Rentals', icon: '📷', color: 'var(--cat-gear)', schedule_c: 'Line 20a (Equipment Rent & Leases)', deductible: '1', notes: 'Cameras, lenses, lighting, audio & grip rentals' },
+    { name: 'Permits & Locations', icon: '🎟️', color: 'var(--cat-permit)', schedule_c: 'Line 27a (Other Expenses - Filming Permits)', deductible: '1', notes: 'National park, drone, and city location fees' },
+    { name: 'Crew & Talent', icon: '🎥', color: 'var(--cat-crew)', schedule_c: 'Line 11 (Contract Labor / 1099)', deductible: '1', notes: 'Camera operators, fixers, editors, guides & talent' }
+  ];
+
+  function getTaxCategories() {
+    if (state && state.settings && Array.isArray(state.settings.tax_categories) && state.settings.tax_categories.length > 0) {
+      return state.settings.tax_categories;
+    }
+    return DEFAULT_TAX_CATEGORIES;
+  }
+
+  function getCategoryMetaMap() {
+    const map = {};
+    for (const c of getTaxCategories()) {
+      map[c.name] = { icon: c.icon || '🏷️', color: c.color || 'var(--accent-sky)' };
+    }
+    return map;
+  }
+
+  // Backwards-compatible proxy so any existing CATEGORY_META[cat] lookups read dynamic categories
+  const CATEGORY_META = new Proxy({}, {
+    get(_, prop) {
+      if (typeof prop !== 'string') return undefined;
+      const cats = getTaxCategories();
+      const match = cats.find(c => c.name === prop);
+      if (match) return { icon: match.icon || '🏷️', color: match.color || 'var(--accent-sky)' };
+      return { icon: '🏷️', color: 'var(--text-muted)' };
+    },
+    ownKeys() {
+      return getTaxCategories().map(c => c.name);
+    },
+    getOwnPropertyDescriptor(_, prop) {
+      return { enumerable: true, configurable: true, value: this.get(null, prop) };
+    }
+  });
 
   // Safe Storage Wrapper (prevents SecurityError in sandboxed preview iframes)
   let memoryStore = null;
@@ -1673,7 +1705,7 @@
     });
     memorySessionUnlocked = true;
     closeModal('modal-security');
-    showToast('Security settings saved! Use 🔒 Lock App anytime to test your login screen.');
+    showToast('Security settings saved! Use 🚪 Exit App anytime to sign out.');
   }
 
   async function apiRequest(url, options = {}) {
@@ -1848,6 +1880,7 @@
     renderRevenueView();
     renderTaxView();
     renderRewardsDashboard();
+    if (state.activeView === 'admin') renderAdminWorkspace();
   }
 
   function renderTripSelectors() {
@@ -2357,15 +2390,20 @@
     let reimbursableTotal = 0;
     let receiptsCount = 0;
 
+    const allConfiguredCats = getTaxCategories();
+    const catMap = new Map(allConfiguredCats.map(c => [c.name, c]));
+
     const catStats = {};
-    for (const cat of Object.keys(CATEGORY_META)) {
-      catStats[cat] = { count: 0, receipts: 0, gross: 0, deductible: 0 };
+    for (const cat of allConfiguredCats) {
+      catStats[cat.name] = { count: 0, receipts: 0, gross: 0, deductible: 0, config: cat };
     }
 
     for (const e of expenses) {
       const amt = Number(e.amount_usd) || 0;
-      const isMeal = e.category === 'Meals & Craft';
-      const ded = e.tax_deductible ? amt * (isMeal ? mealRate : 1.0) : 0;
+      const catConfig = catMap.get(e.category);
+      const isMeal = catConfig ? catConfig.deductible === 'meal' : (e.category === 'Meals & Craft');
+      const isDeductible = e.tax_deductible && (!catConfig || catConfig.deductible !== '0');
+      const ded = isDeductible ? amt * (isMeal ? mealRate : 1.0) : 0;
 
       grossTotal += amt;
       deductibleTotal += ded;
@@ -2373,7 +2411,7 @@
       if (e.receipt_data) receiptsCount++;
 
       if (!catStats[e.category]) {
-        catStats[e.category] = { count: 0, receipts: 0, gross: 0, deductible: 0 };
+        catStats[e.category] = { count: 0, receipts: 0, gross: 0, deductible: 0, config: catConfig };
       }
       catStats[e.category].count++;
       if (e.receipt_data) catStats[e.category].receipts++;
@@ -2675,7 +2713,7 @@
 
   function switchView(viewName) {
     state.activeView = viewName;
-    const views = ['dashboard', 'trips', 'revenue', 'rewards', 'tax', 'help'];
+    const views = ['dashboard', 'trips', 'revenue', 'rewards', 'tax', 'admin', 'help'];
     for (const v of views) {
       const el = document.getElementById(`view-${v}`);
       if (el) el.style.display = v === viewName ? 'block' : 'none';
@@ -2703,6 +2741,7 @@
       revenue: 'Sponsors & AdSense ROI',
       rewards: 'Rewards & Loyalty Command Center',
       tax: 'Tax & Accountant Export Hub',
+      admin: 'Workspace Administration',
       help: 'Help & Getting Started Guide'
     };
     const heading = document.getElementById('main-page-heading');
@@ -2712,6 +2751,9 @@
     }
     if (viewName === 'rewards') {
       renderRewardsDashboard();
+    }
+    if (viewName === 'admin') {
+      renderAdminWorkspace();
     }
   }
 
@@ -2827,9 +2869,15 @@
       receiptStatus.textContent = '📸 Tap to snap receipt photo on phone or upload invoice image';
     }
 
-    document.querySelectorAll('#exp-quick-cat-grid .quick-cat-btn').forEach(btn => {
-      btn.classList.toggle('selected', btn.getAttribute('data-cat') === catInput.value);
-    });
+    // Dynamically populate quick category buttons from configured tax categories
+    const quickCatGrid = document.getElementById('exp-quick-cat-grid');
+    if (quickCatGrid) {
+      const activeCats = getTaxCategories();
+      quickCatGrid.innerHTML = activeCats.map(c => {
+        const isSel = c.name === catInput.value ? 'selected' : '';
+        return `<button type="button" class="quick-cat-btn ${isSel}" data-cat="${escapeHtml(c.name)}">${escapeHtml(c.icon || '🏷️')} ${escapeHtml(c.name)}</button>`;
+      }).join('');
+    }
 
     updateExpenseConversionPreview();
     openModal('modal-expense');
@@ -2901,16 +2949,20 @@
     ];
 
     const rows = [headers.map(escapeCsvCell).join(',')];
+    const catMap = new Map(getTaxCategories().map(c => [c.name, c]));
     for (const exp of filtered) {
       const trip = tripMap.get(exp.trip_id);
-      const isMeal = exp.category === 'Meals & Craft';
-      const dedMultiplier = exp.tax_deductible ? (isMeal ? mealRate : 1.0) : 0.0;
+      const catConfig = catMap.get(exp.category);
+      const isMeal = catConfig ? catConfig.deductible === 'meal' : (exp.category === 'Meals & Craft');
+      const isDeductible = exp.tax_deductible && (!catConfig || catConfig.deductible !== '0');
+      const dedMultiplier = isDeductible ? (isMeal ? mealRate : 1.0) : 0.0;
       const deductibleUsd = (exp.amount_usd * dedMultiplier).toFixed(2);
+      const schedLine = catConfig && catConfig.schedule_c ? `${exp.category} [${catConfig.schedule_c}]` : exp.category;
       const row = [
         exp.expense_date,
         trip ? trip.name : exp.trip_id,
         trip ? trip.destination : '',
-        exp.category,
+        schedLine,
         exp.title,
         exp.vendor,
         exp.amount_original,
@@ -4618,6 +4670,184 @@
     showToast('Exported Rewards & Loyalty CSV!');
   }
 
+  /* ==========================================================================
+     ADMIN WORKSPACE & TAX CATEGORIES MANAGEMENT
+     ========================================================================== */
+
+  function renderAdminWorkspace() {
+    const cats = getTaxCategories();
+    const expenses = state.expenses || [];
+    const mealRate = Number(state.settings.meal_deduction_rate || 100);
+
+    // Compute category usage counts
+    const usageMap = {};
+    for (const exp of expenses) {
+      usageMap[exp.category] = (usageMap[exp.category] || 0) + 1;
+    }
+
+    // Update KPIs
+    const totalEl = document.getElementById('admin-kpi-total-cats');
+    const fullDedEl = document.getElementById('admin-kpi-full-ded-cats');
+    const specialEl = document.getElementById('admin-kpi-special-cats');
+    const mappedEl = document.getElementById('admin-kpi-mapped-expenses');
+    const mealSubtext = document.getElementById('admin-kpi-meal-subtext');
+
+    if (totalEl) totalEl.textContent = cats.length;
+    if (fullDedEl) fullDedEl.textContent = cats.filter(c => c.deductible === '1').length;
+    if (specialEl) specialEl.textContent = cats.filter(c => c.deductible === 'meal').length;
+    if (mappedEl) mappedEl.textContent = expenses.length;
+    if (mealSubtext) mealSubtext.textContent = `Governed by current ${mealRate}% meal write-off rule`;
+
+    // Populate channel and meal rate inputs
+    const chanInput = document.getElementById('admin-setting-channel-name');
+    if (chanInput) chanInput.value = state.settings.channel_name || 'Wander Wallet';
+    const mealInput = document.getElementById('admin-setting-meal-rate');
+    if (mealInput) mealInput.value = String(state.settings.meal_deduction_rate || '100');
+
+    // Populate categories table
+    const tbody = document.getElementById('admin-categories-tbody');
+    if (tbody) {
+      tbody.innerHTML = cats.map(c => {
+        const count = usageMap[c.name] || 0;
+        let dedLabel = '<span style="color: var(--accent-primary); font-weight: 600;">100% Deductible</span>';
+        if (c.deductible === 'meal') {
+          dedLabel = `<span style="color: var(--accent-amber); font-weight: 600;">🍜 Meal Rule (${mealRate}%)</span>`;
+        } else if (c.deductible === '0') {
+          dedLabel = '<span style="color: var(--text-muted); font-weight: 600;">Non-Deductible</span>';
+        }
+
+        const isDefaultPreset = DEFAULT_TAX_CATEGORIES.some(d => d.name === c.name);
+        return `
+          <tr>
+            <td style="font-size: 20px; text-align: center;">${escapeHtml(c.icon || '🏷️')}</td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="color-dot" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${escapeHtml(c.color || 'var(--accent-sky)')};"></span>
+                <strong>${escapeHtml(c.name)}</strong>
+              </div>
+              ${c.notes ? `<div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(c.notes)}</div>` : ''}
+            </td>
+            <td>
+              <span class="mono" style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(c.schedule_c || 'Line 27a (Other)')}</span>
+            </td>
+            <td style="text-align: center;">${dedLabel}</td>
+            <td class="tabular" style="text-align: right;">
+              ${count > 0 ? `<span class="status-badge active" style="font-size: 11px;">${count} expense${count === 1 ? '' : 's'}</span>` : '<span style="color: var(--text-muted); font-size: 11px;">0 used</span>'}
+            </td>
+            <td style="text-align: right;">
+              <div class="row-actions" style="justify-content: flex-end;">
+                <button type="button" class="btn btn-sm" data-admin-edit-taxcat="${escapeHtml(c.name)}" title="Edit Category">✎</button>
+                <button type="button" class="btn btn-sm btn-danger-ghost" data-admin-delete-taxcat="${escapeHtml(c.name)}" title="Delete Category">✕</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  function openAdminTaxCategoryModal(editCategory = null) {
+    const titleEl = document.getElementById('modal-admin-tax-category-title');
+    const origInput = document.getElementById('taxcat-original-name');
+    const nameInput = document.getElementById('taxcat-name');
+    const iconInput = document.getElementById('taxcat-icon');
+    const schedInput = document.getElementById('taxcat-schedule-c');
+    const dedSelect = document.getElementById('taxcat-deductible');
+    const colSelect = document.getElementById('taxcat-color');
+    const notesInput = document.getElementById('taxcat-notes');
+
+    if (editCategory) {
+      if (titleEl) titleEl.textContent = `Edit Tax Category: ${editCategory.name}`;
+      if (origInput) origInput.value = editCategory.name;
+      if (nameInput) nameInput.value = editCategory.name;
+      if (iconInput) iconInput.value = editCategory.icon || '🏷️';
+      if (schedInput) schedInput.value = editCategory.schedule_c || 'Line 27a (Other Expenses)';
+      if (dedSelect) dedSelect.value = editCategory.deductible || '1';
+      if (colSelect) colSelect.value = editCategory.color || '#38bdf8';
+      if (notesInput) notesInput.value = editCategory.notes || '';
+    } else {
+      if (titleEl) titleEl.textContent = 'Add Tax Category';
+      if (origInput) origInput.value = '';
+      if (nameInput) nameInput.value = '';
+      if (iconInput) iconInput.value = '🏷️';
+      if (schedInput) schedInput.value = 'Line 27a (Other Expenses)';
+      if (dedSelect) dedSelect.value = '1';
+      if (colSelect) colSelect.value = '#38bdf8';
+      if (notesInput) notesInput.value = '';
+    }
+    openModal('modal-admin-tax-category');
+    if (nameInput) setTimeout(() => nameInput.focus(), 60);
+  }
+
+  async function saveTaxCategoriesList(newList, toastMsg = 'Tax categories updated') {
+    state.settings.tax_categories = newList;
+    // Persist immediately in local storage backup
+    const backup = getLocalStore();
+    backup.settings = backup.settings || {};
+    backup.settings.tax_categories = newList;
+    backup.user_modified = true;
+    backup.updated_at = Date.now();
+    saveLocalStore(backup);
+
+    // Persist to server SQLite settings table
+    const updated = await apiRequest('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ tax_categories: newList })
+    });
+    if (updated) applyBootstrapData(updated);
+
+    // Re-render UI components that display categories
+    renderAdminWorkspace();
+    renderCategoryBreakdown();
+    renderLedgerCategoryChips();
+    renderTaxView();
+    showToast(toastMsg);
+  }
+
+  async function saveAdminTaxCategoryFromModal() {
+    const origName = document.getElementById('taxcat-original-name').value.trim();
+    const newName = document.getElementById('taxcat-name').value.trim();
+    if (!newName) {
+      showToast('Please enter a category name');
+      return;
+    }
+
+    const currentList = [...getTaxCategories()];
+    const isRename = origName && origName !== newName;
+
+    // Check for duplicate names
+    const exists = currentList.some(c => c.name.toLowerCase() === newName.toLowerCase() && c.name.toLowerCase() !== origName.toLowerCase());
+    if (exists) {
+      showToast(`Category "${newName}" already exists!`);
+      return;
+    }
+
+    const item = {
+      name: newName,
+      icon: document.getElementById('taxcat-icon').value.trim() || '🏷️',
+      schedule_c: document.getElementById('taxcat-schedule-c').value.trim() || 'Line 27a (Other Expenses)',
+      deductible: document.getElementById('taxcat-deductible').value,
+      color: document.getElementById('taxcat-color').value || '#38bdf8',
+      notes: document.getElementById('taxcat-notes').value.trim()
+    };
+
+    let nextList;
+    if (origName) {
+      nextList = currentList.map(c => (c.name === origName ? item : c));
+      // If renamed, update existing expenses using the old name
+      if (isRename) {
+        state.expenses.forEach(e => {
+          if (e.category === origName) e.category = newName;
+        });
+      }
+    } else {
+      nextList = [...currentList, item];
+    }
+
+    closeModal('modal-admin-tax-category');
+    await saveTaxCategoriesList(nextList, origName ? `Updated category "${newName}"` : `Added tax category "${newName}"!`);
+  }
+
   function bindEvents() {
     // Global Trip Selector
     const globalSelect = document.getElementById('global-trip-select');
@@ -4758,6 +4988,13 @@
         saveRewardRedemptionFromModal();
       });
     }
+    const formAdminCat = document.getElementById('form-admin-tax-category');
+    if (formAdminCat) {
+      formAdminCat.addEventListener('submit', e => {
+        e.preventDefault();
+        saveAdminTaxCategoryFromModal();
+      });
+    }
 
     // Live CPP Calculator inputs
     ['calc-program', 'calc-points', 'calc-cash', 'calc-fees'].forEach(id => {
@@ -4893,6 +5130,11 @@
       if (e.target.closest('#btn-submit-reward-redemption')) {
         e.preventDefault();
         saveRewardRedemptionFromModal();
+        return;
+      }
+      if (e.target.closest('#btn-submit-admin-tax-category')) {
+        e.preventDefault();
+        saveAdminTaxCategoryFromModal();
         return;
       }
 
@@ -5191,6 +5433,83 @@
       if (e.target.closest('#btn-topbar-help')) {
         e.preventDefault();
         switchView('help');
+        return;
+      }
+
+      // Admin Workspace buttons
+      if (e.target.closest('#btn-admin-add-category')) {
+        e.preventDefault();
+        openAdminTaxCategoryModal(null);
+        return;
+      }
+
+      const editTaxCatBtn = e.target.closest('[data-admin-edit-taxcat]');
+      if (editTaxCatBtn) {
+        e.preventDefault();
+        const catName = editTaxCatBtn.getAttribute('data-admin-edit-taxcat');
+        const cat = getTaxCategories().find(c => c.name === catName);
+        if (cat) openAdminTaxCategoryModal(cat);
+        return;
+      }
+
+      const delTaxCatBtn = e.target.closest('[data-admin-delete-taxcat]');
+      if (delTaxCatBtn) {
+        e.preventDefault();
+        const catName = delTaxCatBtn.getAttribute('data-admin-delete-taxcat');
+        const cats = getTaxCategories();
+        if (cats.length <= 1) {
+          showToast('You must keep at least 1 active tax category');
+          return;
+        }
+        const usageCount = (state.expenses || []).filter(exp => exp.category === catName).length;
+        const extraMsg = usageCount > 0
+          ? `⚠️ ${usageCount} existing expense(s) currently use this category. Their logged category text will remain preserved.`
+          : 'This category will be removed from the + Add Expense modal and filter chips.';
+
+        const ok = await confirmDelete({
+          title: 'Delete Tax Category',
+          message: `Are you sure you want to remove the "${catName}" tax category?`,
+          extra: extraMsg,
+          confirmText: 'Delete Category'
+        });
+        if (!ok) return;
+
+        const nextList = cats.filter(c => c.name !== catName);
+        await saveTaxCategoriesList(nextList, `Deleted tax category "${catName}"`);
+        return;
+      }
+
+      if (e.target.closest('#btn-admin-reset-categories')) {
+        e.preventDefault();
+        const ok = await confirmDelete({
+          title: 'Restore Default Tax Categories',
+          message: 'Reset your tax categories back to the 6 default creator production categories?',
+          extra: 'Hotels, Meals, Flights, Gear Rentals, Permits, and Crew categories will be restored.',
+          confirmText: 'Restore Defaults'
+        });
+        if (!ok) return;
+        await saveTaxCategoriesList(DEFAULT_TAX_CATEGORIES, 'Restored default tax categories lineup');
+        return;
+      }
+
+      if (e.target.closest('#btn-admin-save-general-settings')) {
+        e.preventDefault();
+        const newChan = (document.getElementById('admin-setting-channel-name') || {}).value || 'Wander Wallet';
+        const newMeal = (document.getElementById('admin-setting-meal-rate') || {}).value || '100';
+        state.settings.channel_name = newChan;
+        state.settings.meal_deduction_rate = newMeal;
+
+        const updated = await apiRequest('/api/settings', {
+          method: 'PUT',
+          body: JSON.stringify({
+            channel_name: newChan,
+            meal_deduction_rate: newMeal
+          })
+        });
+        if (updated) applyBootstrapData(updated);
+        renderTaxView();
+        renderAdminWorkspace();
+        showToast('Saved workspace administration rules!');
         return;
       }
 
