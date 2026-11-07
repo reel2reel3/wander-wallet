@@ -1797,3 +1797,15 @@ body {
     margin-bottom: 16px;
   }
 }
+
+/* Show / hide password eye toggle */
+.pw-toggle-wrap { position: relative; width: 100%; }
+.pw-toggle-wrap > .form-input { width: 100%; padding-right: 44px; box-sizing: border-box; }
+.pw-toggle-btn {
+  position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+  width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: none; border-radius: 8px; cursor: pointer;
+  color: var(--text-muted, #94a3b8); padding: 0;
+}
+.pw-toggle-btn:hover, .pw-toggle-btn:focus-visible { color: var(--text-primary, #f1f5f9); background: rgba(148, 163, 184, 0.15); outline: none; }
+.pw-toggle-btn.active { color: var(--accent, #38bdf8); }
