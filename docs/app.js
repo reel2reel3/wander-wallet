@@ -2725,6 +2725,33 @@
     if (m) m.classList.remove('open');
   }
 
+  let activeDeleteResolver = null;
+
+  function confirmDelete({ title = 'Confirm Delete', message = 'Are you sure you want to delete this item?', extra = 'This action cannot be undone.', confirmText = 'Delete', cancelText = 'Cancel' } = {}) {
+    return new Promise(resolve => {
+      if (activeDeleteResolver) {
+        activeDeleteResolver(false);
+        activeDeleteResolver = null;
+      }
+      activeDeleteResolver = resolve;
+
+      const titleEl = document.getElementById('modal-confirm-title');
+      const descEl = document.getElementById('modal-confirm-desc');
+      const extraEl = document.getElementById('modal-confirm-extra');
+      const confirmBtn = document.getElementById('btn-confirm-delete-btn');
+      const cancelBtn = document.getElementById('btn-confirm-delete-cancel');
+
+      if (titleEl) titleEl.textContent = title;
+      if (descEl) descEl.textContent = message;
+      if (extraEl) extraEl.textContent = extra;
+      if (confirmBtn) confirmBtn.textContent = confirmText;
+      if (cancelBtn) cancelBtn.textContent = cancelText;
+
+      openModal('modal-confirm-delete');
+      if (cancelBtn) setTimeout(() => cancelBtn.focus(), 50);
+    });
+  }
+
   function updateExpenseConversionPreview() {
     const amt = Number(document.getElementById('exp-amount-original').value) || 0;
     const rate = Number(document.getElementById('exp-rate').value) || 1;
@@ -4977,8 +5004,16 @@
       if (delRprogBtn) {
         e.preventDefault();
         const id = delRprogBtn.getAttribute('data-del-rprog');
+        const prog = state.rewards.programs.find(p => p.id === id);
+        const name = prog ? prog.name : 'this loyalty program';
+        const ok = await confirmDelete({
+          title: 'Delete Loyalty Program',
+          message: `Are you sure you want to delete "${name}"?`,
+          extra: 'Any saved point balances and tier targets for this program will be removed.'
+        });
+        if (!ok) return;
         state.rewards.programs = state.rewards.programs.filter(p => p.id !== id);
-        await saveRewardsState('Loyalty program removed');
+        await saveRewardsState(`Deleted ${name}`);
         return;
       }
 
@@ -4998,8 +5033,16 @@
       if (delRcertBtn) {
         e.preventDefault();
         const id = delRcertBtn.getAttribute('data-del-rcert');
+        const cert = state.rewards.certificates.find(c => c.id === id);
+        const title = cert ? cert.title : 'this certificate';
+        const ok = await confirmDelete({
+          title: 'Delete Certificate / Travel Perk',
+          message: `Are you sure you want to delete "${title}"?`,
+          extra: 'This certificate will be removed from your perks tracker.'
+        });
+        if (!ok) return;
         state.rewards.certificates = state.rewards.certificates.filter(c => c.id !== id);
-        await saveRewardsState('Certificate / perk removed');
+        await saveRewardsState(`Deleted ${title}`);
         return;
       }
       const toggleRcertBtn = e.target.closest('[data-toggle-rcert]');
@@ -5029,8 +5072,16 @@
       if (delRcardBtn) {
         e.preventDefault();
         const id = delRcardBtn.getAttribute('data-del-rcard');
+        const card = state.rewards.cards.find(c => c.id === id);
+        const name = card ? card.name : 'this credit card';
+        const ok = await confirmDelete({
+          title: 'Delete Travel Credit Card',
+          message: `Are you sure you want to remove "${name}" from your wallet?`,
+          extra: 'Its annual fee, sign-up bonus tracker, and statement credits will be removed.'
+        });
+        if (!ok) return;
         state.rewards.cards = state.rewards.cards.filter(c => c.id !== id);
-        await saveRewardsState('Credit card removed from wallet');
+        await saveRewardsState(`Removed ${name} from wallet`);
         return;
       }
 
@@ -5061,8 +5112,16 @@
       if (delRredBtn) {
         e.preventDefault();
         const id = delRredBtn.getAttribute('data-del-rred');
+        const red = state.rewards.redemptions.find(r => r.id === id);
+        const title = red ? red.title : 'this redemption';
+        const ok = await confirmDelete({
+          title: 'Delete Redemption Record',
+          message: `Are you sure you want to delete "${title}"?`,
+          extra: 'The calculated cents-per-point ROI value for this redemption will be removed.'
+        });
+        if (!ok) return;
         state.rewards.redemptions = state.rewards.redemptions.filter(r => r.id !== id);
-        await saveRewardsState('Redemption entry removed');
+        await saveRewardsState(`Deleted redemption "${title}"`);
         return;
       }
 
@@ -5096,6 +5155,13 @@
       }
       if (e.target.closest('#btn-rewards-reset-defaults')) {
         e.preventDefault();
+        const ok = await confirmDelete({
+          title: 'Restore Sample Rewards Lineup',
+          message: 'Restore the pre-built sample loyalty programs, cards, certificates, and redemptions?',
+          extra: 'Your current reward entries will be replaced with the default creator lineup.',
+          confirmText: 'Restore Defaults'
+        });
+        if (!ok) return;
         state.rewards = getDefaultRewardsData();
         closeModal('modal-reward-templates');
         await saveRewardsState('Restored full sample Rewards & Loyalty lineup');
@@ -5103,6 +5169,13 @@
       }
       if (e.target.closest('#btn-rewards-clear-all')) {
         e.preventDefault();
+        const ok = await confirmDelete({
+          title: 'Clear All Reward Entries',
+          message: 'Are you sure you want to clear all loyalty programs, cards, certificates, and redemptions?',
+          extra: 'This will leave your Rewards Command Center completely empty so you can start from scratch.',
+          confirmText: 'Clear All'
+        });
+        if (!ok) return;
         state.rewards = { programs: [], certificates: [], cards: [], redemptions: [] };
         closeModal('modal-reward-templates');
         await saveRewardsState('Cleared sample rewards — ready for your custom entries!');
@@ -5315,7 +5388,42 @@
       const closeBtn = e.target.closest('[data-close-modal]');
       if (closeBtn) {
         e.preventDefault();
-        closeModal(closeBtn.getAttribute('data-close-modal'));
+        const targetModal = closeBtn.getAttribute('data-close-modal');
+        if (targetModal === 'modal-confirm-delete' && activeDeleteResolver) {
+          activeDeleteResolver(false);
+          activeDeleteResolver = null;
+        }
+        closeModal(targetModal);
+        return;
+      }
+
+      // Delete confirmation action buttons
+      if (e.target.closest('#btn-confirm-delete-btn')) {
+        e.preventDefault();
+        if (activeDeleteResolver) {
+          activeDeleteResolver(true);
+          activeDeleteResolver = null;
+        }
+        closeModal('modal-confirm-delete');
+        return;
+      }
+      if (e.target.closest('#btn-confirm-delete-cancel')) {
+        e.preventDefault();
+        if (activeDeleteResolver) {
+          activeDeleteResolver(false);
+          activeDeleteResolver = null;
+        }
+        closeModal('modal-confirm-delete');
+        return;
+      }
+
+      // Dismiss confirmation modal on backdrop click
+      if (e.target.classList && e.target.classList.contains('modal-backdrop') && e.target.id === 'modal-confirm-delete') {
+        if (activeDeleteResolver) {
+          activeDeleteResolver(false);
+          activeDeleteResolver = null;
+        }
+        closeModal('modal-confirm-delete');
         return;
       }
 
@@ -5403,6 +5511,14 @@
       if (delExpBtn) {
         e.preventDefault();
         const expId = delExpBtn.getAttribute('data-delete-expense');
+        const exp = state.expenses.find(x => x.id === expId);
+        const title = exp ? `${exp.title} (${fmtUsd(exp.amount_usd)})` : 'this expense entry';
+        const ok = await confirmDelete({
+          title: 'Delete Road Expense',
+          message: `Are you sure you want to delete "${title}"?`,
+          extra: 'Its amount will be removed from trip spending, category analytics, and Schedule C tax deductions.'
+        });
+        if (!ok) return;
         const updated = await apiRequest(`/api/expenses/${encodeURIComponent(expId)}`, { method: 'DELETE' });
         if (updated) applyBootstrapData(updated);
         showToast('Expense entry deleted');
@@ -5423,9 +5539,22 @@
       if (delTripBtn) {
         e.preventDefault();
         const tripId = delTripBtn.getAttribute('data-delete-trip');
+        const tr = state.trips.find(x => x.id === tripId);
+        const name = tr ? tr.name : 'this production trip';
+        const linkedExps = state.expenses.filter(x => x.trip_id === tripId).length;
+        const linkedRevs = state.revenues.filter(x => x.trip_id === tripId).length;
+        const extraNote = (linkedExps > 0 || linkedRevs > 0)
+          ? `⚠️ Deleting this trip will also remove its ${linkedExps} logged expense(s) and ${linkedRevs} revenue item(s).`
+          : 'This action cannot be undone.';
+        const ok = await confirmDelete({
+          title: 'Delete Production Trip',
+          message: `Are you sure you want to delete "${name}"?`,
+          extra: extraNote
+        });
+        if (!ok) return;
         const updated = await apiRequest(`/api/trips/${encodeURIComponent(tripId)}`, { method: 'DELETE' });
         if (updated) applyBootstrapData(updated);
-        showToast('Production trip removed');
+        showToast(`Deleted trip "${name}"`);
         return;
       }
 
@@ -5434,9 +5563,32 @@
       if (delRevBtn) {
         e.preventDefault();
         const revId = delRevBtn.getAttribute('data-delete-revenue');
+        const rev = state.revenues.find(x => x.id === revId);
+        const title = rev ? `${rev.title} (${fmtUsd(rev.amount_usd)})` : 'this revenue entry';
+        const ok = await confirmDelete({
+          title: 'Delete Revenue Record',
+          message: `Are you sure you want to delete "${title}"?`,
+          extra: 'Its amount will be removed from your gross creator revenue and trip ROI calculation.'
+        });
+        if (!ok) return;
         const updated = await apiRequest(`/api/revenues/${encodeURIComponent(revId)}`, { method: 'DELETE' });
         if (updated) applyBootstrapData(updated);
         showToast('Revenue item removed');
+      }
+    });
+
+    // Close confirmation dialog on Escape key
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        const confirmModal = document.getElementById('modal-confirm-delete');
+        if (confirmModal && confirmModal.classList.contains('open')) {
+          e.preventDefault();
+          if (activeDeleteResolver) {
+            activeDeleteResolver(false);
+            activeDeleteResolver = null;
+          }
+          closeModal('modal-confirm-delete');
+        }
       }
     });
   }
