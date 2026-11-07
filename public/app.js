@@ -1037,6 +1037,7 @@
     selectedTripId: 'trip-japan-2026',
     activeView: 'dashboard',
     rewardsTab: 'programs',
+    adminTab: 'categories',
     rewardsEcoFilter: 'all',
     rewardsCertFilter: 'all',
     matrixBankFilter: 'all',
@@ -2712,8 +2713,14 @@
   }
 
   function switchView(viewName) {
+    // If help requested, switch to Admin view with Help sub-pane active
+    if (viewName === 'help') {
+      state.adminTab = 'help';
+      viewName = 'admin';
+    }
+
     state.activeView = viewName;
-    const views = ['dashboard', 'trips', 'revenue', 'rewards', 'tax', 'admin', 'help'];
+    const views = ['dashboard', 'trips', 'revenue', 'rewards', 'tax', 'admin'];
     for (const v of views) {
       const el = document.getElementById(`view-${v}`);
       if (el) el.style.display = v === viewName ? 'block' : 'none';
@@ -2737,18 +2744,14 @@
 
     const titles = {
       dashboard: 'Road Finance Dashboard',
-      trips: 'Trips & Shoot Budgets',
+      trips: 'Trips',
       revenue: 'Sponsors & AdSense ROI',
       rewards: 'Rewards & Loyalty Command Center',
       tax: 'Tax & Accountant Export Hub',
-      admin: 'Workspace Administration',
-      help: 'Help & Getting Started Guide'
+      admin: 'Workspace Administration'
     };
     const heading = document.getElementById('main-page-heading');
     if (heading) heading.textContent = titles[viewName] || 'Road Finance Dashboard';
-    if (viewName === 'help') {
-      renderWalkthroughStep(currentWtStep);
-    }
     if (viewName === 'rewards') {
       renderRewardsDashboard();
     }
@@ -4744,6 +4747,21 @@
         `;
       }).join('');
     }
+
+    // Switch active sub-pane tab and contents
+    const activeTab = state.adminTab || 'categories';
+    document.querySelectorAll('#admin-subnav [data-admin-tab]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-admin-tab') === activeTab);
+    });
+
+    ['categories', 'rules', 'help'].forEach(tab => {
+      const pane = document.getElementById(`admin-subpane-${tab}`);
+      if (pane) pane.style.display = tab === activeTab ? 'block' : 'none';
+    });
+
+    if (activeTab === 'help') {
+      renderWalkthroughStep(currentWtStep);
+    }
   }
 
   function openAdminTaxCategoryModal(editCategory = null) {
@@ -5433,6 +5451,15 @@
       if (e.target.closest('#btn-topbar-help')) {
         e.preventDefault();
         switchView('help');
+        return;
+      }
+
+      // Admin Sub-Navigation Tabs
+      const adminTabBtn = e.target.closest('#admin-subnav [data-admin-tab]');
+      if (adminTabBtn) {
+        e.preventDefault();
+        state.adminTab = adminTabBtn.getAttribute('data-admin-tab');
+        renderAdminWorkspace();
         return;
       }
 
