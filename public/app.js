@@ -3937,9 +3937,20 @@
             ${p.notes ? `<div style="color: var(--text-muted);">💡 ${escapeHtml(p.notes)}</div>` : ''}
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto;">
+          ${Array.isArray(p.custom_fields) && p.custom_fields.length > 0 ? `
+            <div class="custom-fields-wrap">
+              ${p.custom_fields.map(f => `
+                <span class="custom-field-chip" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
+                  <strong>${escapeHtml(f.label)}:</strong> ${escapeHtml(f.value)}
+                </span>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto; flex-wrap: wrap; gap: 6px;">
             <button type="button" class="btn btn-sm" data-quick-redeem-prog="${escapeHtml(p.name)}">✈️ Log Redemption</button>
             <div style="display: flex; gap: 6px;">
+              <button type="button" class="btn btn-sm" data-update-rprog="${escapeHtml(p.id)}" title="Check & update latest program perks, valuations and rules">🔄 Update</button>
               <button type="button" class="btn btn-sm" data-edit-rprog="${escapeHtml(p.id)}">Edit</button>
               <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rprog="${escapeHtml(p.id)}">✕</button>
             </div>
@@ -4043,6 +4054,16 @@
             ${capText ? `<div>📌 <strong>Rules / Cap:</strong> ${escapeHtml(capText)}</div>` : ''}
             ${c.notes ? `<div style="color: var(--text-muted);">💡 ${escapeHtml(c.notes)}</div>` : ''}
           </div>
+
+          ${Array.isArray(c.custom_fields) && c.custom_fields.length > 0 ? `
+            <div class="custom-fields-wrap">
+              ${c.custom_fields.map(f => `
+                <span class="custom-field-chip" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
+                  <strong>${escapeHtml(f.label)}:</strong> ${escapeHtml(f.value)}
+                </span>
+              `).join('')}
+            </div>
+          ` : ''}
 
           <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto;">
             <button type="button" class="btn btn-sm ${isRedeemed ? '' : 'btn-primary'}" data-toggle-rcert="${escapeHtml(c.id)}">
@@ -4216,7 +4237,18 @@
             </div>
           ` : ''}
 
-          <div style="display: flex; justify-content: flex-end; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto;">
+          ${Array.isArray(c.custom_fields) && c.custom_fields.length > 0 ? `
+            <div class="custom-fields-wrap">
+              ${c.custom_fields.map(f => `
+                <span class="custom-field-chip" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
+                  <strong>${escapeHtml(f.label)}:</strong> ${escapeHtml(f.value)}
+                </span>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          <div style="display: flex; justify-content: flex-end; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sm" data-update-rcard="${escapeHtml(c.id)}" title="Check & update latest statement credits, annual fee, and multipliers">🔄 Update</button>
             <button type="button" class="btn btn-sm" data-edit-rcard="${escapeHtml(c.id)}">Edit Card &amp; Credits</button>
             <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcard="${escapeHtml(c.id)}">✕</button>
           </div>
@@ -4387,6 +4419,47 @@
     }
   }
 
+  // Custom Fields Repeater Helpers
+  function renderCustomFieldsEditor(containerId, fields = []) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    const arr = Array.isArray(fields) ? fields : [];
+    arr.forEach(f => {
+      addCustomFieldRow(containerId, f.label || f.key || '', f.value || '');
+    });
+  }
+
+  function addCustomFieldRow(containerId, label = '', value = '') {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'custom-field-row';
+    row.innerHTML = `
+      <input type="text" class="form-input form-input-sm cfield-label" placeholder="Field name (e.g. Phone PIN)" value="${escapeHtml(label)}" />
+      <input type="text" class="form-input form-input-sm cfield-value" placeholder="Value (e.g. 4821)" value="${escapeHtml(value)}" />
+      <button type="button" class="btn btn-sm btn-danger-ghost cfield-del-btn" title="Remove custom field">✕</button>
+    `;
+    container.appendChild(row);
+  }
+
+  function readCustomFields(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return [];
+    const rows = container.querySelectorAll('.custom-field-row');
+    const fields = [];
+    rows.forEach(r => {
+      const lbl = (r.querySelector('.cfield-label') || {}).value || '';
+      const val = (r.querySelector('.cfield-value') || {}).value || '';
+      const trimmedLbl = lbl.trim();
+      const trimmedVal = val.trim();
+      if (trimmedLbl || trimmedVal) {
+        fields.push({ label: trimmedLbl || 'Detail', value: trimmedVal });
+      }
+    });
+    return fields;
+  }
+
   // Modal Open & Save Handlers for Rewards
   function openRewardProgramModal(editProg = null) {
     const titleEl = document.getElementById('modal-reward-program-title');
@@ -4414,6 +4487,7 @@
         if (scopeEcoRadio) scopeEcoRadio.checked = true;
         syncRprogColorPickerUi(getEcosystemColor(editProg.ecosystem || 'bank'));
       }
+      renderCustomFieldsEditor('rprog-custom-fields-container', editProg.custom_fields);
     } else {
       if (titleEl) titleEl.textContent = 'Add Loyalty Program';
       document.getElementById('rprog-id').value = '';
@@ -4431,6 +4505,7 @@
       document.getElementById('rprog-notes').value = '';
       if (scopeEcoRadio) scopeEcoRadio.checked = true;
       syncRprogColorPickerUi(getEcosystemColor('bank'));
+      renderCustomFieldsEditor('rprog-custom-fields-container', []);
     }
     openModal('modal-reward-program');
   }
@@ -4463,7 +4538,8 @@
       expiration_policy: document.getElementById('rprog-expiration').value.trim() || 'Active',
       transfer_partners: document.getElementById('rprog-partners').value.trim(),
       notes: document.getElementById('rprog-notes').value.trim(),
-      custom_color: scopeCard ? pickedColor : ''
+      custom_color: scopeCard ? pickedColor : '',
+      custom_fields: readCustomFields('rprog-custom-fields-container')
     };
 
     if (!scopeCard) {
@@ -4496,6 +4572,7 @@
       document.getElementById('rcert-status').value = editCert.status || 'available';
       document.getElementById('rcert-cap').value = editCert.cap_details || editCert.points_cap || '';
       document.getElementById('rcert-notes').value = editCert.notes || '';
+      renderCustomFieldsEditor('rcert-custom-fields-container', editCert.custom_fields);
     } else {
       if (titleEl) titleEl.textContent = 'Add Free Night Certificate / Travel Perk';
       document.getElementById('rcert-id').value = '';
@@ -4509,6 +4586,7 @@
       document.getElementById('rcert-status').value = 'available';
       document.getElementById('rcert-cap').value = '';
       document.getElementById('rcert-notes').value = '';
+      renderCustomFieldsEditor('rcert-custom-fields-container', []);
     }
     openModal('modal-reward-cert');
   }
@@ -4530,7 +4608,8 @@
       est_value_usd: Number(document.getElementById('rcert-value').value) || 0,
       status: document.getElementById('rcert-status').value,
       cap_details: document.getElementById('rcert-cap').value.trim(),
-      notes: document.getElementById('rcert-notes').value.trim()
+      notes: document.getElementById('rcert-notes').value.trim(),
+      custom_fields: readCustomFields('rcert-custom-fields-container')
     };
 
     if (id) {
@@ -4569,6 +4648,7 @@
         return `${nm} | ${tot} | ${used}`;
       });
       document.getElementById('rcard-credits-text').value = creditsLines.join('\n');
+      renderCustomFieldsEditor('rcard-custom-fields-container', editCard.custom_fields);
     } else {
       if (titleEl) titleEl.textContent = 'Add Travel Credit Card & Perks';
       document.getElementById('rcard-id').value = '';
@@ -4586,6 +4666,7 @@
       document.getElementById('rcard-sub-target').value = '4000';
       document.getElementById('rcard-sub-spent').value = '0';
       document.getElementById('rcard-credits-text').value = '$300 Annual Travel Credit | 300 | 0\n$100 Global Entry / TSA PreCheck | 100 | 100';
+      renderCustomFieldsEditor('rcard-custom-fields-container', []);
     }
     openModal('modal-reward-card');
   }
@@ -4632,7 +4713,8 @@
       sub_deadline: document.getElementById('rcard-sub-deadline').value,
       sub_target_usd: Number(document.getElementById('rcard-sub-target').value) || 0,
       sub_spent_manual_usd: Number(document.getElementById('rcard-sub-spent').value) || 0,
-      credits: parsedCredits
+      credits: parsedCredits,
+      custom_fields: readCustomFields('rcard-custom-fields-container')
     };
 
     if (id) {
@@ -4847,6 +4929,399 @@
     } catch (e) {}
     showToast('Exported Rewards & Loyalty CSV!');
   }
+
+  /* ==========================================================================
+     REWARDS & LOYALTY UPDATE ENGINE (INDIVIDUAL & BULK)
+     ========================================================================== */
+
+  function findCatalogMatch(name, kind = 'card') {
+    if (!name) return null;
+    const clean = String(name).toLowerCase().replace(/[^a-z0-9]/g, ' ');
+
+    // 1. Check POPULAR_REWARD_TEMPLATES
+    for (const t of POPULAR_REWARD_TEMPLATES) {
+      if (t.kind !== kind) continue;
+      const tName = (t.title || t.data.name || '').toLowerCase().replace(/[^a-z0-9]/g, ' ');
+      if (clean.includes(tName) || tName.includes(clean)) return t.data;
+      const keyWords = tName.split(' ').filter(w => w.length > 3);
+      const matchCount = keyWords.filter(w => clean.includes(w)).length;
+      if (keyWords.length > 0 && matchCount >= Math.min(2, keyWords.length)) return t.data;
+    }
+
+    // 2. Check initial seed defaults
+    const seed = getDefaultRewardsData();
+    const list = kind === 'card' ? seed.cards : seed.programs;
+    for (const s of list) {
+      const sName = (s.name || '').toLowerCase().replace(/[^a-z0-9]/g, ' ');
+      if (clean.includes(sName) || sName.includes(clean)) return s;
+      const keyWords = sName.split(' ').filter(w => w.length > 3);
+      const matchCount = keyWords.filter(w => clean.includes(w)).length;
+      if (keyWords.length > 0 && matchCount >= Math.min(2, keyWords.length)) return s;
+    }
+
+    return null;
+  }
+
+  function openUpdateRewardModal(id, kind = 'card') {
+    const titleEl = document.getElementById('modal-update-reward-title');
+    const diffContainer = document.getElementById('urew-diff-container');
+    const idInput = document.getElementById('urew-id');
+    const typeInput = document.getElementById('urew-type');
+
+    if (idInput) idInput.value = id;
+    if (typeInput) typeInput.value = kind;
+
+    const item = kind === 'card'
+      ? (state.rewards.cards || []).find(c => c.id === id)
+      : (state.rewards.programs || []).find(p => p.id === id);
+
+    if (!item) {
+      showToast('Could not find selected reward');
+      return;
+    }
+
+    const catMatch = findCatalogMatch(item.name, kind);
+
+    if (titleEl) {
+      titleEl.innerHTML = `🔄 Update Perks: <strong>${escapeHtml(item.name)}</strong>`;
+    }
+
+    if (!diffContainer) return;
+
+    if (!catMatch) {
+      diffContainer.innerHTML = `
+        <div class="update-diff-card">
+          <div style="font-weight: 700; color: var(--accent-amber);">
+            ℹ️ Custom or Unlisted Reward
+          </div>
+          <div style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.45;">
+            "<strong>${escapeHtml(item.name)}</strong>" is a custom entry. You can edit its perks, credits, and multipliers anytime by clicking <strong>Edit</strong> on the card, or add custom fields to track specific benefits.
+          </div>
+        </div>
+      `;
+      openModal('modal-update-reward');
+      return;
+    }
+
+    let diffHtml = '';
+
+    if (kind === 'card') {
+      const oldFee = Number(item.annual_fee || 0);
+      const newFee = Number(catMatch.annual_fee || 0);
+      const oldMult = item.multipliers || 'Standard multipliers';
+      const newMult = catMatch.multipliers || oldMult;
+      const oldBest = item.best_for || 'General travel';
+      const newBest = catMatch.best_for || oldBest;
+
+      const oldCredits = Array.isArray(item.credits) ? item.credits : [];
+      const newCredits = Array.isArray(catMatch.credits) ? catMatch.credits : [];
+
+      diffHtml = `
+        <div class="update-diff-card">
+          <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">
+            Matched Official Catalog: ${escapeHtml(catMatch.name || item.name)}
+          </div>
+
+          <div class="update-diff-grid">
+            <span class="update-diff-label">Annual Fee:</span>
+            <span class="update-diff-old">${fmtUsdCompact(oldFee)}/yr</span>
+            <span class="update-diff-new">${fmtUsdCompact(newFee)}/yr ${oldFee !== newFee ? '⚡ Updated' : '(Current)'}</span>
+          </div>
+
+          <div class="update-diff-grid">
+            <span class="update-diff-label">Earning Multipliers:</span>
+            <span class="update-diff-old" style="font-size: 11.5px;">${escapeHtml(oldMult)}</span>
+            <span class="update-diff-new" style="font-size: 11.5px;">${escapeHtml(newMult)}</span>
+          </div>
+
+          <div class="update-diff-grid">
+            <span class="update-diff-label">Best Swipe Category:</span>
+            <span class="update-diff-old" style="font-size: 11.5px;">${escapeHtml(oldBest)}</span>
+            <span class="update-diff-new" style="font-size: 11.5px;">${escapeHtml(newBest)}</span>
+          </div>
+        </div>
+
+        <div class="update-diff-card">
+          <div style="font-size: 13px; font-weight: 700; color: var(--accent-amber); margin-bottom: 6px;">
+            Statement Credits Checklist (${newCredits.length} Catalog Credits Available)
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            ${newCredits.map((cr, idx) => {
+              const matchingOld = oldCredits.find(o => (o.name || '').toLowerCase() === (cr.name || '').toLowerCase());
+              const used = matchingOld ? (matchingOld.used_usd || 0) : 0;
+              const isNewCredit = !matchingOld;
+              return `
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 4px 6px; background: var(--bg-elevated); border-radius: 4px;">
+                  <span>
+                    ${isNewCredit ? '<span style="color: var(--accent-primary); font-weight: 700; margin-right: 4px;">[NEW]</span>' : ''}
+                    ${escapeHtml(cr.name)}
+                  </span>
+                  <span class="mono" style="font-weight: 700; color: var(--accent-primary);">
+                    ${fmtUsdCompact(cr.total_usd ?? cr.amount ?? 0)}
+                    ${matchingOld ? `<span style="font-size: 11px; color: var(--text-muted); font-weight: 400;">(${fmtUsdCompact(used)} already used preserved)</span>` : ''}
+                  </span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    } else {
+      const oldCpp = Number(item.cpp ?? 1.5);
+      const newCpp = Number(catMatch.cpp ?? oldCpp);
+      const oldPartners = item.transfer_partners || '—';
+      const newPartners = catMatch.transfer_partners || oldPartners;
+      const oldExp = item.expiration_policy || 'Active';
+      const newExp = catMatch.expiration_policy || oldExp;
+
+      diffHtml = `
+        <div class="update-diff-card">
+          <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">
+            Matched Program Guide: ${escapeHtml(catMatch.name || item.name)}
+          </div>
+
+          <div class="update-diff-grid">
+            <span class="update-diff-label">Benchmark Valuation:</span>
+            <span class="update-diff-old">${oldCpp.toFixed(2)}¢ / pt</span>
+            <span class="update-diff-new">${newCpp.toFixed(2)}¢ / pt ${oldCpp !== newCpp ? '⚡ Updated' : '(Current)'}</span>
+          </div>
+
+          <div class="update-diff-grid">
+            <span class="update-diff-label">Transfer Partners:</span>
+            <span class="update-diff-old" style="font-size: 11.5px;">${escapeHtml(oldPartners)}</span>
+            <span class="update-diff-new" style="font-size: 11.5px;">${escapeHtml(newPartners)}</span>
+          </div>
+
+          <div class="update-diff-grid">
+            <span class="update-diff-label">Expiration Policy:</span>
+            <span class="update-diff-old" style="font-size: 11.5px;">${escapeHtml(oldExp)}</span>
+            <span class="update-diff-new" style="font-size: 11.5px;">${escapeHtml(newExp)}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    diffContainer.innerHTML = diffHtml;
+    openModal('modal-update-reward');
+  }
+
+  async function applyRewardUpdate(id, kind = 'card') {
+    const item = kind === 'card'
+      ? (state.rewards.cards || []).find(c => c.id === id)
+      : (state.rewards.programs || []).find(p => p.id === id);
+
+    if (!item) return;
+
+    const catMatch = findCatalogMatch(item.name, kind);
+    if (!catMatch) {
+      closeModal('modal-update-reward');
+      showToast(`No catalog template found for "${item.name}".`);
+      return;
+    }
+
+    if (kind === 'card') {
+      item.annual_fee = Number(catMatch.annual_fee ?? item.annual_fee);
+      if (catMatch.multipliers) item.multipliers = catMatch.multipliers;
+      if (catMatch.best_for) item.best_for = catMatch.best_for;
+      if (catMatch.ftf) item.ftf = catMatch.ftf;
+
+      // Merge credits: preserve already-used amounts from existing credits, append new credits
+      if (Array.isArray(catMatch.credits)) {
+        const oldCredits = Array.isArray(item.credits) ? item.credits : [];
+        const mergedCredits = catMatch.credits.map((newCr, idx) => {
+          const matchOld = oldCredits.find(o => (o.name || '').toLowerCase() === (newCr.name || '').toLowerCase());
+          const tot = Number(newCr.total_usd ?? newCr.amount ?? 0);
+          const used = matchOld ? (matchOld.used_usd !== undefined ? Number(matchOld.used_usd) : (matchOld.used ? tot : 0)) : 0;
+          return {
+            id: matchOld ? matchOld.id : `cred-${Date.now()}-${idx}`,
+            name: newCr.name,
+            total_usd: tot,
+            used_usd: Math.min(tot, used)
+          };
+        });
+        item.credits = mergedCredits;
+      }
+    } else {
+      if (catMatch.cpp) item.cpp = Number(catMatch.cpp);
+      if (catMatch.transfer_partners) item.transfer_partners = catMatch.transfer_partners;
+      if (catMatch.expiration_policy) item.expiration_policy = catMatch.expiration_policy;
+    }
+
+    closeModal('modal-update-reward');
+    await saveRewardsState(`✓ Updated perks for "${item.name}"!`);
+  }
+
+  function openUpdateAllRewardsModal() {
+    // Show perks pane by default
+    const perksTabBtn = document.getElementById('btn-uall-tab-perks');
+    const balTabBtn = document.getElementById('btn-uall-tab-balances');
+    const perksPane = document.getElementById('uall-pane-perks');
+    const balPane = document.getElementById('uall-pane-balances');
+
+    if (perksTabBtn && balTabBtn && perksPane && balPane) {
+      perksTabBtn.classList.add('active');
+      balTabBtn.classList.remove('active');
+      perksPane.style.display = 'block';
+      balPane.style.display = 'none';
+    }
+
+    // Populate Perks List
+    const perksList = document.getElementById('uall-perks-list');
+    if (perksList) {
+      const cards = state.rewards.cards || [];
+      const progs = state.rewards.programs || [];
+
+      const cardRows = cards.map(c => {
+        const match = findCatalogMatch(c.name, 'card');
+        const numCredits = match && Array.isArray(match.credits) ? match.credits.length : (Array.isArray(c.credits) ? c.credits.length : 0);
+        return `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 12.5px;">
+            <div>
+              <strong>💳 ${escapeHtml(c.name)}</strong>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                ${match ? `✓ Matched: ${escapeHtml(match.name)} (${numCredits} credits • ${fmtUsdCompact(match.annual_fee)}/yr fee)` : 'Custom card (keeps custom settings)'}
+              </div>
+            </div>
+            <span class="status-badge ${match ? 'active' : 'planned'}" style="font-size: 11px;">
+              ${match ? 'Catalog Ready' : 'Custom'}
+            </span>
+          </div>
+        `;
+      });
+
+      const progRows = progs.map(p => {
+        const match = findCatalogMatch(p.name, 'program');
+        return `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: 12.5px;">
+            <div>
+              <strong>💎 ${escapeHtml(p.name)}</strong>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                ${match ? `✓ Matched: ${escapeHtml(match.name)} (${Number(match.cpp || 1.8).toFixed(2)}¢/pt valuation)` : 'Custom program'}
+              </div>
+            </div>
+            <span class="status-badge ${match ? 'active' : 'planned'}" style="font-size: 11px;">
+              ${match ? 'Catalog Ready' : 'Custom'}
+            </span>
+          </div>
+        `;
+      });
+
+      perksList.innerHTML = [...cardRows, ...progRows].join('') || '<div style="color: var(--text-muted); padding: 12px;">No rewards added yet.</div>';
+    }
+
+    // Populate Balances Table
+    const balTbody = document.getElementById('uall-balances-tbody');
+    if (balTbody) {
+      const progs = state.rewards.programs || [];
+      if (progs.length === 0) {
+        balTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No loyalty programs added yet.</td></tr>`;
+      } else {
+        balTbody.innerHTML = progs.map(p => {
+          const meta = ECOSYSTEM_META[p.ecosystem] || ECOSYSTEM_META.other;
+          const pts = Number(p.points ?? p.balance ?? 0);
+          const cpp = Number(p.cpp ?? p.cpp_valuation ?? 1.5);
+          const qCur = Number(p.qualifying_nights ?? p.qualifying_current ?? 0);
+          const qTgt = Number(p.target_nights ?? p.qualifying_target ?? 0);
+          return `
+            <tr data-uall-prog-id="${escapeHtml(p.id)}">
+              <td><strong>${escapeHtml(p.name)}</strong></td>
+              <td><span class="status-badge" style="font-size: 11px;">${meta.icon} ${escapeHtml(meta.label)}</span></td>
+              <td>
+                <input type="number" step="100" min="0" class="form-input form-input-sm mono uall-pts-input" value="${pts}" style="font-weight: 700;" />
+              </td>
+              <td>
+                <input type="number" step="0.05" min="0.1" class="form-input form-input-sm mono uall-cpp-input" value="${cpp.toFixed(2)}" />
+              </td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                  <input type="number" step="1" min="0" class="form-input form-input-sm mono uall-qcur-input" value="${qCur}" style="width: 65px;" />
+                  <span style="color: var(--text-muted);">/</span>
+                  <input type="number" step="1" min="0" class="form-input form-input-sm mono uall-qtgt-input" value="${qTgt}" style="width: 65px;" />
+                </div>
+              </td>
+              <td>
+                <input type="text" class="form-input form-input-sm mono uall-memid-input" value="${escapeHtml(p.member_id || '')}" placeholder="Account #" />
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    openModal('modal-update-all-rewards');
+  }
+
+  async function applyBulkPerksUpdate() {
+    let updatedCount = 0;
+
+    // 1. Update Cards
+    (state.rewards.cards || []).forEach(c => {
+      const match = findCatalogMatch(c.name, 'card');
+      if (match) {
+        c.annual_fee = Number(match.annual_fee ?? c.annual_fee);
+        if (match.multipliers) c.multipliers = match.multipliers;
+        if (match.best_for) c.best_for = match.best_for;
+        if (match.ftf) c.ftf = match.ftf;
+
+        if (Array.isArray(match.credits)) {
+          const oldCredits = Array.isArray(c.credits) ? c.credits : [];
+          c.credits = match.credits.map((newCr, idx) => {
+            const matchOld = oldCredits.find(o => (o.name || '').toLowerCase() === (newCr.name || '').toLowerCase());
+            const tot = Number(newCr.total_usd ?? newCr.amount ?? 0);
+            const used = matchOld ? (matchOld.used_usd !== undefined ? Number(matchOld.used_usd) : (matchOld.used ? tot : 0)) : 0;
+            return {
+              id: matchOld ? matchOld.id : `cred-${Date.now()}-${idx}`,
+              name: newCr.name,
+              total_usd: tot,
+              used_usd: Math.min(tot, used)
+            };
+          });
+        }
+        updatedCount++;
+      }
+    });
+
+    // 2. Update Programs
+    (state.rewards.programs || []).forEach(p => {
+      const match = findCatalogMatch(p.name, 'program');
+      if (match) {
+        if (match.cpp) p.cpp = Number(match.cpp);
+        if (match.transfer_partners) p.transfer_partners = match.transfer_partners;
+        if (match.expiration_policy) p.expiration_policy = match.expiration_policy;
+        updatedCount++;
+      }
+    });
+
+    closeModal('modal-update-all-rewards');
+    await saveRewardsState(`✓ Refreshed official perks & credits across ${updatedCount} reward entries!`);
+  }
+
+  async function saveBulkBalancesCheckin() {
+    const rows = document.querySelectorAll('#uall-balances-tbody tr[data-uall-prog-id]');
+    let count = 0;
+    rows.forEach(r => {
+      const progId = r.getAttribute('data-uall-prog-id');
+      const prog = (state.rewards.programs || []).find(p => p.id === progId);
+      if (prog) {
+        const pts = Number((r.querySelector('.uall-pts-input') || {}).value);
+        const cpp = Number((r.querySelector('.uall-cpp-input') || {}).value);
+        const qCur = Number((r.querySelector('.uall-qcur-input') || {}).value);
+        const qTgt = Number((r.querySelector('.uall-qtgt-input') || {}).value);
+        const memId = (r.querySelector('.uall-memid-input') || {}).value || '';
+
+        if (!isNaN(pts)) prog.points = pts;
+        if (!isNaN(cpp) && cpp > 0) prog.cpp = cpp;
+        if (!isNaN(qCur)) prog.qualifying_nights = qCur;
+        if (!isNaN(qTgt)) prog.target_nights = qTgt;
+        prog.member_id = memId.trim();
+        count++;
+      }
+    });
+
+    closeModal('modal-update-all-rewards');
+    await saveRewardsState(`✓ Saved updated balances for ${count} loyalty programs!`);
+  }
+
 
   /* ==========================================================================
      ADMIN WORKSPACE & TAX CATEGORIES MANAGEMENT
@@ -5424,6 +5899,15 @@
         saveColorCustomizerFromModal();
       });
     }
+    const formUpdateRew = document.getElementById('form-update-reward');
+    if (formUpdateRew) {
+      formUpdateRew.addEventListener('submit', e => {
+        e.preventDefault();
+        const id = (document.getElementById('urew-id') || {}).value;
+        const kind = (document.getElementById('urew-type') || {}).value || 'card';
+        applyRewardUpdate(id, kind);
+      });
+    }
 
     // Color picker input sync listeners
     const rprogColorInput = document.getElementById('rprog-color-input');
@@ -5608,6 +6092,84 @@
       if (e.target.closest('#btn-submit-color-customizer')) {
         e.preventDefault();
         saveColorCustomizerFromModal();
+        return;
+      }
+      if (e.target.closest('#btn-submit-update-reward')) {
+        e.preventDefault();
+        const id = (document.getElementById('urew-id') || {}).value;
+        const kind = (document.getElementById('urew-type') || {}).value || 'card';
+        applyRewardUpdate(id, kind);
+        return;
+      }
+
+      // Master "Update All Rewards" Launcher & Actions
+      if (e.target.closest('#btn-update-all-rewards')) {
+        e.preventDefault();
+        openUpdateAllRewardsModal();
+        return;
+      }
+      if (e.target.closest('#btn-uall-tab-perks')) {
+        e.preventDefault();
+        document.getElementById('btn-uall-tab-perks').classList.add('active');
+        document.getElementById('btn-uall-tab-balances').classList.remove('active');
+        document.getElementById('uall-pane-perks').style.display = 'block';
+        document.getElementById('uall-pane-balances').style.display = 'none';
+        return;
+      }
+      if (e.target.closest('#btn-uall-tab-balances')) {
+        e.preventDefault();
+        document.getElementById('btn-uall-tab-balances').classList.add('active');
+        document.getElementById('btn-uall-tab-perks').classList.remove('active');
+        document.getElementById('uall-pane-balances').style.display = 'block';
+        document.getElementById('uall-pane-perks').style.display = 'none';
+        return;
+      }
+      if (e.target.closest('#btn-apply-bulk-perks')) {
+        e.preventDefault();
+        applyBulkPerksUpdate();
+        return;
+      }
+      if (e.target.closest('#btn-save-bulk-balances')) {
+        e.preventDefault();
+        saveBulkBalancesCheckin();
+        return;
+      }
+
+      // Individual Card / Program Update Buttons
+      const updateProgBtn = e.target.closest('[data-update-rprog]');
+      if (updateProgBtn) {
+        e.preventDefault();
+        openUpdateRewardModal(updateProgBtn.getAttribute('data-update-rprog'), 'program');
+        return;
+      }
+      const updateCardBtn = e.target.closest('[data-update-rcard]');
+      if (updateCardBtn) {
+        e.preventDefault();
+        openUpdateRewardModal(updateCardBtn.getAttribute('data-update-rcard'), 'card');
+        return;
+      }
+
+      // Custom Field Actions (Add & Delete)
+      if (e.target.closest('#btn-rprog-add-custom-field')) {
+        e.preventDefault();
+        addCustomFieldRow('rprog-custom-fields-container', '', '');
+        return;
+      }
+      if (e.target.closest('#btn-rcard-add-custom-field')) {
+        e.preventDefault();
+        addCustomFieldRow('rcard-custom-fields-container', '', '');
+        return;
+      }
+      if (e.target.closest('#btn-rcert-add-custom-field')) {
+        e.preventDefault();
+        addCustomFieldRow('rcert-custom-fields-container', '', '');
+        return;
+      }
+      const cdelBtn = e.target.closest('.cfield-del-btn');
+      if (cdelBtn) {
+        e.preventDefault();
+        const row = cdelBtn.closest('.custom-field-row');
+        if (row) row.remove();
         return;
       }
 

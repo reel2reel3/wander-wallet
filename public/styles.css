@@ -1910,3 +1910,66 @@ body {
 }
 .pw-toggle-btn:hover, .pw-toggle-btn:focus-visible { color: var(--text-primary, #f1f5f9); background: rgba(148, 163, 184, 0.15); outline: none; }
 .pw-toggle-btn.active { color: var(--accent, #38bdf8); }
+
+/* Custom Fields Repeater & Badges */
+.custom-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.custom-field-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+.custom-fields-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+/* Update Reward Diff Card & Tables */
+.update-diff-card {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.update-diff-grid {
+  display: grid;
+  grid-template-columns: 140px 1fr 1fr;
+  gap: 10px;
+  font-size: 12px;
+  align-items: baseline;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.update-diff-grid:last-child {
+  border-bottom: none;
+}
+.update-diff-label {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.update-diff-old {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.update-diff-new {
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+

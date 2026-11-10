@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="stylesheet" href="styles.css?v=10" />
+  <link rel="stylesheet" href="styles.css?v=11" />
 </head>
 <body>
   <div class="app-shell">
@@ -427,6 +427,9 @@
               </div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
                 <button type="button" class="btn btn-sm" id="btn-rewards-back-finance">← Back to Finance Ledger</button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-update-all-rewards" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; font-weight: 700; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);">
+                  🔄 Update All Rewards
+                </button>
                 <button type="button" class="btn btn-sm" id="btn-open-reward-templates">⚡ Popular Card &amp; Program Templates</button>
                 <button type="button" class="btn btn-sm" id="btn-open-add-program">+ Loyalty Program</button>
                 <button type="button" class="btn btn-sm" id="btn-open-add-cert">+ Free Night / Perk</button>
@@ -1635,6 +1638,20 @@
               </div>
             </div>
           </div>
+
+          <!-- Custom Fields Repeater -->
+          <div class="custom-fields-section" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div>
+                <label class="form-label" style="margin: 0; font-weight: 700;">🏷️ Custom Fields &amp; Tracking Details</label>
+                <div style="font-size: 11px; color: var(--text-muted);">Track custom items like Security PIN, Account Rep, Retention Offers, or Companion details</div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-rprog-add-custom-field" style="font-size: 11.5px; padding: 3px 10px;">+ Add Custom Field</button>
+            </div>
+            <div id="rprog-custom-fields-container" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamic custom field rows -->
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn" data-close-modal="modal-reward-program">Cancel</button>
@@ -1707,6 +1724,20 @@
           <div class="form-group">
             <label class="form-label" for="rcert-notes">Target Redemption / Notes</label>
             <input type="text" id="rcert-notes" class="form-input" placeholder="e.g., Save for Tokyo arrival night or Kyoto shoot" />
+          </div>
+
+          <!-- Custom Fields Repeater -->
+          <div class="custom-fields-section" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div>
+                <label class="form-label" style="margin: 0; font-weight: 700;">🏷️ Custom Fields &amp; Tracking Details</label>
+                <div style="font-size: 11px; color: var(--text-muted);">Track booking codes, reservation links, or restrictions</div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-rcert-add-custom-field" style="font-size: 11.5px; padding: 3px 10px;">+ Add Custom Field</button>
+            </div>
+            <div id="rcert-custom-fields-container" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamic custom field rows -->
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -1805,6 +1836,20 @@
               Annual Statement Credits &amp; Perks Checklist (One per line: <code>Perk Name | Total $ | Used $</code>)
             </label>
             <textarea id="rcard-credits-text" class="form-textarea mono" rows="4" style="font-size: 12px;" placeholder="$300 Annual Travel Credit | 300 | 300&#10;$120 Uber Cash ($10/mo) | 120 | 80&#10;$100 Global Entry Credit | 100 | 100"></textarea>
+          </div>
+
+          <!-- Custom Fields Repeater -->
+          <div class="custom-fields-section" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div>
+                <label class="form-label" style="margin: 0; font-weight: 700;">🏷️ Custom Fields &amp; Tracking Details</label>
+                <div style="font-size: 11px; color: var(--text-muted);">Track Authorized Users, Statement Closing Day, Priority Pass, Retention Spend, etc.</div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-rcard-add-custom-field" style="font-size: 11.5px; padding: 3px 10px;">+ Add Custom Field</button>
+            </div>
+            <div id="rcard-custom-fields-container" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamic custom field rows -->
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -2075,6 +2120,114 @@
     </div>
   </div>
 
+  <!-- MODAL: INDIVIDUAL REWARD / CARD UPDATE & PERK SYNC -->
+  <div class="modal-backdrop" id="modal-update-reward" role="dialog" aria-modal="true" aria-labelledby="modal-update-reward-title">
+    <div class="modal-dialog modal-lg" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-update-reward-title">🔄 Update Reward Perks &amp; Rules</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-update-reward" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-update-reward">
+        <input type="hidden" id="urew-id" />
+        <input type="hidden" id="urew-type" />
+        <div class="modal-body">
+          <div style="padding: 12px 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); font-size: 12.5px; color: var(--text-primary);">
+            <div style="font-weight: 700; color: var(--accent-primary); margin-bottom: 3px;">
+              🛡️ Safe Update Guarantee
+            </div>
+            <div>
+              Your current point balances, member account IDs, custom fields, and personal notes are <strong>100% preserved</strong>. Only official statement credits, multipliers, fees, and transfer partners will be updated from current best data.
+            </div>
+          </div>
+
+          <div id="urew-diff-container" style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px;">
+            <!-- Populated dynamically with diff comparison -->
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn" data-close-modal="modal-update-reward">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-update-reward">✓ Apply Latest Perks to This Reward</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: MASTER "UPDATE ALL REWARDS" HUB -->
+  <div class="modal-backdrop" id="modal-update-all-rewards" role="dialog" aria-modal="true" aria-labelledby="modal-update-all-rewards-title">
+    <div class="modal-dialog modal-lg" style="max-width: 840px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">🔄</span>
+          <div>
+            <h3 class="modal-title" id="modal-update-all-rewards-title" style="margin: 0;">Update All Rewards Hub</h3>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Keep perks, credits, and point balances fresh across your entire creator travel portfolio</div>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-update-all-rewards" aria-label="Close">&times;</button>
+      </div>
+
+      <!-- Update Hub Subnav Tabs -->
+      <div style="display: flex; gap: 8px; padding: 12px 20px 0; border-bottom: 1px solid var(--border-subtle); background: var(--bg-surface);">
+        <button type="button" class="rewards-tab-btn active" id="btn-uall-tab-perks" style="padding: 8px 16px; border-bottom-width: 2px;">
+          🔄 Bulk Refresh Card Perks &amp; Credits
+        </button>
+        <button type="button" class="rewards-tab-btn" id="btn-uall-tab-balances" style="padding: 8px 16px; border-bottom-width: 2px;">
+          ⚡ Monthly Fast Balance Check-In
+        </button>
+      </div>
+
+      <!-- Pane A: Bulk Refresh Perks -->
+      <div id="uall-pane-perks" style="display: block;">
+        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+          <div style="padding: 12px 14px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: var(--radius-sm); font-size: 12.5px; margin-bottom: 12px;">
+            <strong style="color: var(--accent-sky);">How Bulk Perk Refresh Works:</strong>
+            We match your current travel cards (Amex, Chase, Capital One, Hyatt, etc.) with our verified 2026 benefit catalog. We update annual fees, new statement credits (like Resy, Uber, travel credits), and multiplier categories <em>without altering your private account numbers, balances, or custom fields</em>.
+          </div>
+
+          <div id="uall-perks-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn" data-close-modal="modal-update-all-rewards">Close</button>
+          <button type="button" class="btn btn-primary" id="btn-apply-bulk-perks" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none;">
+            ✓ Refresh All Perks &amp; Credits Now
+          </button>
+        </div>
+      </div>
+
+      <!-- Pane B: Fast Balance Check-In -->
+      <div id="uall-pane-balances" style="display: none;">
+        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+          <div style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 12px;">
+            Quickly update point balances, elite status nights, and member IDs across all your programs in one single screen:
+          </div>
+          <div class="table-responsive">
+            <table class="ledger-table" style="font-size: 13px;">
+              <thead>
+                <tr>
+                  <th>Program / Card</th>
+                  <th>Ecosystem</th>
+                  <th style="width: 170px;">Point / Mile Balance</th>
+                  <th style="width: 130px;">Valuation (¢/pt)</th>
+                  <th style="width: 150px;">Status Progress / Nights</th>
+                  <th style="width: 140px;">Member ID</th>
+                </tr>
+              </thead>
+              <tbody id="uall-balances-tbody">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn" data-close-modal="modal-update-all-rewards">Cancel</button>
+          <button type="button" class="btn btn-primary" id="btn-save-bulk-balances">💾 Save All Updated Balances</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- GENERIC DELETE CONFIRMATION MODAL -->
   <div class="modal-backdrop" id="modal-confirm-delete" role="alertdialog" aria-modal="true" aria-labelledby="modal-confirm-title" aria-describedby="modal-confirm-desc">
     <div class="modal-dialog" style="max-width: 440px;">
@@ -2173,6 +2326,6 @@
 
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>
