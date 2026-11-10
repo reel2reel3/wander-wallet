@@ -34,17 +34,111 @@
   };
 
   const DEFAULT_TAX_CATEGORIES = [
-    { name: 'Hotels & Lodging', icon: '🏨', color: 'var(--cat-hotel)', schedule_c: 'Line 24a (Travel / Lodging)', deductible: '1', notes: 'Deductible lodging while away from tax home overnight' },
-    { name: 'Meals & Craft', icon: '🍜', color: 'var(--cat-meal)', schedule_c: 'Line 24b (Deductible Meals)', deductible: 'meal', notes: 'Subject to IRS business meal percentage (50% or 100%)' },
-    { name: 'Flights & Transit', icon: '🚄', color: 'var(--cat-flight)', schedule_c: 'Line 24a (Travel / Airfare / Transit)', deductible: '1', notes: 'Airfare, trains, ferries, taxis & rideshares' },
-    { name: 'Gear & Rentals', icon: '📷', color: 'var(--cat-gear)', schedule_c: 'Line 20a (Equipment Rent & Leases)', deductible: '1', notes: 'Cameras, lenses, lighting, audio & grip rentals' },
-    { name: 'Permits & Locations', icon: '🎟️', color: 'var(--cat-permit)', schedule_c: 'Line 27a (Other Expenses - Filming Permits)', deductible: '1', notes: 'National park, drone, and city location fees' },
-    { name: 'Crew & Talent', icon: '🎥', color: 'var(--cat-crew)', schedule_c: 'Line 11 (Contract Labor / 1099)', deductible: '1', notes: 'Camera operators, fixers, editors, guides & talent' }
+    { name: 'Hotels & Lodging', icon: '🏨', color: '#0ea5e9', schedule_c: 'Line 24a (Travel / Lodging)', deductible: '1', notes: 'Deductible lodging while away from tax home overnight' },
+    { name: 'Meals & Craft', icon: '🍜', color: '#f59e0b', schedule_c: 'Line 24b (Deductible Meals)', deductible: 'meal', notes: 'Subject to IRS business meal percentage (50% or 100%)' },
+    { name: 'Flights & Transit', icon: '🚄', color: '#10b981', schedule_c: 'Line 24a (Travel / Airfare / Transit)', deductible: '1', notes: 'Airfare, trains, ferries, taxis & rideshares' },
+    { name: 'Gear & Rentals', icon: '📷', color: '#f97316', schedule_c: 'Line 20a (Equipment Rent & Leases)', deductible: '1', notes: 'Cameras, lenses, lighting, audio & grip rentals' },
+    { name: 'Permits & Locations', icon: '🎟️', color: '#14b8a6', schedule_c: 'Line 27a (Other Expenses - Filming Permits)', deductible: '1', notes: 'National park, drone, and city location fees' },
+    { name: 'Crew & Talent', icon: '🎥', color: '#8b5cf6', schedule_c: 'Line 11 (Contract Labor / 1099)', deductible: '1', notes: 'Camera operators, fixers, editors, guides & talent' }
   ];
+
+  const DEFAULT_ECOSYSTEM_COLORS = {
+    hotel: '#f59e0b',   // Amber Gold
+    airline: '#0ea5e9', // Sky Blue
+    bank: '#10b981',    // Emerald Green
+    other: '#a855f7'    // Royal Purple
+  };
+
+  const ECOSYSTEM_META = {
+    bank: { icon: '🏦', label: 'Transferable Bank Points', tag: 'positive' },
+    hotel: { icon: '🏨', label: 'Hotel Loyalty', tag: 'amber' },
+    airline: { icon: '✈️', label: 'Airline Frequent Flyer', tag: 'sky' },
+    other: { icon: '🚢', label: 'Travel Rewards & Other', tag: 'sky' }
+  };
+
+  const COLOR_SWATCH_PALETTE = [
+    { hex: '#f59e0b', label: 'Amber Gold' },
+    { hex: '#0ea5e9', label: 'Sky Blue' },
+    { hex: '#10b981', label: 'Emerald Green' },
+    { hex: '#a855f7', label: 'Royal Purple' },
+    { hex: '#ec4899', label: 'Rose Pink' },
+    { hex: '#f97316', label: 'Sunset Orange' },
+    { hex: '#14b8a6', label: 'Ocean Teal' },
+    { hex: '#ef4444', label: 'Crimson Red' },
+    { hex: '#6366f1', label: 'Indigo' },
+    { hex: '#eab308', label: 'Citrine Yellow' },
+    { hex: '#06b6d4', label: 'Cyan' },
+    { hex: '#64748b', label: 'Slate Gray' }
+  ];
+
+  function resolveHexColor(colorStr, fallback = '#0ea5e9') {
+    if (!colorStr || typeof colorStr !== 'string') return fallback;
+    const trimmed = colorStr.trim();
+    if (trimmed.startsWith('#') && (trimmed.length === 7 || trimmed.length === 4)) {
+      return trimmed;
+    }
+    const varMap = {
+      'var(--cat-hotel)': '#0ea5e9',
+      'var(--cat-meal)': '#f59e0b',
+      'var(--cat-flight)': '#10b981',
+      'var(--cat-gear)': '#f97316',
+      'var(--cat-permit)': '#14b8a6',
+      'var(--cat-crew)': '#8b5cf6',
+      'var(--accent-sky)': '#0ea5e9',
+      'var(--accent-amber)': '#f59e0b',
+      'var(--accent-primary)': '#10b981'
+    };
+    return varMap[trimmed] || fallback;
+  }
+
+  function hexToRgba(hexStr, alpha = 1) {
+    const hex = resolveHexColor(hexStr, '#0ea5e9').replace('#', '');
+    let r = 14, g = 165, b = 233;
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+    } else if (hex.length === 6) {
+      r = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      b = parseInt(hex.slice(4, 6), 16);
+    }
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  function getEcosystemColors() {
+    const fromSettings = (state && state.settings && state.settings.ecosystem_colors && typeof state.settings.ecosystem_colors === 'object')
+      ? state.settings.ecosystem_colors
+      : {};
+    const fromRewards = (state && state.rewards && state.rewards.ecosystem_colors && typeof state.rewards.ecosystem_colors === 'object')
+      ? state.rewards.ecosystem_colors
+      : {};
+    return {
+      ...DEFAULT_ECOSYSTEM_COLORS,
+      ...fromRewards,
+      ...fromSettings
+    };
+  }
+
+  function getEcosystemColor(ecoKey) {
+    const colors = getEcosystemColors();
+    const key = ecoKey && colors[ecoKey] ? ecoKey : 'other';
+    return resolveHexColor(colors[key], DEFAULT_ECOSYSTEM_COLORS[key] || '#0ea5e9');
+  }
+
+  function getProgramColor(prog) {
+    if (prog && prog.custom_color) {
+      return resolveHexColor(prog.custom_color, getEcosystemColor(prog.ecosystem));
+    }
+    return getEcosystemColor(prog ? prog.ecosystem : 'other');
+  }
 
   function getTaxCategories() {
     if (state && state.settings && Array.isArray(state.settings.tax_categories) && state.settings.tax_categories.length > 0) {
-      return state.settings.tax_categories;
+      return state.settings.tax_categories.map(c => ({
+        ...c,
+        color: resolveHexColor(c.color, '#0ea5e9')
+      }));
     }
     return DEFAULT_TAX_CATEGORIES;
   }
@@ -52,7 +146,7 @@
   function getCategoryMetaMap() {
     const map = {};
     for (const c of getTaxCategories()) {
-      map[c.name] = { icon: c.icon || '🏷️', color: c.color || 'var(--accent-sky)' };
+      map[c.name] = { icon: c.icon || '🏷️', color: resolveHexColor(c.color, '#0ea5e9') };
     }
     return map;
   }
@@ -63,8 +157,8 @@
       if (typeof prop !== 'string') return undefined;
       const cats = getTaxCategories();
       const match = cats.find(c => c.name === prop);
-      if (match) return { icon: match.icon || '🏷️', color: match.color || 'var(--accent-sky)' };
-      return { icon: '🏷️', color: 'var(--text-muted)' };
+      if (match) return { icon: match.icon || '🏷️', color: resolveHexColor(match.color, '#0ea5e9') };
+      return { icon: '🏷️', color: '#64748b' };
     },
     ownKeys() {
       return getTaxCategories().map(c => c.name);
@@ -2110,14 +2204,16 @@
 
     listEl.innerHTML = sortedCats.map(([cat, amount]) => {
       const pct = totalSpend > 0 ? Math.round((amount / totalSpend) * 100) : 0;
-      const meta = CATEGORY_META[cat] || { color: 'var(--accent-sky)', icon: '📌' };
+      const meta = CATEGORY_META[cat] || { color: '#0ea5e9', icon: '📌' };
+      const hexCol = resolveHexColor(meta.color, '#0ea5e9');
       const isSelected = state.categoryFilter === cat;
       return `
-        <div class="category-row" data-filter-cat="${escapeHtml(cat)}" style="${isSelected ? 'background-color: var(--bg-subtle);' : ''}">
+        <div class="category-row" data-filter-cat="${escapeHtml(cat)}" style="${isSelected ? `background-color: ${hexToRgba(hexCol, 0.12)}; border-left: 3px solid ${hexCol};` : ''}">
           <div class="category-row-top">
             <span class="category-name-wrap">
-              <span class="cat-dot" style="background-color: ${meta.color};"></span>
+              <span class="cat-dot" style="background-color: ${hexCol};"></span>
               <span>${meta.icon} ${escapeHtml(cat)}</span>
+              <button type="button" class="btn-color-edit-inline" data-quick-color-taxcat="${escapeHtml(cat)}" title="Change ${escapeHtml(cat)} color" style="padding: 1px 5px; font-size: 10px;">✏️</button>
             </span>
             <span class="category-stats tabular">
               <span class="category-amount">${fmtUsd(amount)}</span>
@@ -2125,7 +2221,7 @@
             </span>
           </div>
           <div class="progress-track" style="height: 6px;">
-            <div class="progress-fill" style="width: ${pct}%; background-color: ${meta.color};"></div>
+            <div class="progress-fill" style="width: ${pct}%; background-color: ${hexCol};"></div>
           </div>
         </div>
       `;
@@ -2180,8 +2276,15 @@
     const categories = ['all', ...Object.keys(CATEGORY_META)];
     container.innerHTML = categories.map(cat => {
       const active = state.categoryFilter === cat ? 'active' : '';
-      const label = cat === 'all' ? 'All Categories' : `${CATEGORY_META[cat].icon} ${cat}`;
-      return `<button type="button" class="chip-btn ${active}" data-chip-cat="${escapeHtml(cat)}">${escapeHtml(label)}</button>`;
+      if (cat === 'all') {
+        return `<button type="button" class="chip-btn ${active}" data-chip-cat="all">All Categories</button>`;
+      }
+      const meta = CATEGORY_META[cat] || { color: '#0ea5e9', icon: '📌' };
+      const hexCol = resolveHexColor(meta.color, '#0ea5e9');
+      const styleStr = active
+        ? `border-color: ${hexCol}; background-color: ${hexToRgba(hexCol, 0.16)}; color: var(--text-primary);`
+        : `border-color: ${hexToRgba(hexCol, 0.45)};`;
+      return `<button type="button" class="chip-btn ${active}" data-chip-cat="${escapeHtml(cat)}" style="${styleStr}"><span class="cat-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${hexCol};margin-right:5px;"></span>${escapeHtml(meta.icon)} ${escapeHtml(cat)}</button>`;
     }).join('');
   }
 
@@ -2239,7 +2342,7 @@
             ${trip ? escapeHtml(trip.name) : escapeHtml(e.trip_id)}
           </td>
           <td>
-            <span class="cat-badge">
+            <span class="cat-badge" style="border-color: ${hexToRgba(meta.color, 0.55)}; background-color: ${hexToRgba(meta.color, 0.12)};">
               <span class="cat-dot" style="background-color: ${meta.color};"></span>
               <span>${escapeHtml(e.category)}</span>
             </span>
@@ -3711,7 +3814,23 @@
 
   function renderRewardsProgramsTab() {
     document.querySelectorAll('#rewards-ecosystem-chips [data-eco-filter]').forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-eco-filter') === state.rewardsEcoFilter);
+      const fKey = btn.getAttribute('data-eco-filter');
+      const isAct = fKey === state.rewardsEcoFilter;
+      btn.classList.toggle('active', isAct);
+      if (fKey && fKey !== 'all') {
+        const cHex = getEcosystemColor(fKey);
+        btn.style.borderColor = isAct ? cHex : hexToRgba(cHex, 0.5);
+        btn.style.backgroundColor = isAct ? hexToRgba(cHex, 0.16) : '';
+        btn.style.color = isAct ? 'var(--text-primary)' : '';
+        if (!btn.querySelector('.eco-chip-dot')) {
+          const dot = document.createElement('span');
+          dot.className = 'eco-chip-dot';
+          dot.style.cssText = `display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:${cHex};`;
+          btn.prepend(dot);
+        } else {
+          btn.querySelector('.eco-chip-dot').style.background = cHex;
+        }
+      }
     });
 
     const grid = document.getElementById('rewards-programs-grid');
@@ -3737,15 +3856,9 @@
       return;
     }
 
-    const ecoBadges = {
-      bank: { icon: '🏦', label: 'Transferable Bank Points', tag: 'positive' },
-      hotel: { icon: '🏨', label: 'Hotel Loyalty', tag: 'amber' },
-      airline: { icon: '✈️', label: 'Airline Frequent Flyer', tag: 'sky' },
-      other: { icon: '🚢', label: 'Travel Rewards', tag: 'sky' }
-    };
-
     grid.innerHTML = filtered.map(p => {
-      const meta = ecoBadges[p.ecosystem] || ecoBadges.other;
+      const meta = ECOSYSTEM_META[p.ecosystem] || ECOSYSTEM_META.other;
+      const cardColor = getProgramColor(p);
       const pts = Number(p.points ?? p.balance ?? 0);
       const cpp = Number(p.cpp ?? p.cpp_valuation ?? 1.5);
       const valUsd = (pts * cpp) / 100;
@@ -3757,13 +3870,22 @@
       const expPolicy = p.expiration_policy || 'Active';
 
       return `
-        <div class="reward-item-card">
+        <div class="reward-item-card color-coded" style="border-color: ${hexToRgba(cardColor, 0.65)}; background-image: linear-gradient(180deg, ${hexToRgba(cardColor, 0.09)} 0%, transparent 90px);">
+          <div class="reward-card-banner" style="background: ${cardColor};"></div>
           <div class="reward-card-top">
             <div>
-              <span class="reward-ecosystem-pill">${meta.icon} ${escapeHtml(meta.label)}</span>
+              <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span class="reward-ecosystem-pill" style="background-color: ${hexToRgba(cardColor, 0.15)}; border-color: ${hexToRgba(cardColor, 0.65)}; color: var(--text-primary);">
+                  <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${cardColor};"></span>
+                  ${meta.icon} ${escapeHtml(meta.label)}
+                </span>
+                <button type="button" class="btn-color-edit-inline" data-quick-color-prog="${escapeHtml(p.id)}" title="Change category or card color">
+                  ✏️
+                </button>
+              </div>
               <h4 style="font-size: 16px; font-weight: 700; margin-top: 6px; color: var(--text-primary);">${escapeHtml(p.name)}</h4>
             </div>
-            <span class="kpi-tag ${meta.tag}">${escapeHtml(p.status_tier || 'Member')}</span>
+            <span class="kpi-tag" style="background-color: ${hexToRgba(cardColor, 0.14)}; border: 1px solid ${hexToRgba(cardColor, 0.45)}; color: var(--text-primary);">${escapeHtml(p.status_tier || 'Member')}</span>
           </div>
 
           <div class="reward-balance-box">
@@ -3804,7 +3926,7 @@
                 </div>
               </div>
               <div class="progress-track">
-                <div class="progress-fill" style="width: ${qPct}%; background-color: ${qPct >= 100 ? 'var(--accent-primary)' : 'var(--accent-sky)'};"></div>
+                <div class="progress-fill" style="width: ${qPct}%; background-color: ${qPct >= 100 ? 'var(--accent-primary)' : cardColor};"></div>
               </div>
             </div>
           ` : ''}
@@ -3881,11 +4003,25 @@
         urgencyBadge = `<span class="kpi-tag sky">🟢 Valid thru ${escapeHtml(expDate)}</span>`;
       }
 
+      const certEcoKey = c.type === 'Free Night Certificate'
+        ? 'hotel'
+        : (c.type === 'Companion Pass' || c.type === 'Suite / Flight Upgrade')
+        ? 'airline'
+        : 'other';
+      const certColor = getEcosystemColor(certEcoKey);
+
       return `
-        <div class="reward-item-card" style="${isRedeemed ? 'opacity: 0.72;' : ''}">
+        <div class="reward-item-card color-coded" style="${isRedeemed ? 'opacity: 0.72;' : ''} border-color: ${hexToRgba(certColor, 0.65)}; background-image: linear-gradient(180deg, ${hexToRgba(certColor, 0.09)} 0%, transparent 90px);">
+          <div class="reward-card-banner" style="background: ${certColor};"></div>
           <div class="reward-card-top">
             <div>
-              <span class="reward-ecosystem-pill">🎟️ ${escapeHtml(c.type || 'Free Night Certificate')}</span>
+              <div style="display: inline-flex; align-items: center; gap: 6px;">
+                <span class="reward-ecosystem-pill" style="background-color: ${hexToRgba(certColor, 0.15)}; border-color: ${hexToRgba(certColor, 0.65)}; color: var(--text-primary);">
+                  <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${certColor};"></span>
+                  🎟️ ${escapeHtml(c.type || 'Free Night Certificate')}
+                </span>
+                <button type="button" class="btn-color-edit-inline" data-quick-color-eco="${certEcoKey}" title="Change category color">✏️</button>
+              </div>
               <h4 style="font-size: 15.5px; font-weight: 700; margin-top: 6px; color: var(--text-primary);">${escapeHtml(c.title)}</h4>
             </div>
             ${urgencyBadge}
@@ -4237,9 +4373,25 @@
     }).join('');
   }
 
+  function syncRprogColorPickerUi(hexColor) {
+    const cleanHex = resolveHexColor(hexColor, '#f59e0b');
+    const colInput = document.getElementById('rprog-color-input');
+    const hexLabel = document.getElementById('rprog-color-hex-label');
+    const swatchContainer = document.getElementById('rprog-color-swatches');
+    if (colInput) colInput.value = cleanHex;
+    if (hexLabel) hexLabel.textContent = cleanHex;
+    if (swatchContainer) {
+      swatchContainer.innerHTML = COLOR_SWATCH_PALETTE.map(s => `
+        <button type="button" class="color-swatch-btn ${s.hex.toLowerCase() === cleanHex.toLowerCase() ? 'active' : ''}" data-rprog-swatch="${s.hex}" style="background-color: ${s.hex};" title="${escapeHtml(s.label)} (${s.hex})"></button>
+      `).join('');
+    }
+  }
+
   // Modal Open & Save Handlers for Rewards
   function openRewardProgramModal(editProg = null) {
     const titleEl = document.getElementById('modal-reward-program-title');
+    const scopeEcoRadio = document.getElementById('rprog-color-scope-eco');
+    const scopeCardRadio = document.getElementById('rprog-color-scope-card');
     if (editProg) {
       if (titleEl) titleEl.textContent = 'Edit Loyalty Program';
       document.getElementById('rprog-id').value = editProg.id;
@@ -4255,6 +4407,13 @@
       document.getElementById('rprog-expiration').value = editProg.expiration_policy || '';
       document.getElementById('rprog-partners').value = editProg.transfer_partners || editProg.transfer_sources || '';
       document.getElementById('rprog-notes').value = editProg.notes || '';
+      if (editProg.custom_color) {
+        if (scopeCardRadio) scopeCardRadio.checked = true;
+        syncRprogColorPickerUi(editProg.custom_color);
+      } else {
+        if (scopeEcoRadio) scopeEcoRadio.checked = true;
+        syncRprogColorPickerUi(getEcosystemColor(editProg.ecosystem || 'bank'));
+      }
     } else {
       if (titleEl) titleEl.textContent = 'Add Loyalty Program';
       document.getElementById('rprog-id').value = '';
@@ -4270,6 +4429,8 @@
       document.getElementById('rprog-expiration').value = 'No expiration while active';
       document.getElementById('rprog-partners').value = '';
       document.getElementById('rprog-notes').value = '';
+      if (scopeEcoRadio) scopeEcoRadio.checked = true;
+      syncRprogColorPickerUi(getEcosystemColor('bank'));
     }
     openModal('modal-reward-program');
   }
@@ -4281,10 +4442,17 @@
       return;
     }
     const id = document.getElementById('rprog-id').value;
+    const eco = document.getElementById('rprog-ecosystem').value;
+    const pickedColor = resolveHexColor(
+      (document.getElementById('rprog-color-input') || {}).value,
+      getEcosystemColor(eco)
+    );
+    const scopeCard = (document.getElementById('rprog-color-scope-card') || {}).checked;
+
     const item = {
       id: id || ('prog-' + Date.now()),
       name,
-      ecosystem: document.getElementById('rprog-ecosystem').value,
+      ecosystem: eco,
       points: Number(document.getElementById('rprog-points').value) || 0,
       cpp: Number(document.getElementById('rprog-cpp').value) || 1.5,
       status_tier: document.getElementById('rprog-status').value.trim() || 'Member',
@@ -4294,8 +4462,15 @@
       metric_label: document.getElementById('rprog-metric-label').value.trim() || 'Qualifying Nights',
       expiration_policy: document.getElementById('rprog-expiration').value.trim() || 'Active',
       transfer_partners: document.getElementById('rprog-partners').value.trim(),
-      notes: document.getElementById('rprog-notes').value.trim()
+      notes: document.getElementById('rprog-notes').value.trim(),
+      custom_color: scopeCard ? pickedColor : ''
     };
+
+    if (!scopeCard) {
+      const nextEcoColors = { ...getEcosystemColors(), [eco]: pickedColor };
+      state.settings.ecosystem_colors = nextEcoColors;
+      state.rewards.ecosystem_colors = nextEcoColors;
+    }
 
     if (id) {
       state.rewards.programs = state.rewards.programs.map(p => (p.id === id ? item : p));
@@ -4707,11 +4882,50 @@
     const mealInput = document.getElementById('admin-setting-meal-rate');
     if (mealInput) mealInput.value = String(state.settings.meal_deduction_rate || '100');
 
+    // Populate Loyalty & Rewards Category Color Coding Grid in Admin
+    const ecoGrid = document.getElementById('admin-eco-colors-grid');
+    if (ecoGrid) {
+      const ecoColors = getEcosystemColors();
+      const progCounts = {};
+      (state.rewards.programs || []).forEach(p => {
+        const k = p.ecosystem || 'other';
+        progCounts[k] = (progCounts[k] || 0) + 1;
+      });
+      ecoGrid.innerHTML = ['hotel', 'airline', 'bank', 'other'].map(ecoKey => {
+        const meta = ECOSYSTEM_META[ecoKey] || ECOSYSTEM_META.other;
+        const hex = resolveHexColor(ecoColors[ecoKey] || DEFAULT_ECOSYSTEM_COLORS[ecoKey]);
+        const count = progCounts[ecoKey] || 0;
+        return `
+          <div class="eco-color-admin-card" style="--card-accent: ${hex}; --card-accent-bg: ${hexToRgba(hex, 0.14)}; --card-accent-border: ${hexToRgba(hex, 0.35)};">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span class="reward-eco-tag" style="background: ${hexToRgba(hex, 0.15)}; color: ${hex}; border: 1px solid ${hexToRgba(hex, 0.38)};">
+                ${meta.icon} ${escapeHtml(meta.label)}
+              </span>
+              <button type="button" class="btn btn-sm" data-quick-color-eco="${ecoKey}" title="Change ${escapeHtml(meta.label)} banner & outline color" style="padding: 3px 8px; font-size: 11px;">
+                ✏️ Color
+              </button>
+            </div>
+            <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.35;">
+              ${escapeHtml(meta.desc)}
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 6px; border-top: 1px solid var(--border-subtle); font-size: 11px;">
+              <span class="mono" style="display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary);">
+                <span style="width: 12px; height: 12px; border-radius: 3px; background: ${hex}; display: inline-block; border: 1px solid rgba(0,0,0,0.15);"></span>
+                ${escapeHtml(hex.toUpperCase())}
+              </span>
+              <span style="color: var(--text-muted);">${count} card${count === 1 ? '' : 's'}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
     // Populate categories table
     const tbody = document.getElementById('admin-categories-tbody');
     if (tbody) {
       tbody.innerHTML = cats.map(c => {
         const count = usageMap[c.name] || 0;
+        const hex = resolveHexColor(c.color || '#38bdf8');
         let dedLabel = '<span style="color: var(--accent-primary); font-weight: 600;">100% Deductible</span>';
         if (c.deductible === 'meal') {
           dedLabel = `<span style="color: var(--accent-amber); font-weight: 600;">🍜 Meal Rule (${mealRate}%)</span>`;
@@ -4719,14 +4933,16 @@
           dedLabel = '<span style="color: var(--text-muted); font-weight: 600;">Non-Deductible</span>';
         }
 
-        const isDefaultPreset = DEFAULT_TAX_CATEGORIES.some(d => d.name === c.name);
         return `
           <tr>
             <td style="font-size: 20px; text-align: center;">${escapeHtml(c.icon || '🏷️')}</td>
             <td>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="color-dot" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: ${escapeHtml(c.color || 'var(--accent-sky)')};"></span>
+                <button type="button" data-quick-color-taxcat="${escapeHtml(c.name)}" title="Click to change category color (${escapeHtml(hex)})" style="background: none; border: none; padding: 2px; cursor: pointer; display: inline-flex; align-items: center;">
+                  <span class="color-dot" style="display: inline-block; width: 14px; height: 14px; border-radius: 4px; background-color: ${escapeHtml(hex)}; box-shadow: 0 0 0 2px ${hexToRgba(hex, 0.25)};"></span>
+                </button>
                 <strong>${escapeHtml(c.name)}</strong>
+                <span class="mono" style="font-size: 10.5px; color: var(--text-muted);">${escapeHtml(hex.toUpperCase())}</span>
               </div>
               ${c.notes ? `<div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(c.notes)}</div>` : ''}
             </td>
@@ -4739,6 +4955,7 @@
             </td>
             <td style="text-align: right;">
               <div class="row-actions" style="justify-content: flex-end;">
+                <button type="button" class="btn btn-sm" data-quick-color-taxcat="${escapeHtml(c.name)}" title="Customize Color">🎨</button>
                 <button type="button" class="btn btn-sm" data-admin-edit-taxcat="${escapeHtml(c.name)}" title="Edit Category">✎</button>
                 <button type="button" class="btn btn-sm btn-danger-ghost" data-admin-delete-taxcat="${escapeHtml(c.name)}" title="Delete Category">✕</button>
               </div>
@@ -4772,16 +4989,19 @@
     const schedInput = document.getElementById('taxcat-schedule-c');
     const dedSelect = document.getElementById('taxcat-deductible');
     const colSelect = document.getElementById('taxcat-color');
+    const colCustom = document.getElementById('taxcat-color-custom');
     const notesInput = document.getElementById('taxcat-notes');
 
     if (editCategory) {
+      const hex = resolveHexColor(editCategory.color || '#38bdf8');
       if (titleEl) titleEl.textContent = `Edit Tax Category: ${editCategory.name}`;
       if (origInput) origInput.value = editCategory.name;
       if (nameInput) nameInput.value = editCategory.name;
       if (iconInput) iconInput.value = editCategory.icon || '🏷️';
       if (schedInput) schedInput.value = editCategory.schedule_c || 'Line 27a (Other Expenses)';
       if (dedSelect) dedSelect.value = editCategory.deductible || '1';
-      if (colSelect) colSelect.value = editCategory.color || '#38bdf8';
+      if (colSelect) colSelect.value = hex;
+      if (colCustom) colCustom.value = hex;
       if (notesInput) notesInput.value = editCategory.notes || '';
     } else {
       if (titleEl) titleEl.textContent = 'Add Tax Category';
@@ -4791,6 +5011,7 @@
       if (schedInput) schedInput.value = 'Line 27a (Other Expenses)';
       if (dedSelect) dedSelect.value = '1';
       if (colSelect) colSelect.value = '#38bdf8';
+      if (colCustom) colCustom.value = '#38bdf8';
       if (notesInput) notesInput.value = '';
     }
     openModal('modal-admin-tax-category');
@@ -4818,8 +5039,187 @@
     renderAdminWorkspace();
     renderCategoryBreakdown();
     renderLedgerCategoryChips();
+    renderExpenseLedger();
     renderTaxView();
     showToast(toastMsg);
+  }
+
+  async function saveEcosystemColors(newEcoColors, toastMsg = 'Category colors updated') {
+    const merged = { ...DEFAULT_ECOSYSTEM_COLORS, ...newEcoColors };
+    state.settings.ecosystem_colors = merged;
+    const backup = getLocalStore();
+    backup.settings = backup.settings || {};
+    backup.settings.ecosystem_colors = merged;
+    backup.user_modified = true;
+    backup.updated_at = Date.now();
+    saveLocalStore(backup);
+
+    const updated = await apiRequest('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ ecosystem_colors: merged })
+    });
+    if (updated) applyBootstrapData(updated);
+
+    renderRewardsDashboard();
+    renderAdminWorkspace();
+    showToast(toastMsg);
+  }
+
+  function updateColorCustomizerPreview(hexColor) {
+    const hex = resolveHexColor(hexColor);
+    const colInput = document.getElementById('ccust-color-input');
+    const hexLabel = document.getElementById('ccust-hex-label');
+    if (colInput && colInput.value.toLowerCase() !== hex.toLowerCase()) colInput.value = hex;
+    if (hexLabel) hexLabel.textContent = hex.toUpperCase();
+
+    const swatchGrid = document.getElementById('ccust-swatch-grid');
+    if (swatchGrid) {
+      swatchGrid.innerHTML = COLOR_SWATCH_PALETTE.map(s => {
+        const isSel = s.hex.toLowerCase() === hex.toLowerCase();
+        return `<button type="button" class="color-swatch-btn ${isSel ? 'selected' : ''}" data-ccust-swatch="${s.hex}" style="background: ${s.hex};" title="${escapeHtml(s.label)} (${s.hex})"></button>`;
+      }).join('');
+    }
+
+    const previewCard = document.getElementById('ccust-preview-card');
+    const previewBanner = document.getElementById('ccust-preview-banner');
+    const previewBadge = document.getElementById('ccust-preview-badge');
+    const previewHexPill = document.getElementById('ccust-preview-hex-pill');
+    if (previewCard) {
+      previewCard.style.borderColor = hexToRgba(hex, 0.55);
+      previewCard.style.boxShadow = `0 4px 16px -4px ${hexToRgba(hex, 0.25)}`;
+    }
+    if (previewBanner) previewBanner.style.background = hex;
+    if (previewBadge) {
+      previewBadge.style.background = hexToRgba(hex, 0.16);
+      previewBadge.style.color = hex;
+      previewBadge.style.border = `1px solid ${hexToRgba(hex, 0.4)}`;
+    }
+    if (previewHexPill) previewHexPill.textContent = hex.toUpperCase();
+  }
+
+  function openColorCustomizerModal({ type = 'eco', id = 'hotel', progId = '' } = {}) {
+    const typeEl = document.getElementById('ccust-target-type');
+    const idEl = document.getElementById('ccust-target-id');
+    const progIdEl = document.getElementById('ccust-prog-id');
+    const scopeRow = document.getElementById('ccust-scope-row');
+    const scopeEcoRadio = document.getElementById('ccust-scope-eco');
+    const scopeCardRadio = document.getElementById('ccust-scope-card');
+    const scopeEcoLabel = document.getElementById('ccust-scope-eco-label');
+    const previewBadge = document.getElementById('ccust-preview-badge');
+    const previewTitle = document.getElementById('ccust-preview-title');
+    const titleEl = document.getElementById('modal-color-customizer-title');
+
+    let initialHex = '#10b981';
+
+    if (type === 'prog') {
+      const prog = (state.rewards.programs || []).find(p => p.id === (progId || id));
+      const ecoKey = prog ? (prog.ecosystem || 'hotel') : 'hotel';
+      const meta = ECOSYSTEM_META[ecoKey] || ECOSYSTEM_META.other;
+      initialHex = prog ? getProgramColor(prog) : getEcosystemColor(ecoKey);
+      if (typeEl) typeEl.value = 'prog';
+      if (idEl) idEl.value = ecoKey;
+      if (progIdEl) progIdEl.value = prog ? prog.id : '';
+      if (scopeRow) scopeRow.style.display = 'block';
+      const hasCardOverride = Boolean(prog && prog.custom_color && String(prog.custom_color).trim());
+      if (scopeEcoRadio) scopeEcoRadio.checked = !hasCardOverride;
+      if (scopeCardRadio) scopeCardRadio.checked = hasCardOverride;
+      if (scopeEcoLabel) scopeEcoLabel.textContent = `All ${meta.label} cards`;
+      if (previewBadge) previewBadge.textContent = `${meta.icon} ${meta.label}`;
+      if (previewTitle) previewTitle.textContent = prog ? prog.name : meta.desc;
+      if (titleEl) titleEl.textContent = `🎨 Customize Color: ${prog ? prog.name : meta.label}`;
+    } else if (type === 'taxcat') {
+      const cat = getTaxCategories().find(c => c.name === id) || getTaxCategories()[0];
+      const catName = cat ? cat.name : id;
+      initialHex = resolveHexColor(cat ? cat.color : '#38bdf8');
+      if (typeEl) typeEl.value = 'taxcat';
+      if (idEl) idEl.value = catName;
+      if (progIdEl) progIdEl.value = '';
+      if (scopeRow) scopeRow.style.display = 'none';
+      if (previewBadge) previewBadge.textContent = `${cat ? (cat.icon || '🏷️') : '🏷️'} EXPENSE CATEGORY`;
+      if (previewTitle) previewTitle.textContent = catName;
+      if (titleEl) titleEl.textContent = `🎨 Category Color: ${catName}`;
+    } else {
+      const ecoKey = ECOSYSTEM_META[id] ? id : 'hotel';
+      const meta = ECOSYSTEM_META[ecoKey];
+      initialHex = getEcosystemColor(ecoKey);
+      if (typeEl) typeEl.value = 'eco';
+      if (idEl) idEl.value = ecoKey;
+      if (progIdEl) progIdEl.value = '';
+      if (scopeRow) scopeRow.style.display = 'none';
+      if (previewBadge) previewBadge.textContent = `${meta.icon} ${meta.label}`;
+      if (previewTitle) previewTitle.textContent = meta.desc;
+      if (titleEl) titleEl.textContent = `🎨 Loyalty Category Color: ${meta.label}`;
+    }
+
+    updateColorCustomizerPreview(initialHex);
+
+    // Render quick switcher for all categories at the bottom of the modal
+    const allList = document.getElementById('ccust-all-categories-list');
+    if (allList) {
+      const ecoColors = getEcosystemColors();
+      const ecoBtns = ['hotel', 'airline', 'bank', 'other'].map(k => {
+        const m = ECOSYSTEM_META[k];
+        const c = resolveHexColor(ecoColors[k]);
+        const active = (type === 'eco' && id === k) || (type === 'prog' && idEl && idEl.value === k);
+        return `
+          <button type="button" class="btn btn-sm" data-ccust-select-target="eco:${k}" style="justify-content: flex-start; gap: 7px; border-color: ${active ? c : 'var(--border-subtle)'}; background: ${active ? hexToRgba(c, 0.12) : 'var(--bg-elevated)'};">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: ${c}; flex-shrink: 0;"></span>
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.icon} ${escapeHtml(m.label)}</span>
+          </button>
+        `;
+      });
+      const taxBtns = getTaxCategories().map(tc => {
+        const c = resolveHexColor(tc.color || '#38bdf8');
+        const active = type === 'taxcat' && id === tc.name;
+        return `
+          <button type="button" class="btn btn-sm" data-ccust-select-target="taxcat:${escapeHtml(tc.name)}" style="justify-content: flex-start; gap: 7px; border-color: ${active ? c : 'var(--border-subtle)'}; background: ${active ? hexToRgba(c, 0.12) : 'var(--bg-elevated)'};">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: ${c}; flex-shrink: 0;"></span>
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(tc.icon || '🏷️')} ${escapeHtml(tc.name)}</span>
+          </button>
+        `;
+      });
+      allList.innerHTML = [...ecoBtns, ...taxBtns].join('');
+    }
+
+    openModal('modal-color-customizer');
+  }
+
+  async function saveColorCustomizerFromModal() {
+    const type = (document.getElementById('ccust-target-type') || {}).value || 'eco';
+    const id = (document.getElementById('ccust-target-id') || {}).value || 'hotel';
+    const progId = (document.getElementById('ccust-prog-id') || {}).value || '';
+    const pickedHex = resolveHexColor((document.getElementById('ccust-color-input') || {}).value || '#10b981');
+    const scopeCardRadio = document.getElementById('ccust-scope-card');
+    const applyToCardOnly = type === 'prog' && scopeCardRadio && scopeCardRadio.checked;
+
+    closeModal('modal-color-customizer');
+
+    if (type === 'taxcat') {
+      const nextList = getTaxCategories().map(c => (c.name === id ? { ...c, color: pickedHex } : c));
+      await saveTaxCategoriesList(nextList, `Updated "${id}" color to ${pickedHex.toUpperCase()}`);
+      return;
+    }
+
+    if (applyToCardOnly && progId) {
+      const prog = (state.rewards.programs || []).find(p => p.id === progId);
+      if (prog) {
+        prog.custom_color = pickedHex;
+        await saveRewardsState(`Updated card color for ${prog.name}`);
+      }
+      return;
+    }
+
+    // Apply to entire Loyalty Ecosystem category (and clear custom_color on the edited card if it was switched back to category scope)
+    const ecoKey = ECOSYSTEM_META[id] ? id : 'hotel';
+    if (progId) {
+      const prog = (state.rewards.programs || []).find(p => p.id === progId);
+      if (prog && prog.custom_color) {
+        prog.custom_color = '';
+        await saveRewardsState(`Synced ${prog.name} with ${ECOSYSTEM_META[ecoKey].label} color`);
+      }
+    }
+    const nextEco = { ...getEcosystemColors(), [ecoKey]: pickedHex };
+    await saveEcosystemColors(nextEco, `Updated ${ECOSYSTEM_META[ecoKey].label} color to ${pickedHex.toUpperCase()}`);
   }
 
   async function saveAdminTaxCategoryFromModal() {
@@ -4840,12 +5240,16 @@
       return;
     }
 
+    const customColEl = document.getElementById('taxcat-color-custom');
+    const selectColEl = document.getElementById('taxcat-color');
+    const chosenColor = resolveHexColor((customColEl && customColEl.value) || (selectColEl && selectColEl.value) || '#38bdf8');
+
     const item = {
       name: newName,
       icon: document.getElementById('taxcat-icon').value.trim() || '🏷️',
       schedule_c: document.getElementById('taxcat-schedule-c').value.trim() || 'Line 27a (Other Expenses)',
       deductible: document.getElementById('taxcat-deductible').value,
-      color: document.getElementById('taxcat-color').value || '#38bdf8',
+      color: chosenColor,
       notes: document.getElementById('taxcat-notes').value.trim()
     };
 
@@ -5013,6 +5417,52 @@
         saveAdminTaxCategoryFromModal();
       });
     }
+    const formColorCust = document.getElementById('form-color-customizer');
+    if (formColorCust) {
+      formColorCust.addEventListener('submit', e => {
+        e.preventDefault();
+        saveColorCustomizerFromModal();
+      });
+    }
+
+    // Color picker input sync listeners
+    const rprogColorInput = document.getElementById('rprog-color-input');
+    if (rprogColorInput) {
+      rprogColorInput.addEventListener('input', e => {
+        const ecoEl = document.getElementById('rprog-ecosystem');
+        syncRprogColorPickerUi(e.target.value, ecoEl ? ecoEl.value : 'hotel');
+      });
+    }
+    const rprogEcoSelect = document.getElementById('rprog-ecosystem');
+    if (rprogEcoSelect) {
+      rprogEcoSelect.addEventListener('change', e => {
+        const ecoKey = e.target.value || 'hotel';
+        const scopeEcoRadio = document.getElementById('rprog-color-scope-eco');
+        const nextHex = (scopeEcoRadio && scopeEcoRadio.checked)
+          ? getEcosystemColor(ecoKey)
+          : ((document.getElementById('rprog-color-input') || {}).value || getEcosystemColor(ecoKey));
+        syncRprogColorPickerUi(nextHex, ecoKey);
+      });
+    }
+    const ccustColorInput = document.getElementById('ccust-color-input');
+    if (ccustColorInput) {
+      ccustColorInput.addEventListener('input', e => {
+        updateColorCustomizerPreview(e.target.value);
+      });
+    }
+    const taxcatColorSelect = document.getElementById('taxcat-color');
+    const taxcatColorCustom = document.getElementById('taxcat-color-custom');
+    if (taxcatColorSelect && taxcatColorCustom) {
+      taxcatColorSelect.addEventListener('change', e => {
+        taxcatColorCustom.value = resolveHexColor(e.target.value);
+      });
+      taxcatColorCustom.addEventListener('input', e => {
+        const hex = resolveHexColor(e.target.value);
+        if (Array.from(taxcatColorSelect.options).some(o => o.value.toLowerCase() === hex.toLowerCase())) {
+          taxcatColorSelect.value = hex;
+        }
+      });
+    }
 
     // Live CPP Calculator inputs
     ['calc-program', 'calc-points', 'calc-cash', 'calc-fees'].forEach(id => {
@@ -5153,6 +5603,109 @@
       if (e.target.closest('#btn-submit-admin-tax-category')) {
         e.preventDefault();
         saveAdminTaxCategoryFromModal();
+        return;
+      }
+      if (e.target.closest('#btn-submit-color-customizer')) {
+        e.preventDefault();
+        saveColorCustomizerFromModal();
+        return;
+      }
+
+      // Color Swatch clicks inside Edit Loyalty Program modal
+      const rprogSwatch = e.target.closest('[data-rprog-swatch]');
+      if (rprogSwatch) {
+        e.preventDefault();
+        const hex = rprogSwatch.getAttribute('data-rprog-swatch');
+        const ecoEl = document.getElementById('rprog-ecosystem');
+        syncRprogColorPickerUi(hex, ecoEl ? ecoEl.value : 'hotel');
+        return;
+      }
+
+      // Color Swatch clicks inside Quick Color Customizer modal
+      const ccustSwatch = e.target.closest('[data-ccust-swatch]');
+      if (ccustSwatch) {
+        e.preventDefault();
+        updateColorCustomizerPreview(ccustSwatch.getAttribute('data-ccust-swatch'));
+        return;
+      }
+
+      // Switch target category inside Quick Color Customizer modal
+      const ccustTargetBtn = e.target.closest('[data-ccust-select-target]');
+      if (ccustTargetBtn) {
+        e.preventDefault();
+        const raw = ccustTargetBtn.getAttribute('data-ccust-select-target') || '';
+        const colonIdx = raw.indexOf(':');
+        if (colonIdx > 0) {
+          const tType = raw.slice(0, colonIdx);
+          const tId = raw.slice(colonIdx + 1);
+          openColorCustomizerModal({ type: tType, id: tId });
+        }
+        return;
+      }
+
+      // Open Quick Color Customizer from Loyalty Program card pencil icon
+      const quickColorProgBtn = e.target.closest('[data-quick-color-prog]');
+      if (quickColorProgBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const progId = quickColorProgBtn.getAttribute('data-quick-color-prog');
+        openColorCustomizerModal({ type: 'prog', id: progId, progId });
+        return;
+      }
+
+      // Open Quick Color Customizer for a Loyalty Ecosystem category
+      const quickColorEcoBtn = e.target.closest('[data-quick-color-eco]');
+      if (quickColorEcoBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ecoKey = quickColorEcoBtn.getAttribute('data-quick-color-eco');
+        openColorCustomizerModal({ type: 'eco', id: ecoKey });
+        return;
+      }
+
+      // Open Quick Color Customizer from "🎨 Category Colors" button in Rewards
+      if (e.target.closest('#btn-open-eco-colors')) {
+        e.preventDefault();
+        const activeEco = (state.rewardsEcoFilter && state.rewardsEcoFilter !== 'all') ? state.rewardsEcoFilter : 'hotel';
+        openColorCustomizerModal({ type: 'eco', id: activeEco });
+        return;
+      }
+
+      // Open Quick Color Customizer for an Expense / Tax Category
+      const quickColorTaxBtn = e.target.closest('[data-quick-color-taxcat]');
+      if (quickColorTaxBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const catName = quickColorTaxBtn.getAttribute('data-quick-color-taxcat');
+        openColorCustomizerModal({ type: 'taxcat', id: catName });
+        return;
+      }
+
+      // Reset to default inside Quick Color Customizer modal
+      if (e.target.closest('#btn-ccust-reset-default')) {
+        e.preventDefault();
+        const type = (document.getElementById('ccust-target-type') || {}).value || 'eco';
+        const id = (document.getElementById('ccust-target-id') || {}).value || 'hotel';
+        if (type === 'taxcat') {
+          const defCat = DEFAULT_TAX_CATEGORIES.find(d => d.name === id);
+          updateColorCustomizerPreview(defCat ? defCat.color : '#38bdf8');
+        } else {
+          const ecoKey = ECOSYSTEM_META[id] ? id : 'hotel';
+          const scopeEcoRadio = document.getElementById('ccust-scope-eco');
+          if (scopeEcoRadio) scopeEcoRadio.checked = true;
+          updateColorCustomizerPreview(DEFAULT_ECOSYSTEM_COLORS[ecoKey] || '#10b981');
+        }
+        return;
+      }
+
+      // Reset all Loyalty Ecosystem colors in Admin
+      if (e.target.closest('#btn-admin-reset-eco-colors')) {
+        e.preventDefault();
+        (state.rewards.programs || []).forEach(p => {
+          if (p.custom_color) delete p.custom_color;
+        });
+        await saveRewardsState('Cleared custom card color overrides');
+        await saveEcosystemColors(DEFAULT_ECOSYSTEM_COLORS, 'Restored default Loyalty category colors');
         return;
       }
 

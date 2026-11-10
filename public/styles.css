@@ -1032,6 +1032,10 @@ body {
   flex-direction: column;
 }
 
+.modal-dialog.modal-lg {
+  max-width: 720px;
+}
+
 .modal-header {
   padding: 18px 22px;
   border-bottom: 1px solid var(--border-subtle);
@@ -1069,7 +1073,7 @@ body {
 
 .form-grid-3 {
   display: grid;
-  grid-template-columns: 1.2fr 0.9fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -1077,12 +1081,15 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .form-label {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .form-input,
@@ -1096,6 +1103,14 @@ body {
   font-size: 13.5px;
   font-family: inherit;
   outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 52px;
+  line-height: 1.4;
 }
 
 .form-input:focus,
@@ -1595,19 +1610,104 @@ body {
 }
 
 .reward-item-card {
+  position: relative;
+  overflow: hidden;
   background-color: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
+  border: 1.5px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   box-shadow: var(--shadow-sm);
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.reward-item-card.color-coded {
+  padding-top: 22px;
+}
+
+.reward-card-banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  pointer-events: none;
 }
 
 .reward-item-card:hover {
   border-color: var(--border-strong);
+}
+
+.btn-color-edit-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 2px 7px;
+  font-size: 11px;
+  line-height: 1.2;
+  border-radius: 99px;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-color-edit-inline:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+.color-swatch-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.color-swatch-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  padding: 0;
+  position: relative;
+}
+
+.color-swatch-btn:hover {
+  transform: scale(1.12);
+}
+
+.color-swatch-btn.active {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--text-primary);
+  transform: scale(1.08);
+}
+
+.eco-color-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.eco-color-admin-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  padding: 14px 14px 12px 14px;
+  background-color: var(--bg-elevated);
+  border: 1.5px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .reward-card-top {
