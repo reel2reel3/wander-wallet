@@ -4962,8 +4962,296 @@
     };
   }
 
+  // =========================================================================
+  // STATEMENT CREDIT AUTO-CALCULATION, RESET DATES & REMINDERS ENGINE
+  // =========================================================================
+  let activeRemindersFilter = 'all';
+
+  function getDefaultCreditResetMonth(card, cr) {
+    if (cr && cr.reset_date && String(cr.reset_date).trim()) {
+      return String(cr.reset_date).trim().slice(0, 7);
+    }
+    const nameLower = String((cr && (cr.name || cr.label)) || '').toLowerCase();
+    const cycleLower = String((cr && cr.reset_cycle) || '').toLowerCase();
+    const now = new Date();
+    const nextYr = now.getFullYear() + 1;
+    if (cycleLower.includes('calendar') || nameLower.includes('calendar') || nameLower.includes('jan-jun')) {
+      return `${nextYr}-01`;
+    }
+    if (card && card.renewal_date && String(card.renewal_date).length >= 7) {
+      return String(card.renewal_date).slice(0, 7);
+    }
+    return `${nextYr}-03`;
+  }
+
+  function getDefaultCreditResetCycle(cr) {
+    if (cr && cr.reset_cycle) return cr.reset_cycle;
+    const nameLower = String((cr && (cr.name || cr.label)) || '').toLowerCase();
+    if (nameLower.includes('4 yr') || nameLower.includes('global entry') || nameLower.includes('precheck')) {
+      return 'Every 4 Years';
+    }
+    if (nameLower.includes('semi-annual') || nameLower.includes('jan-jun') || nameLower.includes('jul-dec')) {
+      return 'Semi-Annually';
+    }
+    if (nameLower.includes('monthly') || nameLower.includes('/mo')) {
+      return 'Monthly';
+    }
+    if (nameLower.includes('quarterly') || nameLower.includes('/qtr')) {
+      return 'Quarterly';
+    }
+    return 'Annually';
+  }
+
+  function formatResetMonthDisplay(ymStr, cycleStr = 'Annually') {
+    if (!ymStr) return `Next Renewal (${cycleStr})`;
+    const clean = String(ymStr).slice(0, 7);
+    const parts = clean.split('-');
+    if (parts.length < 2) return `${ymStr} (${cycleStr})`;
+    const yr = Number(parts[0]);
+    const mo = Number(parts[1]) - 1;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const moName = months[mo] || parts[1];
+    return `${moName} ${yr} (${cycleStr})`;
+  }
+
+  function daysUntilResetMonth(ymStr) {
+    if (!ymStr) return 365;
+    const clean = String(ymStr).slice(0, 7);
+    const parts = clean.split('-');
+    if (parts.length < 2) return daysUntilDate(ymStr);
+    const yr = Number(parts[0]);
+    const mo = Number(parts[1]) - 1;
+    if (isNaN(yr) || isNaN(mo)) return 365;
+    // Target first day of the reset month
+    const target = new Date(yr, mo, 1);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((target - today) / (1000 * 60 * 60 * 24));
+  }
+
+  function advanceResetMonthByCycle(ymStr, cycleStr = 'Annually') {
+    const clean = String(ymStr || '2027-03').slice(0, 7);
+    const parts = clean.split('-');
+    let yr = Number(parts[0]) || new Date().getFullYear();
+    let mo = (Number(parts[1]) || 3) - 1;
+    const cyc = String(cycleStr || 'Annually').toLowerCase();
+    let addMonths = 12;
+    if (cyc.includes('4 year')) addMonths = 48;
+    else if (cyc.includes('semi')) addMonths = 6;
+    else if (cyc.includes('quarter')) addMonths = 3;
+    else if (cyc.includes('month')) addMonths = 1;
+
+    const now = new Date();
+    const curYm = now.getFullYear() * 12 + now.getMonth();
+    let nextTotalMonths = yr * 12 + mo + addMonths;
+    while (nextTotalMonths <= curYm) {
+      nextTotalMonths += addMonths;
+    }
+    const nextYr = Math.floor(nextTotalMonths / 12);
+    const nextMo = (nextTotalMonths % 12) + 1;
+    return `${nextYr}-${String(nextMo).padStart(2, '0')}`;
+  }
+
+  function checkAndAutoResetExpiredCredits() {
+    ensureRewardsStructure();
+    const now = new Date();
+    const curYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const resetNotices = [];
+
+    for (const card of state.rewards.cards || []) {
+      if (!Array.isArray(card.credits)) continue;
+      for (const cr of card.credits) {
+        if (!cr.reset_date) {
+          cr.reset_date = getDefaultCreditResetMonth(card, cr);
+        }
+        if (!cr.reset_cycle) {
+          cr.reset_cycle = getDefaultCreditResetCycle(cr);
+        }
+        const ym = String(cr.reset_date).slice(0, 7);
+        const tot = Math.max(0, Number(cr.total_usd ?? cr.amount ?? 0));
+        const used = Number(cr.used_usd ?? (cr.used ? tot : 0));
+        // If current YYYY-MM is >= the credit's reset YYYY-MM, auto-reset back to full available amount
+        if (ym && ym.length === 7 && curYm >= ym) {
+          const nextYm = advanceResetMonthByCycle(ym, cr.reset_cycle);
+          cr.reset_date = nextYm;
+          if (used > 0 || cr.used) {
+            cr.used_usd = 0;
+            cr.used = false;
+            resetNotices.push(`${cr.name || 'Credit'} (${fmtUsd(tot)} available again)`);
+          }
+        }
+      }
+    }
+
+    if (resetNotices.length > 0) {
+      setTimeout(() => {
+        saveRewardsState(`🔄 Auto-Reset on Schedule: ${resetNotices.join(', ')}!`);
+      }, 60);
+    }
+  }
+
+  function renderRewardsRemindersHub() {
+    const grid = document.getElementById('rewards-reminders-grid');
+    const summaryBadge = document.getElementById('reminders-avail-summary-badge');
+    if (!grid) return;
+
+    document.querySelectorAll('#rewards-reminders-filter-chips [data-rem-filter]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-rem-filter') === activeRemindersFilter);
+    });
+
+    const reminders = [];
+    let totalUnusedCreditsUsd = 0;
+
+    // 1. Collect all Statement Credits with Available > $0 (or upcoming reset)
+    for (const card of state.rewards.cards || []) {
+      const credits = Array.isArray(card.credits) ? card.credits : [];
+      credits.forEach((cr, idx) => {
+        const tot = Math.max(0, Number(cr.total_usd ?? cr.amount ?? 0));
+        const used = Math.min(tot, Math.max(0, cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? tot : 0)));
+        const avail = Math.max(0, Number((tot - used).toFixed(2)));
+        const resetDate = getDefaultCreditResetMonth(card, cr);
+        const resetCycle = getDefaultCreditResetCycle(cr);
+        const daysLeft = daysUntilResetMonth(resetDate);
+
+        if (avail > 0) {
+          totalUnusedCreditsUsd += avail;
+          reminders.push({
+            kind: 'credit',
+            urgent: daysLeft <= 90,
+            daysLeft,
+            cardId: card.id,
+            creditIdx: idx,
+            cardName: card.name || 'Credit Card',
+            title: cr.name || cr.label || 'Statement Credit',
+            availUsd: avail,
+            usedUsd: used,
+            totalUsd: tot,
+            dateDisplay: formatResetMonthDisplay(resetDate, resetCycle),
+            subline: `Used ${fmtUsd(used)} of ${fmtUsd(tot)} • Resets ${formatResetMonthDisplay(resetDate, resetCycle)} back to ${fmtUsd(tot)}`
+          });
+        }
+      });
+    }
+
+    // 2. Collect all Available Free Night Certificates & Perks
+    for (const cert of state.rewards.certificates || []) {
+      if (cert.status === 'redeemed') continue;
+      const expDate = cert.expires_date || cert.expiration_date || '';
+      const daysLeft = daysUntilDate(expDate);
+      const valUsd = Number(cert.est_value_usd ?? cert.estimated_value_usd ?? 0);
+      reminders.push({
+        kind: 'cert',
+        urgent: daysLeft <= 90,
+        daysLeft,
+        certId: cert.id,
+        cardName: cert.program || cert.source_card || 'Loyalty Perk',
+        title: cert.title || 'Free Night / Perk',
+        availUsd: valUsd,
+        usedUsd: 0,
+        totalUsd: valUsd,
+        dateDisplay: expDate ? `Use by ${expDate}` : 'Active Perk',
+        subline: `${cert.cap_details ? cert.cap_details + ' • ' : ''}Est. Value ${fmtUsd(valUsd)}`
+      });
+    }
+
+    // 3. Collect Active Sign-Up Bonus (SUB) Deadlines
+    for (const card of state.rewards.cards || []) {
+      if (!card.sub_active) continue;
+      const cardName = card.name || 'Credit Card';
+      const roadSpend = (state.expenses || [])
+        .filter(e => (e.payment_method || '').toLowerCase() === cardName.toLowerCase())
+        .reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
+      const baseSpend = Number(card.sub_spent_manual_usd ?? card.sub_base_spend ?? 0);
+      const totalSpent = baseSpend + roadSpend;
+      const target = Math.max(1, Number(card.sub_target_usd ?? card.sub_spend_target ?? 4000));
+      const remSpend = Math.max(0, target - totalSpent);
+      if (remSpend > 0) {
+        const daysLeft = daysUntilDate(card.sub_deadline);
+        reminders.push({
+          kind: 'sub',
+          urgent: daysLeft <= 60,
+          daysLeft,
+          cardId: card.id,
+          cardName,
+          title: `SUB: ${card.sub_bonus_label || 'Welcome Bonus'}`,
+          availUsd: remSpend,
+          usedUsd: totalSpent,
+          totalUsd: target,
+          dateDisplay: card.sub_deadline ? `Spend by ${card.sub_deadline}` : 'In Progress',
+          subline: `${fmtUsd(remSpend)} more spend needed (${fmtUsd(totalSpent)} / ${fmtUsd(target)})`
+        });
+      }
+    }
+
+    if (summaryBadge) {
+      summaryBadge.textContent = `${fmtUsd(totalUnusedCreditsUsd)} in Unused Statement Credits Available`;
+      summaryBadge.className = `kpi-tag ${totalUnusedCreditsUsd > 0 ? 'warning' : 'positive'}`;
+    }
+
+    // Sort by soonest reset/expiration date first
+    reminders.sort((a, b) => a.daysLeft - b.daysLeft);
+
+    const filtered = reminders.filter(r => {
+      if (activeRemindersFilter === 'credits') return r.kind === 'credit';
+      if (activeRemindersFilter === 'certs') return r.kind === 'cert';
+      if (activeRemindersFilter === 'urgent') return r.urgent;
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      grid.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 12px; font-size: 12.5px; color: var(--text-muted); text-align: center;">
+          🎉 All statement credits and perks in this filter are 100% captured or up to date!
+        </div>
+      `;
+      return;
+    }
+
+    grid.innerHTML = filtered.map(r => {
+      const daysBadge = r.daysLeft < 0
+        ? `⚠️ Past Date`
+        : r.daysLeft <= 60
+        ? `🔴 ${r.daysLeft}d left`
+        : r.daysLeft <= 120
+        ? `🟡 ${r.daysLeft}d left`
+        : `🟢 ${r.daysLeft < 900 ? `${r.daysLeft}d left` : 'Active'}`;
+
+      return `
+        <div class="reminder-card ${r.urgent ? 'urgent' : ''}">
+          <div style="min-width: 0; flex: 1;">
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 3px;">
+              <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">
+                ${r.kind === 'credit' ? '💳 ' : r.kind === 'cert' ? '🎟️ ' : '🎯 '}${escapeHtml(r.cardName)}
+              </span>
+              <span class="kpi-tag ${r.urgent ? 'danger' : 'sky'}" style="font-size: 10px; padding: 1px 6px;">
+                🔄 ${escapeHtml(r.dateDisplay)} • ${daysBadge}
+              </span>
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${escapeHtml(r.title)}</div>
+            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(r.subline)}</div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+            <span class="credit-avail-pill">
+              ${r.kind === 'sub' ? `${fmtUsd(r.availUsd)} To Go` : `Reward Available: ${fmtUsd(r.availUsd)}`}
+            </span>
+            <div style="display: flex; gap: 4px;">
+              ${r.kind === 'credit' ? `
+                <button type="button" class="btn btn-sm" style="padding: 2px 7px; font-size: 10.5px;" data-edit-rcard="${escapeHtml(r.cardId)}" title="Edit Credit or Reset Date">✎ Edit</button>
+              ` : r.kind === 'cert' ? `
+                <button type="button" class="btn btn-sm btn-primary" style="padding: 2px 7px; font-size: 10.5px;" data-toggle-rcert="${escapeHtml(r.certId)}">✓ Mark Used</button>
+              ` : `
+                <button type="button" class="btn btn-sm" style="padding: 2px 7px; font-size: 10.5px;" data-edit-rcard="${escapeHtml(r.cardId)}">✎ Update</button>
+              `}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
   function renderRewardsDashboard() {
     ensureRewardsStructure();
+    checkAndAutoResetExpiredCredits();
     const metrics = computeRewardsMetrics();
 
     // Update sidebar badge
@@ -4981,6 +5269,8 @@
     if (bCards) bCards.textContent = state.rewards.cards.length;
     const bRed = document.getElementById('r-badge-redemptions');
     if (bRed) bRed.textContent = state.rewards.redemptions.length;
+
+    const totalUnusedCredits = Math.max(0, metrics.totalCreditsAvailable - metrics.totalCreditsUsed);
 
     // Render 5 Portfolio Summary KPIs into #rewards-kpi-grid
     const kpiGrid = document.getElementById('rewards-kpi-grid');
@@ -5017,13 +5307,13 @@
 
         <div class="kpi-card">
           <div class="kpi-header">
-            <span class="kpi-label">Statement Credits Used</span>
-            <span class="kpi-tag ${metrics.totalCreditsUsed >= metrics.totalAnnualFees ? 'positive' : 'sky'}">
-              vs ${fmtUsdCompact(metrics.totalAnnualFees)} Fees
+            <span class="kpi-label">Statement Credits &amp; Available</span>
+            <span class="kpi-tag ${totalUnusedCredits > 0 ? 'warning' : 'positive'}">
+              ${fmtUsd(totalUnusedCredits)} Reward Available
             </span>
           </div>
-          <div class="kpi-value tabular">${fmtUsdCompact(metrics.totalCreditsUsed)} <span style="font-size: 14px; color: var(--text-muted);">/ ${fmtUsdCompact(metrics.totalCreditsAvailable)}</span></div>
-          <span class="kpi-subtext">${fmtUsdCompact(Math.max(0, metrics.totalCreditsAvailable - metrics.totalCreditsUsed))} in unused card credits left</span>
+          <div class="kpi-value tabular">${fmtUsd(metrics.totalCreditsUsed)} <span style="font-size: 14px; color: var(--text-muted);">/ ${fmtUsdCompact(metrics.totalCreditsAvailable)} Used</span></div>
+          <span class="kpi-subtext"><strong style="color: var(--accent-primary);">${fmtUsd(totalUnusedCredits)} available</strong> to use before reset dates</span>
         </div>
 
         <div class="kpi-card">
@@ -5047,6 +5337,7 @@
       if (pane) pane.style.display = t === state.rewardsTab ? 'block' : 'none';
     }
 
+    renderRewardsRemindersHub();
     renderRewardsProgramsTab();
     renderRewardsCertsTab();
     renderRewardsCardsTab();
@@ -5058,48 +5349,94 @@
     const label = cr.name || cr.label || 'Statement Credit';
     const tot = Math.max(0, Number(cr.total_usd ?? cr.amount ?? 0));
     const used = Math.min(tot, Math.max(0, cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? tot : 0)));
+    const avail = Math.max(0, Number((tot - used).toFixed(2)));
     const isDone = tot > 0 && used >= tot;
     const pct = tot > 0 ? Math.min(100, Math.round((used / tot) * 100)) : 0;
-    const step = tot >= 100 ? 5 : 1;
+    const resetDate = getDefaultCreditResetMonth(card, cr);
+    const resetCycle = getDefaultCreditResetCycle(cr);
+    const resetLabel = formatResetMonthDisplay(resetDate, resetCycle);
+    const daysLeft = daysUntilResetMonth(resetDate);
+    const cycleOptions = ['Annually', 'Calendar Year (Jan 1)', 'Semi-Annually', 'Quarterly', 'Monthly', 'Every 4 Years'];
 
     return `
       <div class="interactive-credit-row ${isDone ? 'completed' : ''}">
-        <div class="interactive-credit-main">
+        <div class="interactive-credit-main" style="flex-wrap: wrap;">
           <label class="interactive-credit-label">
             <input type="checkbox" data-toggle-card-credit="${escapeHtml(card.id)}" data-credit-idx="${idx}" ${isDone ? 'checked' : ''} />
             <span class="credit-title-txt">${escapeHtml(label)}</span>
           </label>
-          <span class="mono" style="font-size: 12px; font-weight: 700; color: ${isDone ? 'var(--accent-primary)' : (used > 0 ? 'var(--accent-sky)' : 'var(--accent-amber)')}; white-space: nowrap;">
-            ${isDone ? '✓ ' : ''}${fmtUsdCompact(used)} / ${fmtUsdCompact(tot)}
-          </span>
+          <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span class="credit-avail-pill ${avail === 0 ? 'zero' : ''}" data-live-avail-pill>
+              ${avail > 0 ? `Reward Available: ${fmtUsd(avail)}` : `✓ $0.00 Left (All ${fmtUsd(tot)} Used)`}
+            </span>
+            <span class="mono" data-live-used-tot style="font-size: 11.5px; font-weight: 700; color: ${isDone ? 'var(--accent-primary)' : 'var(--accent-sky)'}; white-space: nowrap;">
+              Used: ${fmtUsd(used)} / ${fmtUsd(tot)}
+            </span>
+          </div>
         </div>
         ${tot > 0 ? `
-          <div class="interactive-credit-controls">
+          <div class="interactive-credit-controls" style="flex-wrap: wrap;">
             <input
               type="range"
               class="credit-range-slider"
               min="0"
               max="${tot}"
-              step="${step}"
+              step="1"
               value="${used}"
               data-slider-card-credit="${escapeHtml(card.id)}"
               data-credit-idx="${idx}"
               title="Slide to record partial or full credit usage (${pct}%)"
             />
-            <div style="display: inline-flex; align-items: center; gap: 3px;">
-              <span style="font-size: 11px; color: var(--text-muted);">$</span>
+            <div style="display: inline-flex; align-items: center; gap: 4px;">
+              <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Used $</span>
               <input
                 type="number"
                 min="0"
                 max="${tot}"
-                step="1"
+                step="0.01"
                 class="credit-used-input mono"
                 value="${used}"
                 data-input-card-credit="${escapeHtml(card.id)}"
                 data-credit-idx="${idx}"
-                title="Enter exact dollar amount used"
+                title="Enter dollar amount used (auto-calculates Reward Available)"
               />
             </div>
+            ${used > 0 ? `
+              <button
+                type="button"
+                class="btn btn-sm"
+                style="padding: 1px 7px; font-size: 10.5px;"
+                data-reset-now-card-credit="${escapeHtml(card.id)}"
+                data-credit-idx="${idx}"
+                title="Reset used amount back to $0 so full ${fmtUsd(tot)} is available again"
+              >
+                ↺ Reset to ${fmtUsdCompact(tot)}
+              </button>
+            ` : ''}
+          </div>
+          <div class="credit-reset-meta-bar">
+            <div class="credit-reset-inline-group">
+              <span style="font-weight: 600; color: var(--text-muted);">🔄 Resets back to ${fmtUsdCompact(tot)} on:</span>
+              <input
+                type="month"
+                class="credit-inline-month-input mono"
+                value="${escapeHtml(resetDate)}"
+                data-reset-date-card-credit="${escapeHtml(card.id)}"
+                data-credit-idx="${idx}"
+                title="Select month & year this credit resets back to ${fmtUsd(tot)}"
+              />
+              <select
+                class="credit-inline-cycle-select"
+                data-reset-cycle-card-credit="${escapeHtml(card.id)}"
+                data-credit-idx="${idx}"
+                title="How often this credit resets"
+              >
+                ${cycleOptions.map(opt => `<option value="${escapeHtml(opt)}" ${opt === resetCycle ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('')}
+              </select>
+            </div>
+            <span style="font-size: 10.5px; color: ${daysLeft <= 60 ? 'var(--accent-amber)' : 'var(--text-muted)'}; font-weight: 600;">
+              📅 ${escapeHtml(resetLabel)}${daysLeft >= 0 && daysLeft < 730 ? ` • ${daysLeft}d left` : ''}
+            </span>
           </div>
         ` : ''}
       </div>
@@ -5905,32 +6242,44 @@
     if (!container) return;
     container.innerHTML = '';
     const arr = Array.isArray(credits) ? credits : [];
+    const renewalVal = ((document.getElementById('rcard-renewal') || {}).value || '').slice(0, 7);
     arr.forEach(cr => {
       const nm = cr.name || cr.label || 'Statement Credit';
       const tot = Number(cr.total_usd ?? cr.amount ?? 0);
       const used = cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? tot : 0);
-      addRcardCreditVisualRow(nm, tot, used);
+      const resetDate = cr.reset_date || renewalVal || getDefaultCreditResetMonth(null, cr);
+      const resetCycle = cr.reset_cycle || getDefaultCreditResetCycle(cr);
+      addRcardCreditVisualRow(nm, tot, used, resetDate, resetCycle);
     });
   }
 
-  function addRcardCreditVisualRow(name = '', total = 100, used = 0) {
+  function addRcardCreditVisualRow(name = '', total = 100, used = 0, resetDate = '', resetCycle = '') {
     const container = document.getElementById('rcard-credits-visual-list');
     if (!container) return;
+    const totNum = Math.max(0, Number(total) || 0);
+    const usedNum = Math.min(totNum, Math.max(0, Number(used) || 0));
+    const availNum = Math.max(0, Number((totNum - usedNum).toFixed(2)));
+    const defaultYm = resetDate || getDefaultCreditResetMonth({ renewal_date: (document.getElementById('rcard-renewal') || {}).value }, { name });
+    const defaultCycle = resetCycle || getDefaultCreditResetCycle({ name });
+    const cycleOpts = ['Annually', 'Calendar Year (Jan 1)', 'Semi-Annually', 'Quarterly', 'Monthly', 'Every 4 Years'];
+
     const row = document.createElement('div');
     row.className = 'visual-credit-editor-row';
     row.innerHTML = `
       <input type="text" class="form-input form-input-sm vcred-name" placeholder="Credit / Perk Name (e.g. $300 Annual Travel Credit)" value="${escapeHtml(name)}" />
-      <div style="display: flex; align-items: center; gap: 3px;">
-        <span style="font-size: 11px; color: var(--text-muted);">Tot $</span>
-        <input type="number" min="0" step="1" class="form-input form-input-sm mono vcred-total" value="${Number(total) || 0}" style="width: 72px;" />
+      <input type="number" min="0" step="0.01" class="form-input form-input-sm mono vcred-total" value="${totNum}" title="Total Credit Amount ($)" />
+      <input type="number" min="0" step="0.01" class="form-input form-input-sm mono vcred-used" value="${usedNum}" title="Amount Used So Far ($)" />
+      <div class="credit-avail-pill vcred-avail-badge ${availNum === 0 ? 'zero' : ''}" style="justify-content: center; font-size: 11px;">
+        ${fmtUsd(availNum)} Avail
       </div>
-      <div style="display: flex; align-items: center; gap: 3px;">
-        <span style="font-size: 11px; color: var(--text-muted);">Used $</span>
-        <input type="number" min="0" step="1" class="form-input form-input-sm mono vcred-used" value="${Number(used) || 0}" style="width: 72px;" />
-      </div>
-      <div style="display: flex; gap: 4px;">
-        <button type="button" class="btn btn-sm vcred-max-btn" style="padding: 3px 6px; font-size: 10.5px;" title="Mark 100% Used">✓ Max</button>
-        <button type="button" class="btn btn-sm btn-danger-ghost vcred-del-btn" style="padding: 3px 6px; font-size: 10.5px;" title="Remove credit row">✕</button>
+      <input type="month" class="form-input form-input-sm mono vcred-reset-date" value="${escapeHtml(String(defaultYm).slice(0, 7))}" title="Month & Year this credit resets back to full amount" />
+      <select class="form-select form-input-sm vcred-reset-cycle" style="padding: 2px 6px; font-size: 11px;">
+        ${cycleOpts.map(opt => `<option value="${escapeHtml(opt)}" ${opt === defaultCycle ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('')}
+      </select>
+      <div style="display: flex; gap: 3px;">
+        <button type="button" class="btn btn-sm vcred-max-btn" style="padding: 3px 5px; font-size: 10px;" title="Mark 100% Used">✓ Max</button>
+        <button type="button" class="btn btn-sm vcred-zero-btn" style="padding: 3px 5px; font-size: 10px;" title="Reset Used to $0 (100% Available)">↺ $0</button>
+        <button type="button" class="btn btn-sm btn-danger-ghost vcred-del-btn" style="padding: 3px 5px; font-size: 10px;" title="Remove credit row">✕</button>
       </div>
     `;
     container.appendChild(row);
@@ -5945,12 +6294,16 @@
       const name = ((r.querySelector('.vcred-name') || {}).value || '').trim();
       const tot = Math.max(0, Number((r.querySelector('.vcred-total') || {}).value) || 0);
       const used = Math.max(0, Number((r.querySelector('.vcred-used') || {}).value) || 0);
+      const resetDate = ((r.querySelector('.vcred-reset-date') || {}).value || '').trim();
+      const resetCycle = ((r.querySelector('.vcred-reset-cycle') || {}).value || 'Annually').trim();
       if (name || tot > 0) {
         credits.push({
           id: `cred-${Date.now()}-${idx}`,
           name: name || `Statement Credit ${idx + 1}`,
           total_usd: tot,
-          used_usd: Math.min(tot, used)
+          used_usd: Math.min(tot, used),
+          reset_date: resetDate || '2027-03',
+          reset_cycle: resetCycle || 'Annually'
         });
       }
     });
@@ -7733,10 +8086,11 @@
           const cr = card.credits[idx];
           const tot = Number(cr.total_usd ?? cr.amount ?? 0);
           const val = Math.min(tot, Math.max(0, Number(credSlider.value) || 0));
+          const avail = Math.max(0, Number((tot - val).toFixed(2)));
           cr.used_usd = val;
           cr.used = tot > 0 && val >= tot;
           const label = cr.name || cr.label || 'Credit';
-          await saveRewardsState(`Updated "${label}": ${fmtUsdCompact(val)} / ${fmtUsdCompact(tot)} used`);
+          await saveRewardsState(`Updated "${label}": Used ${fmtUsd(val)} → Reward Available: ${fmtUsd(avail)}`);
         }
         return;
       }
@@ -7750,10 +8104,41 @@
           const cr = card.credits[idx];
           const tot = Number(cr.total_usd ?? cr.amount ?? 0);
           const val = Math.min(tot, Math.max(0, Number(credInput.value) || 0));
+          const avail = Math.max(0, Number((tot - val).toFixed(2)));
           cr.used_usd = val;
           cr.used = tot > 0 && val >= tot;
           const label = cr.name || cr.label || 'Credit';
-          await saveRewardsState(`Updated "${label}": ${fmtUsdCompact(val)} / ${fmtUsdCompact(tot)} used`);
+          await saveRewardsState(`Updated "${label}": Used ${fmtUsd(val)} → Reward Available: ${fmtUsd(avail)}`);
+        }
+        return;
+      }
+
+      const credResetDate = e.target.closest('[data-reset-date-card-credit]');
+      if (credResetDate) {
+        const cardId = credResetDate.getAttribute('data-reset-date-card-credit');
+        const idx = Number(credResetDate.getAttribute('data-credit-idx'));
+        const card = state.rewards.cards.find(c => c.id === cardId);
+        if (card && Array.isArray(card.credits) && card.credits[idx]) {
+          const cr = card.credits[idx];
+          cr.reset_date = credResetDate.value || '2027-03';
+          cr.reset_cycle = getDefaultCreditResetCycle(cr);
+          const label = cr.name || cr.label || 'Credit';
+          await saveRewardsState(`Set "${label}" reset date to ${formatResetMonthDisplay(cr.reset_date, cr.reset_cycle)}`);
+        }
+        return;
+      }
+
+      const credResetCycle = e.target.closest('[data-reset-cycle-card-credit]');
+      if (credResetCycle) {
+        const cardId = credResetCycle.getAttribute('data-reset-cycle-card-credit');
+        const idx = Number(credResetCycle.getAttribute('data-credit-idx'));
+        const card = state.rewards.cards.find(c => c.id === cardId);
+        if (card && Array.isArray(card.credits) && card.credits[idx]) {
+          const cr = card.credits[idx];
+          cr.reset_cycle = credResetCycle.value || 'Annually';
+          cr.reset_date = getDefaultCreditResetMonth(card, cr);
+          const label = cr.name || cr.label || 'Credit';
+          await saveRewardsState(`Set "${label}" reset cycle to ${formatResetMonthDisplay(cr.reset_date, cr.reset_cycle)}`);
         }
         return;
       }
@@ -7790,7 +8175,7 @@
       }
     });
 
-    // Live Database Search & Card Art Preview input delegation
+    // Live Database Search, Live Reward Available Auto-Calc & Card Art Preview input delegation
     document.addEventListener('input', e => {
       const t = e.target;
       if (!t) return;
@@ -7810,12 +8195,38 @@
         renderRewardTemplatesModalContent(t.value, activeTplModalFilter);
       } else if (t.id === 'rcard-name' || t.id === 'rcard-issuer' || t.id === 'rcard-image-url') {
         updateRcardArtPreview();
-      } else if (t.hasAttribute && t.hasAttribute('data-slider-card-credit')) {
-        // Live sync accompanying number input while dragging slider
+      } else if (t.hasAttribute && (t.hasAttribute('data-slider-card-credit') || t.hasAttribute('data-input-card-credit'))) {
+        // Live sync accompanying number input / slider and auto-calculate "Reward Available: $XX.XX"
         const row = t.closest('.interactive-credit-row');
         if (row) {
+          const slider = row.querySelector('[data-slider-card-credit]');
           const numInput = row.querySelector('[data-input-card-credit]');
-          if (numInput) numInput.value = t.value;
+          const tot = slider ? Number(slider.max) || 0 : 0;
+          const used = Math.min(tot, Math.max(0, Number(t.value) || 0));
+          const avail = Math.max(0, Number((tot - used).toFixed(2)));
+          if (t.hasAttribute('data-slider-card-credit') && numInput) numInput.value = used;
+          if (t.hasAttribute('data-input-card-credit') && slider) slider.value = used;
+          const availPill = row.querySelector('[data-live-avail-pill]');
+          if (availPill) {
+            availPill.textContent = avail > 0 ? `Reward Available: ${fmtUsd(avail)}` : `✓ $0.00 Left (All ${fmtUsd(tot)} Used)`;
+            availPill.classList.toggle('zero', avail === 0);
+          }
+          const usedTotEl = row.querySelector('[data-live-used-tot]');
+          if (usedTotEl) {
+            usedTotEl.textContent = `Used: ${fmtUsd(used)} / ${fmtUsd(tot)}`;
+          }
+        }
+      } else if (t.classList && (t.classList.contains('vcred-total') || t.classList.contains('vcred-used'))) {
+        const row = t.closest('.visual-credit-editor-row');
+        if (row) {
+          const tot = Math.max(0, Number((row.querySelector('.vcred-total') || {}).value) || 0);
+          const used = Math.min(tot, Math.max(0, Number((row.querySelector('.vcred-used') || {}).value) || 0));
+          const avail = Math.max(0, Number((tot - used).toFixed(2)));
+          const badge = row.querySelector('.vcred-avail-badge');
+          if (badge) {
+            badge.textContent = `${fmtUsd(avail)} Avail`;
+            badge.classList.toggle('zero', avail === 0);
+          }
         }
       }
     });
@@ -8390,6 +8801,39 @@
         return;
       }
 
+      // Reminders Hub Filter Chips & Collapse Toggle
+      const remFilterBtn = e.target.closest('[data-rem-filter]');
+      if (remFilterBtn) {
+        e.preventDefault();
+        activeRemindersFilter = remFilterBtn.getAttribute('data-rem-filter') || 'all';
+        renderRewardsRemindersHub();
+        return;
+      }
+      if (e.target.closest('#btn-toggle-reminders-body')) {
+        e.preventDefault();
+        const body = document.getElementById('rewards-reminders-body');
+        if (body) body.style.display = body.style.display === 'none' ? 'block' : 'none';
+        return;
+      }
+
+      // 1-Click Manual Reset Credit Back to Full Amount ("↺ Reset to $300")
+      const resetNowBtn = e.target.closest('[data-reset-now-card-credit]');
+      if (resetNowBtn) {
+        e.preventDefault();
+        const cardId = resetNowBtn.getAttribute('data-reset-now-card-credit');
+        const idx = Number(resetNowBtn.getAttribute('data-credit-idx'));
+        const card = state.rewards.cards.find(c => c.id === cardId);
+        if (card && Array.isArray(card.credits) && card.credits[idx]) {
+          const cr = card.credits[idx];
+          const tot = Number(cr.total_usd ?? cr.amount ?? 0);
+          cr.used_usd = 0;
+          cr.used = false;
+          const label = cr.name || cr.label || 'Credit';
+          await saveRewardsState(`↺ Reset "${label}" — Full ${fmtUsd(tot)} Reward Available again!`);
+        }
+        return;
+      }
+
       // Visual Credits Repeater Buttons inside Add/Edit Credit Card Modal
       if (e.target.closest('#btn-rcard-add-credit-row')) {
         e.preventDefault();
@@ -8410,7 +8854,28 @@
         if (row) {
           const totEl = row.querySelector('.vcred-total');
           const usedEl = row.querySelector('.vcred-used');
+          const badge = row.querySelector('.vcred-avail-badge');
           if (totEl && usedEl) usedEl.value = totEl.value;
+          if (badge) {
+            badge.textContent = '$0.00 Avail';
+            badge.classList.add('zero');
+          }
+        }
+        return;
+      }
+      const vcredZeroBtn = e.target.closest('.vcred-zero-btn');
+      if (vcredZeroBtn) {
+        e.preventDefault();
+        const row = vcredZeroBtn.closest('.visual-credit-editor-row');
+        if (row) {
+          const totEl = row.querySelector('.vcred-total');
+          const usedEl = row.querySelector('.vcred-used');
+          const badge = row.querySelector('.vcred-avail-badge');
+          if (usedEl) usedEl.value = 0;
+          if (badge && totEl) {
+            badge.textContent = `${fmtUsd(Number(totEl.value) || 0)} Avail`;
+            badge.classList.remove('zero');
+          }
         }
         return;
       }
