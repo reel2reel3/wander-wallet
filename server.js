@@ -1132,7 +1132,8 @@ function getSettingsMap() {
     home_currency: 'USD',
     meal_deduction_rate: '100',
     exchange_rates: DEFAULT_RATES,
-    tax_categories: null
+    tax_categories: null,
+    ecosystem_colors: null
   };
   for (const r of rows) {
     if (r.key.startsWith('auth_') || r.key === 'rewards_data') continue;
@@ -1147,6 +1148,12 @@ function getSettingsMap() {
         map.tax_categories = JSON.parse(r.value);
       } catch {
         map.tax_categories = null;
+      }
+    } else if (r.key === 'ecosystem_colors') {
+      try {
+        map.ecosystem_colors = JSON.parse(r.value);
+      } catch {
+        map.ecosystem_colors = null;
       }
     } else if (r.key === 'channel_name' && r.value === 'Nomad Frame Studios') {
       map.channel_name = 'Wander Wallet';
@@ -1738,6 +1745,7 @@ const server = http.createServer(async (req, res) => {
         if (body.settings.meal_deduction_rate) upsert.run('meal_deduction_rate', String(body.settings.meal_deduction_rate));
         if (body.settings.exchange_rates) upsert.run('exchange_rates', JSON.stringify(body.settings.exchange_rates));
         if (body.settings.tax_categories) upsert.run('tax_categories', JSON.stringify(body.settings.tax_categories));
+        if (body.settings.ecosystem_colors) upsert.run('ecosystem_colors', JSON.stringify(body.settings.ecosystem_colors));
       }
 
       markServerModified(Number(body.updated_at) || Date.now());
@@ -1951,6 +1959,7 @@ const server = http.createServer(async (req, res) => {
       if (body.meal_deduction_rate !== undefined) upsert.run('meal_deduction_rate', String(body.meal_deduction_rate));
       if (body.exchange_rates !== undefined) upsert.run('exchange_rates', JSON.stringify(body.exchange_rates));
       if (body.tax_categories !== undefined) upsert.run('tax_categories', JSON.stringify(body.tax_categories));
+      if (body.ecosystem_colors !== undefined) upsert.run('ecosystem_colors', JSON.stringify(body.ecosystem_colors));
       markServerModified();
       return sendJson(res, 200, getBootstrapData());
     }
@@ -1963,12 +1972,19 @@ const server = http.createServer(async (req, res) => {
         programs: Array.isArray(body.programs) ? body.programs : current.programs,
         certificates: Array.isArray(body.certificates) ? body.certificates : current.certificates,
         cards: Array.isArray(body.cards) ? body.cards : current.cards,
-        redemptions: Array.isArray(body.redemptions) ? body.redemptions : current.redemptions
+        redemptions: Array.isArray(body.redemptions) ? body.redemptions : current.redemptions,
+        ecosystem_colors: body.ecosystem_colors || current.ecosystem_colors || null
       };
       db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
         'rewards_data',
         JSON.stringify(nextRewards)
       );
+      if (body.ecosystem_colors) {
+        db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
+          'ecosystem_colors',
+          JSON.stringify(body.ecosystem_colors)
+        );
+      }
       markServerModified();
       return sendJson(res, 200, getBootstrapData());
     }
