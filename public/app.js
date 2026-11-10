@@ -5090,15 +5090,8 @@
     }
   }
 
-  function renderRewardsRemindersHub() {
-    const grid = document.getElementById('rewards-reminders-grid');
-    const summaryBadge = document.getElementById('reminders-avail-summary-badge');
-    if (!grid) return;
-
-    document.querySelectorAll('#rewards-reminders-filter-chips [data-rem-filter]').forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-rem-filter') === activeRemindersFilter);
-    });
-
+  function collectAllRewardsReminders() {
+    ensureRewardsStructure();
     const reminders = [];
     let totalUnusedCreditsUsd = 0;
 
@@ -5183,13 +5176,316 @@
       }
     }
 
+    reminders.sort((a, b) => a.daysLeft - b.daysLeft);
+    return { reminders, totalUnusedCreditsUsd };
+  }
+
+  function updateSidebarQuickRewardsWidget() {
+    ensureRewardsStructure();
+    const metrics = computeRewardsMetrics();
+    const { reminders, totalUnusedCreditsUsd } = collectAllRewardsReminders();
+
+    // 1. Sidebar Nav Badge ("$83 Left" or "$2.6k")
+    const navBadge = document.getElementById('badge-quick-rewards-avail');
+    if (navBadge) {
+      if (totalUnusedCreditsUsd > 0) {
+        navBadge.textContent = `${fmtUsdCompact(totalUnusedCreditsUsd)} Left`;
+      } else {
+        navBadge.textContent = `${metrics.availableCertsCount} Perks`;
+      }
+    }
+
+    // 2. Points & Miles row
+    const ptsEl = document.getElementById('sq-points-val');
+    if (ptsEl) {
+      const kPts = metrics.totalPoints >= 1000 ? `${Math.round(metrics.totalPoints / 1000).toLocaleString('en-US')}k pts` : `${metrics.totalPoints} pts`;
+      ptsEl.textContent = `${fmtUsdCompact(metrics.totalPointsValueUsd)} (${kPts})`;
+    }
+
+    // 3. Reward Available (Statement Credits) row
+    const credEl = document.getElementById('sq-credits-avail');
+    if (credEl) {
+      credEl.textContent = `${fmtUsd(totalUnusedCreditsUsd)} Avail`;
+      credEl.className = `sq-val mono ${totalUnusedCreditsUsd > 0 ? 'highlight-green' : ''}`;
+    }
+
+    // 4. Free Nights & Perks row
+    const certsEl = document.getElementById('sq-certs-avail');
+    if (certsEl) {
+      certsEl.textContent = `${metrics.availableCertsCount} Avail (${fmtUsdCompact(metrics.availableCertsValueUsd)})`;
+    }
+
+    // 5. Next Reset / Use-By Reminder row
+    const remEl = document.getElementById('sq-next-reminder');
+    if (remEl) {
+      const nextRem = reminders[0];
+      if (nextRem) {
+        const shortDate = String(nextRem.dateDisplay || '').replace(/\s*\(.*?\)/g, '');
+        const dText = nextRem.daysLeft < 900 ? ` • ${nextRem.daysLeft}d` : '';
+        remEl.textContent = `${shortDate}${dText}`;
+      } else {
+        remEl.textContent = 'All Caught Up ✓';
+        remEl.className = 'sq-val mono highlight-green';
+      }
+    }
+  }
+
+  function renderQuickRewardsModalContent() {
+    ensureRewardsStructure();
+    checkAndAutoResetExpiredCredits();
+    const body = document.getElementById('qr-modal-body');
+    if (!body) return;
+
+    const metrics = computeRewardsMetrics();
+    const { reminders, totalUnusedCreditsUsd } = collectAllRewardsReminders();
+    const totalAllBankroll = metrics.totalPointsValueUsd + metrics.availableCertsValueUsd + totalUnusedCreditsUsd;
+
+    const hdrBadge = document.getElementById('qr-modal-header-badge');
+    if (hdrBadge) {
+      hdrBadge.textContent = `${fmtUsd(totalUnusedCreditsUsd)} Reward Available • ${fmtUsdCompact(totalAllBankroll)} Total Value`;
+    }
+
+    // 1. Top 5 Executive Snapshot Tiles
+    const kpiStripHtml = `
+      <div class="qr-kpi-strip">
+        <div class="qr-kpi-tile" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.06);">
+          <span class="qr-kpi-label">💚 Reward Available (Credits)</span>
+          <span class="qr-kpi-val mono" style="color: var(--accent-primary);">${fmtUsd(totalUnusedCreditsUsd)}</span>
+          <span class="qr-kpi-sub">Used ${fmtUsd(metrics.totalCreditsUsed)} of ${fmtUsd(metrics.totalCreditsAvailable)} total</span>
+        </div>
+        <div class="qr-kpi-tile">
+          <span class="qr-kpi-label">💎 Points &amp; Miles Value</span>
+          <span class="qr-kpi-val mono" style="color: var(--accent-sky);">${fmtUsdCompact(metrics.totalPointsValueUsd)}</span>
+          <span class="qr-kpi-sub">${metrics.totalPoints.toLocaleString('en-US')} pts across ${state.rewards.programs.length} programs</span>
+        </div>
+        <div class="qr-kpi-tile">
+          <span class="qr-kpi-label">🎟️ Free Nights &amp; Perks</span>
+          <span class="qr-kpi-val mono" style="color: var(--accent-purple);">${metrics.availableCertsCount} Avail (${fmtUsdCompact(metrics.availableCertsValueUsd)})</span>
+          <span class="qr-kpi-sub">${metrics.expiringSoonCertsCount > 0 ? `⚠️ ${metrics.expiringSoonCertsCount} expiring <60d` : 'Hotel certs &amp; companion passes'}</span>
+        </div>
+        <div class="qr-kpi-tile">
+          <span class="qr-kpi-label">🏦 Total Travel Bankroll</span>
+          <span class="qr-kpi-val mono" style="color: var(--accent-amber);">${fmtUsdCompact(totalAllBankroll)}</span>
+          <span class="qr-kpi-sub">Points + Free Nights + Unused Credits</span>
+        </div>
+        <div class="qr-kpi-tile">
+          <span class="qr-kpi-label">📊 Net Annual Fee ROI</span>
+          <span class="qr-kpi-val mono" style="color: ${metrics.netCardKeeperValue >= 0 ? 'var(--accent-primary)' : 'var(--accent-amber)'};">
+            ${metrics.netCardKeeperValue >= 0 ? '+' : ''}${fmtUsdCompact(metrics.netCardKeeperValue)}
+          </span>
+          <span class="qr-kpi-sub">${fmtUsdCompact(metrics.totalAnnualFees)}/yr total card fees</span>
+        </div>
+      </div>
+    `;
+
+    // 2. Action Required: "Reward Available" Statement Credits, Reset Dates & Use-By Reminders
+    const remindersRowsHtml = reminders.length === 0
+      ? `<div style="padding: 14px; text-align: center; color: var(--text-muted); font-size: 12.5px;">🎉 You have 0 unused statement credits or expiring perks right now!</div>`
+      : reminders.map(r => {
+          const daysBadge = r.daysLeft < 0
+            ? `⚠️ Past Date`
+            : r.daysLeft <= 60
+            ? `🔴 ${r.daysLeft}d left`
+            : r.daysLeft <= 120
+            ? `🟡 ${r.daysLeft}d left`
+            : `🟢 ${r.daysLeft < 900 ? `${r.daysLeft}d left` : 'Active'}`;
+
+          return `
+            <div class="qr-compact-row" style="${r.urgent ? 'border-color: rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.05);' : ''}">
+              <div style="min-width: 0; flex: 1;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: var(--text-muted);">
+                    ${r.kind === 'credit' ? '💳 ' : r.kind === 'cert' ? '🎟️ ' : '🎯 '}${escapeHtml(r.cardName)}
+                  </span>
+                  <span class="kpi-tag ${r.urgent ? 'warning' : 'sky'}" style="font-size: 10px; padding: 1px 6px;">
+                    🔄 ${escapeHtml(r.dateDisplay)} • ${daysBadge}
+                  </span>
+                </div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">${escapeHtml(r.title)}</div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 1px;">${escapeHtml(r.subline)}</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span class="credit-avail-pill">
+                  ${r.kind === 'sub' ? `${fmtUsd(r.availUsd)} To Go` : `Reward Available: ${fmtUsd(r.availUsd)}`}
+                </span>
+                ${r.kind === 'credit' ? `
+                  <button type="button" class="btn btn-sm" style="padding: 3px 8px; font-size: 11px;" data-qr-edit-card="${escapeHtml(r.cardId)}">✎ Update Credit</button>
+                ` : r.kind === 'cert' ? `
+                  <button type="button" class="btn btn-sm btn-primary" style="padding: 3px 8px; font-size: 11px;" data-toggle-rcert="${escapeHtml(r.certId)}">✓ Mark Used</button>
+                ` : `
+                  <button type="button" class="btn btn-sm" style="padding: 3px 8px; font-size: 11px;" data-qr-edit-card="${escapeHtml(r.cardId)}">✎ Update SUB</button>
+                `}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+    const remindersSectionHtml = `
+      <div class="qr-section-box" style="border-color: rgba(245, 158, 11, 0.35);">
+        <div class="qr-section-header" style="background: linear-gradient(90deg, rgba(245, 158, 11, 0.12), rgba(16, 185, 129, 0.06));">
+          <h4>⏰ Unused Credits ("Reward Available"), Reset Dates &amp; Use-By Reminders</h4>
+          <span class="kpi-tag ${totalUnusedCreditsUsd > 0 ? 'warning' : 'positive'}" style="font-size: 11px;">
+            ${fmtUsd(totalUnusedCreditsUsd)} Reward Available Across Cards
+          </span>
+        </div>
+        <div class="qr-compact-list">
+          ${remindersRowsHtml}
+        </div>
+      </div>
+    `;
+
+    // 3. Two-Column Grid: Loyalty Balances & Miles (Left) + Credit Cards & Best Card to Swipe (Right)
+    const progs = state.rewards.programs || [];
+    const progRowsHtml = progs.length === 0
+      ? `<div style="padding: 12px; color: var(--text-muted); font-size: 12px;">No loyalty programs added yet.</div>`
+      : progs.map(p => {
+          const meta = ECOSYSTEM_META[p.ecosystem] || ECOSYSTEM_META.other;
+          const pts = Number(p.points ?? p.balance ?? 0);
+          const cpp = Number(p.cpp ?? p.cpp_valuation ?? 1.5);
+          const valUsd = (pts * cpp) / 100;
+          const qCur = Number(p.qualifying_nights ?? p.qualifying_current ?? 0);
+          const qTgt = Number(p.target_nights ?? p.qualifying_target ?? 0);
+          return `
+            <div class="qr-compact-row">
+              <div style="min-width: 0; flex: 1;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${meta.icon} ${escapeHtml(p.name)}</span>
+                  ${p.status_tier ? `<span class="kpi-tag sky" style="font-size: 10px; padding: 1px 6px;">★ ${escapeHtml(p.status_tier)}</span>` : ''}
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                  ${p.member_id ? `ID: <span class="mono">${escapeHtml(p.member_id)}</span> • ` : ''}
+                  ${qTgt > 0 ? `Progress: ${qCur}/${qTgt} nights • ` : ''}
+                  Valued @ ${cpp.toFixed(2)}¢/pt
+                </div>
+              </div>
+              <div style="text-align: right; display: flex; align-items: center; gap: 10px;">
+                <div>
+                  <div class="mono" style="font-size: 13.5px; font-weight: 800; color: var(--accent-primary);">
+                    ${pts.toLocaleString('en-US')} <span style="font-size: 10.5px; font-weight: 600; color: var(--text-muted);">pts</span>
+                  </div>
+                  <div class="mono" style="font-size: 11px; color: var(--text-secondary);">≈ ${fmtUsd(valUsd)}</div>
+                </div>
+                <button type="button" class="btn btn-sm" style="padding: 2px 7px; font-size: 10.5px;" data-qr-edit-prog="${escapeHtml(p.id)}" title="Edit Program">✎</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+    const cards = state.rewards.cards || [];
+    const cardRowsHtml = cards.length === 0
+      ? `<div style="padding: 12px; color: var(--text-muted); font-size: 12px;">No credit cards added yet.</div>`
+      : cards.map(c => {
+          const credits = Array.isArray(c.credits) ? c.credits : [];
+          let cTot = 0;
+          let cUsed = 0;
+          credits.forEach(cr => {
+            const t = Math.max(0, Number(cr.total_usd ?? cr.amount ?? 0));
+            const u = Math.min(t, Math.max(0, cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? t : 0)));
+            cTot += t;
+            cUsed += u;
+          });
+          const cAvail = Math.max(0, Number((cTot - cUsed).toFixed(2)));
+          return `
+            <div class="qr-compact-row">
+              <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+                ${renderCreditCardArtHtml(c, 'cc-art-xs')}
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${escapeHtml(c.name)}</div>
+                  <div style="font-size: 11px; color: var(--text-secondary); margin-top: 1px;">
+                    ${escapeHtml(c.multipliers || c.best_for || 'Travel Rewards')}
+                  </div>
+                  <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
+                    Fee: ${fmtUsd(c.annual_fee || 0)}/yr ${c.renewal_date ? `• Renews ${escapeHtml(c.renewal_date)}` : ''}
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                ${cTot > 0 ? `
+                  <span class="credit-avail-pill ${cAvail === 0 ? 'zero' : ''}" style="font-size: 10.5px; padding: 2px 7px;">
+                    ${cAvail > 0 ? `${fmtUsd(cAvail)} Avail` : `✓ ${fmtUsd(cTot)} Used`}
+                  </span>
+                ` : ''}
+                <button type="button" class="btn btn-sm" style="padding: 2px 7px; font-size: 10.5px;" data-qr-edit-card="${escapeHtml(c.id)}">✎ Edit</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+    const twoColHtml = `
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 14px;">
+        <div class="qr-section-box">
+          <div class="qr-section-header">
+            <h4>💎 Loyalty Balances, Miles &amp; Elite Status (${progs.length})</h4>
+            <span class="mono" style="font-size: 11.5px; font-weight: 700; color: var(--accent-primary);">${fmtUsd(metrics.totalPointsValueUsd)} Total</span>
+          </div>
+          <div class="qr-compact-list">
+            ${progRowsHtml}
+          </div>
+        </div>
+
+        <div class="qr-section-box">
+          <div class="qr-section-header">
+            <h4>💳 Travel Credit Cards &amp; Statement Credits (${cards.length})</h4>
+            <span class="mono" style="font-size: 11.5px; font-weight: 700; color: var(--accent-amber);">${fmtUsd(totalUnusedCreditsUsd)} Unused</span>
+          </div>
+          <div class="qr-compact-list">
+            ${cardRowsHtml}
+          </div>
+        </div>
+      </div>
+    `;
+
+    // 4. Best Card to Swipe Cheat Sheet
+    const swipeHtml = `
+      <div class="qr-section-box">
+        <div class="qr-section-header">
+          <h4>🎯 Quick Cheat Sheet — Best Card to Swipe by Spend Category</h4>
+          <span style="font-size: 11px; color: var(--text-muted);">Maximize points on every shoot</span>
+        </div>
+        <div style="padding: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 8px;">
+          <div style="padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
+            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">✈️ Flights &amp; Portals</div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">Venture X (5x) / Amex Plat (5x) / CSR (4x)</div>
+          </div>
+          <div style="padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
+            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🏨 Hotels &amp; Lodging</div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">Venture X (10x Portal) / Hilton Aspire (14x)</div>
+          </div>
+          <div style="padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
+            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🍽️ Crew Dining &amp; Restaurants</div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">Amex Gold (4x) / Bilt (3x) / CSR (3x)</div>
+          </div>
+          <div style="padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
+            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🎥 Gear, Permits &amp; Catch-All</div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">Capital One Venture X (2x Everywhere)</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    body.innerHTML = kpiStripHtml + remindersSectionHtml + twoColHtml + swipeHtml;
+  }
+
+  function openQuickRewardsModal() {
+    renderQuickRewardsModalContent();
+    openModal('modal-quick-rewards');
+  }
+
+  function renderRewardsRemindersHub() {
+    const grid = document.getElementById('rewards-reminders-grid');
+    const summaryBadge = document.getElementById('reminders-avail-summary-badge');
+    if (!grid) return;
+
+    document.querySelectorAll('#rewards-reminders-filter-chips [data-rem-filter]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-rem-filter') === activeRemindersFilter);
+    });
+
+    const { reminders, totalUnusedCreditsUsd } = collectAllRewardsReminders();
+
     if (summaryBadge) {
       summaryBadge.textContent = `${fmtUsd(totalUnusedCreditsUsd)} in Unused Statement Credits Available`;
       summaryBadge.className = `kpi-tag ${totalUnusedCreditsUsd > 0 ? 'warning' : 'positive'}`;
     }
-
-    // Sort by soonest reset/expiration date first
-    reminders.sort((a, b) => a.daysLeft - b.daysLeft);
 
     const filtered = reminders.filter(r => {
       if (activeRemindersFilter === 'credits') return r.kind === 'credit';
@@ -5337,12 +5633,18 @@
       if (pane) pane.style.display = t === state.rewardsTab ? 'block' : 'none';
     }
 
+    updateSidebarQuickRewardsWidget();
     renderRewardsRemindersHub();
     renderRewardsProgramsTab();
     renderRewardsCertsTab();
     renderRewardsCardsTab();
     renderRewardsMatrixTab();
     renderRewardsRedemptionsTab();
+
+    const qrModal = document.getElementById('modal-quick-rewards');
+    if (qrModal && qrModal.classList.contains('open')) {
+      renderQuickRewardsModalContent();
+    }
   }
 
   function renderInteractiveCreditRowHtml(card, cr, idx, compact = false) {
@@ -8805,6 +9107,63 @@
         if (urlEl) urlEl.value = '';
         updateRcardArtPreview();
         showToast('Restored built-in card graphic');
+        return;
+      }
+
+      // Quick Rewards Sidebar Button & Glance Widget
+      if (e.target.closest('#nav-btn-quick-rewards, #sidebar-quick-rewards-widget, #sidebar-qr-open-link')) {
+        e.preventDefault();
+        openQuickRewardsModal();
+        return;
+      }
+      if (e.target.closest('#btn-qr-open-full-hub')) {
+        e.preventDefault();
+        closeModal('modal-quick-rewards');
+        switchView('rewards');
+        return;
+      }
+      if (e.target.closest('#btn-qr-add-card')) {
+        e.preventDefault();
+        closeModal('modal-quick-rewards');
+        openRewardCardModal(null);
+        return;
+      }
+      if (e.target.closest('#btn-qr-add-prog')) {
+        e.preventDefault();
+        closeModal('modal-quick-rewards');
+        openRewardProgramModal(null);
+        return;
+      }
+      if (e.target.closest('#btn-qr-add-cert')) {
+        e.preventDefault();
+        closeModal('modal-quick-rewards');
+        openRewardCertModal(null);
+        return;
+      }
+      if (e.target.closest('#btn-qr-update-all')) {
+        e.preventDefault();
+        closeModal('modal-quick-rewards');
+        openUpdateAllRewardsModal();
+        return;
+      }
+      const qrEditCardBtn = e.target.closest('[data-qr-edit-card]');
+      if (qrEditCardBtn) {
+        e.preventDefault();
+        const card = state.rewards.cards.find(c => c.id === qrEditCardBtn.getAttribute('data-qr-edit-card'));
+        if (card) {
+          closeModal('modal-quick-rewards');
+          openRewardCardModal(card);
+        }
+        return;
+      }
+      const qrEditProgBtn = e.target.closest('[data-qr-edit-prog]');
+      if (qrEditProgBtn) {
+        e.preventDefault();
+        const prog = state.rewards.programs.find(p => p.id === qrEditProgBtn.getAttribute('data-qr-edit-prog'));
+        if (prog) {
+          closeModal('modal-quick-rewards');
+          openRewardProgramModal(prog);
+        }
         return;
       }
 

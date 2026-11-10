@@ -72,6 +72,15 @@
           </button>
         </li>
         <li>
+          <button type="button" class="nav-item-btn" id="nav-btn-quick-rewards" title="Open Quick Rewards At-A-Glance Summary (Balances, Unused Credits, Use-By Dates &amp; Perks)">
+            <span class="nav-item-left">
+              <span>⚡</span>
+              <span class="nav-item-text">Quick Rewards</span>
+            </span>
+            <span class="nav-badge" id="badge-quick-rewards-avail" style="color: var(--accent-primary); font-weight: 700;">Glance</span>
+          </button>
+        </li>
+        <li>
           <button type="button" class="nav-item-btn" data-view="tax" id="nav-btn-tax">
             <span class="nav-item-left">
               <span>🧾</span>
@@ -89,6 +98,30 @@
           </button>
         </li>
       </ul>
+
+      <!-- Left Dashboard Quick Rewards Live Glance Box (Click to open full summary) -->
+      <div class="nav-section-label" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>⚡ Quick Rewards Glance</span>
+        <span style="font-size: 10px; color: var(--accent-primary); cursor: pointer;" id="sidebar-qr-open-link">View All →</span>
+      </div>
+      <div class="sidebar-quick-rewards-box" id="sidebar-quick-rewards-widget" role="button" tabindex="0" title="Click for complete Quick Rewards summary (Points, Miles, Unused Credits &amp; Reset Dates)">
+        <div class="sq-row">
+          <span class="sq-label">💎 Points &amp; Miles</span>
+          <span class="sq-val mono" id="sq-points-val">$0 (0 pts)</span>
+        </div>
+        <div class="sq-row">
+          <span class="sq-label">💰 Reward Available</span>
+          <span class="sq-val mono" id="sq-credits-avail" style="color: var(--accent-primary);">$0.00 Left</span>
+        </div>
+        <div class="sq-row">
+          <span class="sq-label">🎟️ Free Nights / Perks</span>
+          <span class="sq-val mono" id="sq-certs-avail">0 Avail</span>
+        </div>
+        <div class="sq-row" style="border-top: 1px dashed var(--border-subtle); padding-top: 4px; margin-top: 2px;">
+          <span class="sq-label">⏰ Next Reset / Use-By</span>
+          <span class="sq-val" id="sq-next-reminder" style="font-size: 11px; color: var(--accent-amber);">All Current</span>
+        </div>
+      </div>
 
       <div class="nav-section-label">Active Trips</div>
       <ul class="nav-list" id="sidebar-trip-list">
@@ -2417,6 +2450,44 @@
         <div class="modal-footer" style="justify-content: space-between;">
           <button type="button" class="btn" data-close-modal="modal-update-all-rewards">Cancel</button>
           <button type="button" class="btn btn-primary" id="btn-save-bulk-balances">💾 Save All Updated Balances</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: QUICK REWARDS AT-A-GLANCE SUMMARY HUB
+       ========================================================================= -->
+  <div class="modal-backdrop" id="modal-quick-rewards">
+    <div class="modal-dialog" style="max-width: 960px;">
+      <div class="modal-header" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(56, 189, 248, 0.08));">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">⚡</span>
+          <div>
+            <h3 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+              Quick Rewards — At-A-Glance Summary
+              <span class="kpi-tag positive" id="qr-modal-header-badge" style="font-size: 11px;">Live Snapshot</span>
+            </h3>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              All your unused statement credits (<strong>Reward Available</strong>), point &amp; mile balances, free nights, reset dates, use-by reminders, and best card to swipe in one view.
+            </p>
+          </div>
+        </div>
+        <button class="modal-close" data-close-modal="modal-quick-rewards">&times;</button>
+      </div>
+      <div class="modal-body" id="qr-modal-body" style="max-height: 76vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+        <!-- Populated dynamically by renderQuickRewardsModalContent() -->
+      </div>
+      <div class="modal-footer" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-sm" id="btn-qr-add-card">💳 + Add Card</button>
+          <button type="button" class="btn btn-sm" id="btn-qr-add-prog">💎 + Add Program</button>
+          <button type="button" class="btn btn-sm" id="btn-qr-add-cert">🎟️ + Free Night / Perk</button>
+          <button type="button" class="btn btn-sm" id="btn-qr-update-all">🔄 Update All Balances</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="btn" data-close-modal="modal-quick-rewards">Close</button>
+          <button type="button" class="btn btn-primary" id="btn-qr-open-full-hub">🏆 Open Full Rewards Command Center &rarr;</button>
         </div>
       </div>
     </div>
