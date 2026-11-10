@@ -5360,22 +5360,39 @@
 
     return `
       <div class="interactive-credit-row ${isDone ? 'completed' : ''}">
-        <div class="interactive-credit-main" style="flex-wrap: wrap;">
+        <!-- Row 1: Full-width Credit Title + Optional Reset Button -->
+        <div class="interactive-credit-main">
           <label class="interactive-credit-label">
             <input type="checkbox" data-toggle-card-credit="${escapeHtml(card.id)}" data-credit-idx="${idx}" ${isDone ? 'checked' : ''} />
-            <span class="credit-title-txt">${escapeHtml(label)}</span>
+            <span class="credit-title-txt" style="${isDone ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">${escapeHtml(label)}</span>
           </label>
-          <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-            <span class="credit-avail-pill ${avail === 0 ? 'zero' : ''}" data-live-avail-pill>
-              ${avail > 0 ? `Reward Available: ${fmtUsd(avail)}` : `✓ $0.00 Left (All ${fmtUsd(tot)} Used)`}
-            </span>
-            <span class="mono" data-live-used-tot style="font-size: 11.5px; font-weight: 700; color: ${isDone ? 'var(--accent-primary)' : 'var(--accent-sky)'}; white-space: nowrap;">
-              Used: ${fmtUsd(used)} / ${fmtUsd(tot)}
-            </span>
-          </div>
+          ${tot > 0 && used > 0 ? `
+            <button
+              type="button"
+              class="btn btn-sm"
+              style="padding: 2px 7px; font-size: 10.5px; flex-shrink: 0;"
+              data-reset-now-card-credit="${escapeHtml(card.id)}"
+              data-credit-idx="${idx}"
+              title="Reset used amount back to $0 so full ${fmtUsd(tot)} is available again"
+            >
+              ↺ Reset to ${fmtUsdCompact(tot)}
+            </button>
+          ` : ''}
         </div>
+
+        <!-- Row 2: Dedicated Reward Available Pill & Used / Total Readout (Never overlaps title) -->
+        <div class="interactive-credit-amounts-bar">
+          <span class="credit-avail-pill ${avail === 0 ? 'zero' : ''}" data-live-avail-pill>
+            ${avail > 0 ? `Reward Available: ${fmtUsd(avail)}` : `✓ $0.00 Left (All ${fmtUsd(tot)} Used)`}
+          </span>
+          <span class="mono" data-live-used-tot style="font-size: 11.5px; font-weight: 700; color: ${isDone ? 'var(--accent-primary)' : 'var(--accent-sky)'}; white-space: nowrap;">
+            Used: ${fmtUsd(used)} / ${fmtUsd(tot)}
+          </span>
+        </div>
+
         ${tot > 0 ? `
-          <div class="interactive-credit-controls" style="flex-wrap: wrap;">
+          <!-- Row 3: Slider + Used $ Input -->
+          <div class="interactive-credit-controls">
             <input
               type="range"
               class="credit-range-slider"
@@ -5387,7 +5404,7 @@
               data-credit-idx="${idx}"
               title="Slide to record partial or full credit usage (${pct}%)"
             />
-            <div style="display: inline-flex; align-items: center; gap: 4px;">
+            <div style="display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;">
               <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Used $</span>
               <input
                 type="number"
@@ -5401,22 +5418,12 @@
                 title="Enter dollar amount used (auto-calculates Reward Available)"
               />
             </div>
-            ${used > 0 ? `
-              <button
-                type="button"
-                class="btn btn-sm"
-                style="padding: 1px 7px; font-size: 10.5px;"
-                data-reset-now-card-credit="${escapeHtml(card.id)}"
-                data-credit-idx="${idx}"
-                title="Reset used amount back to $0 so full ${fmtUsd(tot)} is available again"
-              >
-                ↺ Reset to ${fmtUsdCompact(tot)}
-              </button>
-            ` : ''}
           </div>
+
+          <!-- Row 4: Reset Date & Cycle Footer -->
           <div class="credit-reset-meta-bar">
             <div class="credit-reset-inline-group">
-              <span style="font-weight: 600; color: var(--text-muted);">🔄 Resets back to ${fmtUsdCompact(tot)} on:</span>
+              <span style="font-weight: 600; color: var(--text-muted);">🔄 Resets:</span>
               <input
                 type="month"
                 class="credit-inline-month-input mono"
