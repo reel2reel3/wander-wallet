@@ -3383,14 +3383,82 @@
   ];
 
   const POPULAR_REWARD_TEMPLATES = [
+    // =========================================================================
+    // CREDIT CARDS DATABASE (WITH REALISTIC CARD ART, CREDITS & BUNDLED PERKS)
+    // =========================================================================
+    {
+      kind: 'card',
+      title: 'Capital One Venture X®',
+      subtitle: '$395 Fee • $300 Travel Credit + 10k Anniversary Miles + Lounge • 2X All',
+      category: 'Capital One',
+      data: {
+        name: 'Capital One Venture X',
+        issuer: 'Capital One',
+        ecosystem: 'Capital One Miles',
+        card_style: 'venture-x',
+        annual_fee: 395,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '2x Everything Everywhere • 10x Portal Hotels/Cars • 5x Portal Flights',
+        best_for: '2X Catch-All Foreign Vendors, Permits, Guides & Gear Rentals',
+        sub_active: false,
+        sub_target_usd: 4000,
+        sub_spent_manual_usd: 4000,
+        sub_bonus_label: '75,000 Capital One Miles ($1,385 value)',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_vx_1', name: '$300 Annual Capital One Travel Portal Credit', total_usd: 300, used_usd: 0 },
+          { id: 'c_vx_2', name: '10,000 Anniversary Bonus Miles ($185 value)', total_usd: 185, used_usd: 185 },
+          { id: 'c_vx_3', name: '$120 Global Entry / TSA PreCheck Credit', total_usd: 120, used_usd: 120 }
+        ],
+        bundled_certs: [
+          {
+            title: 'Capital One Lounge & Priority Pass Select Membership',
+            type: 'Lounge & Security Perk',
+            program: 'Capital One Miles',
+            source_card: 'Capital One Venture X',
+            cap_details: 'Unlimited access to Capital One Lounges + 1,400+ Priority Pass Lounges',
+            est_value_usd: 469,
+            notes: 'Complimentary airport lounge access + 2 guests per visit.'
+          }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Capital One Venture Rewards®',
+      subtitle: '$95 Fee • $120 Global Entry Credit • 2X Everywhere',
+      category: 'Capital One',
+      data: {
+        name: 'Capital One Venture Rewards',
+        issuer: 'Capital One',
+        ecosystem: 'Capital One Miles',
+        card_style: 'venture-x',
+        annual_fee: 95,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '2x Miles on Every Purchase • 5x Hotels, Vacation Rentals & Rental Cars in Portal',
+        best_for: '2X Everyday Catch-All & 1:1 Airline/Hotel Transfers',
+        sub_active: false,
+        sub_target_usd: 4000,
+        sub_spent_manual_usd: 0,
+        sub_bonus_label: '75,000 Capital One Miles',
+        sub_deadline: '2027-03-31',
+        credits: [
+          { id: 'c_vr_1', name: '$120 Global Entry / TSA PreCheck Credit', total_usd: 120, used_usd: 120 }
+        ]
+      }
+    },
     {
       kind: 'card',
       title: 'Chase Sapphire Reserve®',
-      subtitle: '$550 Fee • $300 Travel Credit • 3X Travel & Dining',
+      subtitle: '$550 Fee • $300 Travel Credit + Sapphire Lounge • 3X Travel & Dining',
+      category: 'Chase',
       data: {
         name: 'Chase Sapphire Reserve',
         issuer: 'Chase',
         ecosystem: 'Chase Ultimate Rewards',
+        card_style: 'sapphire-reserve',
         annual_fee: 550,
         renewal_date: '2027-03-01',
         ftf: 'None ($0 Foreign Tx Fee)',
@@ -3402,20 +3470,33 @@
         sub_bonus_label: '75,000 Ultimate Rewards pts',
         sub_deadline: '2026-12-31',
         credits: [
-          { id: 'c_csr_1', name: '$300 Annual Travel Credit', total_usd: 300, used_usd: 300 },
-          { id: 'c_csr_2', name: '$120 Global Entry / TSA PreCheck', total_usd: 120, used_usd: 120 },
+          { id: 'c_csr_1', name: '$300 Annual Travel Credit (Auto-Applied to Any Travel)', total_usd: 300, used_usd: 300 },
+          { id: 'c_csr_2', name: '$120 Global Entry / TSA PreCheck / NEXUS', total_usd: 120, used_usd: 120 },
           { id: 'c_csr_3', name: '$180 DoorDash / Instacart Credits', total_usd: 180, used_usd: 60 }
+        ],
+        bundled_certs: [
+          {
+            title: 'Chase Sapphire Lounge by The Club & Priority Pass Select',
+            type: 'Lounge & Security Perk',
+            program: 'Chase Ultimate Rewards',
+            source_card: 'Chase Sapphire Reserve',
+            cap_details: 'Unlimited Chase Sapphire Lounge + Priority Pass Select + 2 Guests',
+            est_value_usd: 469,
+            notes: 'Includes Primary Rental Car CDW & $10,000 Trip Cancellation Insurance.'
+          }
         ]
       }
     },
     {
       kind: 'card',
       title: 'Chase Sapphire Preferred®',
-      subtitle: '$95 Fee • $50 Hotel Credit • 3X Dining / 2X Travel',
+      subtitle: '$95 Fee • $50 Hotel Credit • 3X Dining / 2X Travel • 1:1 Hyatt Transfers',
+      category: 'Chase',
       data: {
         name: 'Chase Sapphire Preferred',
         issuer: 'Chase',
         ecosystem: 'Chase Ultimate Rewards',
+        card_style: 'sapphire-preferred',
         annual_fee: 95,
         renewal_date: '2027-04-15',
         ftf: 'None ($0 Foreign Tx Fee)',
@@ -3427,18 +3508,47 @@
         sub_bonus_label: '75,000 Ultimate Rewards pts ($1,538 value)',
         sub_deadline: '2027-02-28',
         credits: [
-          { id: 'c_csp_1', name: '$50 Annual Chase Travel Hotel Credit', total_usd: 50, used_usd: 0 }
+          { id: 'c_csp_1', name: '$50 Annual Chase Travel Hotel Credit', total_usd: 50, used_usd: 0 },
+          { id: 'c_csp_2', name: '10% Anniversary Points Bonus on Total Spend', total_usd: 50, used_usd: 50 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Chase Ink Business Preferred®',
+      subtitle: '$95 Fee • 3X Travel, Shipping, Internet & Ads up to $150k/yr',
+      category: 'Chase',
+      data: {
+        name: 'Chase Ink Business Preferred',
+        issuer: 'Chase',
+        ecosystem: 'Chase Ultimate Rewards',
+        card_style: 'chase-ink',
+        annual_fee: 95,
+        renewal_date: '2027-05-15',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x All Travel (Hotels, JR Rail, Ferries, Flights, Campers) • 3x Internet, Shipping & Ads',
+        best_for: '3x Overseas Trains, Ferries, Campervans, Hotels & Tolls',
+        sub_active: false,
+        sub_target_usd: 8000,
+        sub_spent_manual_usd: 8000,
+        sub_bonus_label: '100,000 Chase UR pts ($2,000 value)',
+        sub_deadline: '2026-12-20',
+        credits: [
+          { id: 'c_cip_1', name: 'Cell Phone Protection ($1,000/claim for crew phones)', total_usd: 150, used_usd: 150 },
+          { id: 'c_cip_2', name: 'Primary Rental Car CDW Collision Coverage', total_usd: 200, used_usd: 200 }
         ]
       }
     },
     {
       kind: 'card',
       title: 'Amex Business Platinum®',
-      subtitle: '$695 Fee • $200 Airline + $400 Dell + $199 CLEAR • 5X Flights',
+      subtitle: '$695 Fee • $400 Dell + $200 Airline + $199 CLEAR + $150 Adobe • 5X Flights',
+      category: 'American Express',
       data: {
         name: 'Amex Business Platinum',
         issuer: 'American Express',
         ecosystem: 'Amex Membership Rewards',
+        card_style: 'amex-platinum',
         annual_fee: 695,
         renewal_date: '2027-02-15',
         ftf: 'None ($0 Foreign Tx Fee)',
@@ -3450,21 +3560,76 @@
         sub_bonus_label: '190,000 Membership Rewards pts',
         sub_deadline: '2026-12-31',
         credits: [
-          { id: 'c_abp_1', name: '$200 Airline Incidentals Credit', total_usd: 200, used_usd: 200 },
-          { id: 'c_abp_2', name: '$400 Dell Technologies Gear Credit', total_usd: 400, used_usd: 200 },
-          { id: 'c_abp_3', name: '$199 CLEAR Plus Credit', total_usd: 199, used_usd: 199 },
-          { id: 'c_abp_4', name: '$150 Adobe Creative Cloud Credit', total_usd: 150, used_usd: 150 }
+          { id: 'c_abp_1', name: '$400 Dell Technologies Gear Credit ($200 semi-annual)', total_usd: 400, used_usd: 200 },
+          { id: 'c_abp_2', name: '$200 Airline Incidentals Credit', total_usd: 200, used_usd: 200 },
+          { id: 'c_abp_3', name: '$199 CLEAR Plus Annual Credit', total_usd: 199, used_usd: 199 },
+          { id: 'c_abp_4', name: '$150 Adobe Creative Cloud / Premiere Credit', total_usd: 150, used_usd: 150 },
+          { id: 'c_abp_5', name: '$120 Wireless Phone Service Credit ($10/mo)', total_usd: 120, used_usd: 100 }
+        ],
+        bundled_certs: [
+          {
+            title: 'Amex Global Lounge Collection (Centurion, Delta Sky Club & Priority Pass)',
+            type: 'Lounge & Security Perk',
+            program: 'Amex Membership Rewards',
+            source_card: 'Amex Business Platinum',
+            cap_details: '1,400+ Airport Lounges incl. Centurion Lounges & Delta Sky Clubs',
+            est_value_usd: 550,
+            notes: 'Also grants automatic Hilton Honors Gold & Marriott Bonvoy Gold Elite status.'
+          }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Amex Platinum Card® (Personal)',
+      subtitle: '$695 Fee • $200 FHR Hotel + $200 Airline + $200 Uber + $240 Digital • 5X Flights',
+      category: 'American Express',
+      data: {
+        name: 'Amex Platinum Card',
+        issuer: 'American Express',
+        ecosystem: 'Amex Membership Rewards',
+        card_style: 'amex-platinum',
+        annual_fee: 695,
+        renewal_date: '2027-03-15',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '5x Flights Booked Direct with Airlines • 5x Fine Hotels + Resorts',
+        best_for: 'Direct Airline Bookings, Fine Hotels + Resorts Perks & Centurion Lounges',
+        sub_active: false,
+        sub_target_usd: 8000,
+        sub_spent_manual_usd: 8000,
+        sub_bonus_label: '150,000 Membership Rewards pts',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_ap_1', name: '$200 Fine Hotels + Resorts / Hotel Collection Credit', total_usd: 200, used_usd: 200 },
+          { id: 'c_ap_2', name: '$200 Airline Fee Credit', total_usd: 200, used_usd: 200 },
+          { id: 'c_ap_3', name: '$200 Uber Cash ($15/mo + $20 Dec)', total_usd: 200, used_usd: 160 },
+          { id: 'c_ap_4', name: '$240 Digital Entertainment Credit ($20/mo)', total_usd: 240, used_usd: 240 },
+          { id: 'c_ap_5', name: '$199 CLEAR Plus Credit', total_usd: 199, used_usd: 199 },
+          { id: 'c_ap_6', name: '$100 Saks Fifth Avenue Credit ($50 semi-annual)', total_usd: 100, used_usd: 50 }
+        ],
+        bundled_certs: [
+          {
+            title: 'Amex Centurion Lounge, Delta Sky Club & Priority Pass Select',
+            type: 'Lounge & Security Perk',
+            program: 'Amex Membership Rewards',
+            source_card: 'Amex Platinum Card',
+            cap_details: 'Global Lounge Collection + Hilton Gold & Marriott Gold Status',
+            est_value_usd: 550,
+            notes: 'FHR bookings include 4pm guaranteed late checkout, breakfast for 2 & $100 property credit.'
+          }
         ]
       }
     },
     {
       kind: 'card',
       title: 'Amex Gold Card®',
-      subtitle: '$325 Fee • $424 Dining/Uber/Resy Credits • 4X Dining',
+      subtitle: '$325 Fee • $424 Dining/Uber/Resy/Dunkin Credits • 4X Dining & Groceries',
+      category: 'American Express',
       data: {
         name: 'Amex Gold Card',
         issuer: 'American Express',
         ecosystem: 'Amex Membership Rewards',
+        card_style: 'amex-gold',
         annual_fee: 325,
         renewal_date: '2027-05-01',
         ftf: 'None ($0 Foreign Tx Fee)',
@@ -3476,49 +3641,54 @@
         sub_bonus_label: '90,000 Membership Rewards pts',
         sub_deadline: '2026-12-31',
         credits: [
-          { id: 'c_ag_1', name: '$120 Uber Cash ($10/mo)', total_usd: 120, used_usd: 100 },
-          { id: 'c_ag_2', name: '$100 Resy Semi-Annual Dining Credit', total_usd: 100, used_usd: 100 },
-          { id: 'c_ag_3', name: '$120 Dining Credit ($10/mo)', total_usd: 120, used_usd: 90 },
+          { id: 'c_ag_1', name: '$120 Uber Cash ($10/mo Rides or Uber Eats)', total_usd: 120, used_usd: 100 },
+          { id: 'c_ag_2', name: '$100 Resy Semi-Annual Dining Credit ($50 Jan-Jun / $50 Jul-Dec)', total_usd: 100, used_usd: 100 },
+          { id: 'c_ag_3', name: '$120 Dining Credit ($10/mo Grubhub / Five Guys)', total_usd: 120, used_usd: 90 },
           { id: 'c_ag_4', name: '$84 Dunkin Credit ($7/mo)', total_usd: 84, used_usd: 42 }
         ]
       }
     },
     {
       kind: 'card',
-      title: 'Capital One Venture X®',
-      subtitle: '$395 Fee • $300 Travel Credit + 10k Anniversary Miles • 2X All',
+      title: 'Amex Business Gold Card®',
+      subtitle: '$375 Fee • $240 FedEx/Grubhub/Office Credit • 4X Top 2 Spend Categories',
+      category: 'American Express',
       data: {
-        name: 'Capital One Venture X',
-        issuer: 'Capital One',
-        ecosystem: 'Capital One Miles',
-        annual_fee: 395,
+        name: 'Amex Business Gold Card',
+        issuer: 'American Express',
+        ecosystem: 'Amex Membership Rewards',
+        card_style: 'amex-gold',
+        annual_fee: 375,
         renewal_date: '2027-06-01',
         ftf: 'None ($0 Foreign Tx Fee)',
-        multipliers: '2x Everything Everywhere • 10x Portal Hotels/Cars • 5x Portal Flights',
-        best_for: '2X Catch-All Foreign Vendors, Permits, Guides & Gear Rentals',
+        multipliers: '4x on Top 2 Categories (Software/Cloud, Ads, Electronics, Dining, Gas, Transit)',
+        best_for: '4X Production Software, Camera Electronics & Ad Spend',
         sub_active: false,
-        sub_target_usd: 4000,
-        sub_spent_manual_usd: 4000,
-        sub_bonus_label: '75,000 Capital One Miles',
+        sub_target_usd: 15000,
+        sub_spent_manual_usd: 15000,
+        sub_bonus_label: '150,000 Membership Rewards pts',
         sub_deadline: '2026-12-31',
         credits: [
-          { id: 'c_vx_1', name: '$300 Annual Travel Credit', total_usd: 300, used_usd: 300 },
-          { id: 'c_vx_2', name: '10,000 Anniversary Bonus Miles ($175 val)', total_usd: 175, used_usd: 175 }
+          { id: 'c_abg_1', name: '$240 Flexible Business Credit ($20/mo FedEx, Grubhub, Office)', total_usd: 240, used_usd: 180 },
+          { id: 'c_abg_2', name: '$155 Walmart+ Monthly Membership Credit', total_usd: 155, used_usd: 155 }
         ]
       }
     },
     {
       kind: 'card',
       title: 'Amex Hilton Honors Aspire®',
-      subtitle: '$550 Fee • Automatic Diamond • $400 Resort + $200 Flight + Free Night',
+      subtitle: '$550 Fee • Automatic Diamond • $400 Resort + $200 Flight + Uncapped Free Night',
+      category: 'Hotel',
       data: {
         name: 'Amex Hilton Honors Aspire',
         issuer: 'American Express',
         ecosystem: 'Hilton Honors',
+        card_style: 'hilton-aspire',
+        auto_status: 'Diamond',
         annual_fee: 550,
         renewal_date: '2027-07-01',
         ftf: 'None ($0 Foreign Tx Fee)',
-        multipliers: '14x Hilton Resorts/Hotels • 7x Flights/Car Rentals & US Dining • 3x Other',
+        multipliers: '14x Hilton Resorts/Hotels (34x w/ Diamond) • 7x Flights/Cars & US Dining • 3x Other',
         best_for: 'Hilton Luxury Stays + Automatic Top-Tier Diamond + Uncapped Free Night',
         sub_active: false,
         sub_target_usd: 6000,
@@ -3526,40 +3696,667 @@
         sub_bonus_label: '175,000 Hilton Honors pts',
         sub_deadline: '2026-12-31',
         credits: [
-          { id: 'c_ha_1', name: '$400 Hilton Resort Credit ($200 semi-annual)', total_usd: 400, used_usd: 200 },
-          { id: 'c_ha_2', name: '$200 Flight Credit ($50/quarter)', total_usd: 200, used_usd: 150 },
+          { id: 'c_ha_1', name: '$400 Hilton Resort Credit ($200 Jan–Jun / $200 Jul–Dec)', total_usd: 400, used_usd: 200 },
+          { id: 'c_ha_2', name: '$200 Flight Credit ($50/quarter on any airline)', total_usd: 200, used_usd: 150 },
           { id: 'c_ha_3', name: '$199 CLEAR Plus Credit', total_usd: 199, used_usd: 199 }
+        ],
+        bundled_certs: [
+          {
+            title: 'Hilton Honors Uncapped Free Night Reward',
+            type: 'Free Night Certificate',
+            program: 'Hilton Honors',
+            source_card: 'Amex Hilton Honors Aspire',
+            cap_details: 'Uncapped Standard Room — Any Night of the Week Worldwide',
+            est_value_usd: 850,
+            notes: 'No point cap on Standard Room rewards! Use at Waldorf Astoria, Conrad, or LXR.'
+          }
         ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Chase World of Hyatt Card',
+      subtitle: '$95 Fee • Annual Cat 1–4 Free Night + 5 Qualifying Nights • 9X at Hyatt',
+      category: 'Hotel',
+      data: {
+        name: 'Chase World of Hyatt Card',
+        issuer: 'Chase',
+        ecosystem: 'World of Hyatt',
+        card_style: 'hyatt',
+        auto_status: 'Discoverist',
+        annual_fee: 95,
+        renewal_date: '2027-04-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '9x Total at Hyatt (4x Card + 5x Base) • 2x Dining, Flights, Transit & Gym',
+        best_for: 'Hyatt Stays + 5 Automatic Elite Nights + Cat 1–4 Free Night',
+        sub_active: false,
+        sub_target_usd: 3000,
+        sub_spent_manual_usd: 3000,
+        sub_bonus_label: '60,000 World of Hyatt pts',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_woh_1', name: 'Annual Category 1–4 Free Night Certificate (~$320 value)', total_usd: 320, used_usd: 320 },
+          { id: 'c_woh_2', name: '5 Tier-Qualifying Night Credits toward Globalist', total_usd: 100, used_usd: 100 }
+        ],
+        bundled_certs: [
+          {
+            title: 'World of Hyatt Cat 1–4 Free Night Award',
+            type: 'Free Night Certificate',
+            program: 'World of Hyatt',
+            source_card: 'Chase World of Hyatt Card',
+            cap_details: 'Category 1–4 Standard Room (up to 18,000 pts peak)',
+            est_value_usd: 320,
+            notes: 'Earned automatically every card anniversary year.'
+          }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Amex Marriott Bonvoy Brilliant®',
+      subtitle: '$650 Fee • Automatic Platinum Elite + 25 Nights • $300 Dining + 85k Free Night',
+      category: 'Hotel',
+      data: {
+        name: 'Amex Marriott Bonvoy Brilliant',
+        issuer: 'American Express',
+        ecosystem: 'Marriott Bonvoy',
+        card_style: 'marriott-brilliant',
+        auto_status: 'Platinum Elite',
+        annual_fee: 650,
+        renewal_date: '2027-05-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '6x Marriott Bonvoy Hotels • 3x Worldwide Restaurants & Direct Flights • 2x All Else',
+        best_for: 'Marriott Luxury Stays, Automatic Platinum Breakfast/Lounge & 85k Free Night',
+        sub_active: false,
+        sub_target_usd: 6000,
+        sub_spent_manual_usd: 6000,
+        sub_bonus_label: '185,000 Marriott Bonvoy pts',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_mbb_1', name: '$300 Brilliant Dining Credit ($25/mo Worldwide Restaurants)', total_usd: 300, used_usd: 225 },
+          { id: 'c_mbb_2', name: '$120 Global Entry / TSA PreCheck Credit', total_usd: 120, used_usd: 120 },
+          { id: 'c_mbb_3', name: '25 Automatic Elite Night Credits', total_usd: 200, used_usd: 200 }
+        ],
+        bundled_certs: [
+          {
+            title: 'Marriott Bonvoy 85,000-Pt Free Night Award',
+            type: 'Free Night Certificate',
+            program: 'Marriott Bonvoy',
+            source_card: 'Amex Marriott Bonvoy Brilliant',
+            cap_details: 'Up to 85k pts + 15k point top-off (100,000 pts max)',
+            est_value_usd: 680,
+            notes: 'Can top off up to 100k pts for Ritz-Carlton, St. Regis, or EDITION.'
+          }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Chase Marriott Bonvoy Boundless®',
+      subtitle: '$95 Fee • Annual 35,000-Pt Free Night + 15 Elite Night Credits • 6X Marriott',
+      category: 'Hotel',
+      data: {
+        name: 'Chase Marriott Bonvoy Boundless',
+        issuer: 'Chase',
+        ecosystem: 'Marriott Bonvoy',
+        card_style: 'marriott-brilliant',
+        annual_fee: 95,
+        renewal_date: '2027-04-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '6x Marriott Hotels (up to 17x total) • 3x Grocery, Gas & Dining (first $6k)',
+        best_for: 'Low-Fee 35k Free Night Certificate + 15 Elite Nights',
+        sub_active: false,
+        sub_target_usd: 3000,
+        sub_spent_manual_usd: 3000,
+        sub_bonus_label: '3 Free Night Awards (50,000 pts each)',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_mbd_1', name: 'Annual 35,000-Pt Free Night Award (~$260 value)', total_usd: 260, used_usd: 260 }
+        ],
+        bundled_certs: [
+          {
+            title: 'Marriott Bonvoy 35,000-Pt Free Night Award',
+            type: 'Free Night Certificate',
+            program: 'Marriott Bonvoy',
+            source_card: 'Chase Marriott Bonvoy Boundless',
+            cap_details: 'Up to 35k pts + 15k point top-off (50,000 pts max)',
+            est_value_usd: 260,
+            notes: 'Great for Autograph Collection, Tribute Portfolio, or airport stays.'
+          }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Chase IHG One Rewards Premier',
+      subtitle: '$99 Fee • 40k Free Night + 4th Night Free on Awards + $50 United TravelBank',
+      category: 'Hotel',
+      data: {
+        name: 'Chase IHG One Rewards Premier',
+        issuer: 'Chase',
+        ecosystem: 'IHG One Rewards',
+        card_style: 'hyatt',
+        auto_status: 'Platinum Elite',
+        annual_fee: 99,
+        renewal_date: '2027-05-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '10x IHG Hotels (up to 26x total) • 5x Travel, Dining & Gas • 3x All Else',
+        best_for: 'IHG 4th Night Free on Award Bookings + Annual 40k Free Night',
+        sub_active: false,
+        sub_target_usd: 3000,
+        sub_spent_manual_usd: 3000,
+        sub_bonus_label: '140,000 IHG One Rewards pts',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_ihg_1', name: 'Annual 40,000-Pt Anniversary Free Night', total_usd: 250, used_usd: 250 },
+          { id: 'c_ihg_2', name: '$50 United Airlines TravelBank Cash ($25 semi-annual)', total_usd: 50, used_usd: 50 },
+          { id: 'c_ihg_3', name: '$120 Global Entry / TSA PreCheck Credit', total_usd: 120, used_usd: 120 }
+        ],
+        bundled_certs: [
+          {
+            title: 'IHG One Rewards 40,000-Pt Anniversary Free Night',
+            type: 'Free Night Certificate',
+            program: 'IHG One Rewards',
+            source_card: 'Chase IHG One Rewards Premier',
+            cap_details: 'Up to 40,000 pts + unlimited point top-off',
+            est_value_usd: 250,
+            notes: 'Can top off with IHG points for Kimpton or InterContinental stays.'
+          }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Bilt Mastercard®',
+      subtitle: '$0 Fee • 1X Rent (No Fee) • 3X Dining • 2X Travel • 2X Rent Day Boost',
+      category: 'Other',
+      data: {
+        name: 'Bilt Mastercard',
+        issuer: 'Wells Fargo / Bilt',
+        ecosystem: 'Bilt Rewards',
+        card_style: 'bilt',
+        annual_fee: 0,
+        renewal_date: '2027-01-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x Dining (6x on 1st) • 2x Travel (4x on 1st) • 1x Rent • Primary Auto CDW',
+        best_for: '1st-of-the-Month Double Points (6x Dining / 4x Travel / 2x All) & Hyatt/Alaska Transfers',
+        sub_active: false,
+        sub_target_usd: 0,
+        sub_spent_manual_usd: 0,
+        sub_bonus_label: '5X for First 5 Days',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_bilt_1', name: 'Rent Day 2X Point Multiplier (up to 1,000 bonus pts/mo)', total_usd: 200, used_usd: 200 },
+          { id: 'c_bilt_2', name: 'Primary Rental Car CDW & $800 Cell Phone Protection', total_usd: 150, used_usd: 150 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Citi Strata Premier℠',
+      subtitle: '$95 Fee • $100 Hotel Benefit • 3X Air, Hotel, Dining, Groceries & Gas',
+      category: 'Other',
+      data: {
+        name: 'Citi Strata Premier',
+        issuer: 'Citi',
+        ecosystem: 'Citi ThankYou Rewards',
+        card_style: 'citi-strata',
+        annual_fee: 95,
+        renewal_date: '2027-05-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x Air Travel, Hotels, Restaurants, Supermarkets, Gas & EV Charging',
+        best_for: 'Broad 3X Everyday Travel/Food + 1:1 Transfers to AA, Avios, Flying Blue & Turkish',
+        sub_active: false,
+        sub_target_usd: 4000,
+        sub_spent_manual_usd: 4000,
+        sub_bonus_label: '75,000 Citi ThankYou Points',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_csprem_1', name: '$100 Annual Hotel Savings Benefit ($500+ stay)', total_usd: 100, used_usd: 0 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'U.S. Bank Altitude® Reserve',
+      subtitle: '$400 Fee • $325 Travel & Dining Credit • 3X Apple Pay / Mobile Wallet (4.5% Travel)',
+      category: 'Other',
+      data: {
+        name: 'U.S. Bank Altitude Reserve',
+        issuer: 'U.S. Bank',
+        ecosystem: 'U.S. Bank Altitude Rewards',
+        card_style: 'venture-x',
+        annual_fee: 400,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x Mobile Wallet (Apple Pay / Google Pay) & Travel • 1.5¢/pt Real-Time Rewards',
+        best_for: '4.5% Effective Return on All Apple Pay / Contactless Tap-to-Pay Overseas',
+        sub_active: false,
+        sub_target_usd: 4500,
+        sub_spent_manual_usd: 4500,
+        sub_bonus_label: '50,000 Altitude Points ($750 travel value)',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_usb_1', name: '$325 Annual Travel & Dining Credit (Auto-Applied)', total_usd: 325, used_usd: 325 },
+          { id: 'c_usb_2', name: '$100 Global Entry / TSA PreCheck Credit', total_usd: 100, used_usd: 100 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'United℠ Explorer / Quest Card',
+      subtitle: '$95 Fee • Free Checked Bag + Priority Boarding + 2 United Club Passes',
+      category: 'Airline',
+      data: {
+        name: 'United Explorer Card',
+        issuer: 'Chase',
+        ecosystem: 'United MileagePlus',
+        card_style: 'airline-united',
+        annual_fee: 95,
+        renewal_date: '2027-04-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '2x United Flights, Hotels & Dining • Expanded XN Saver Award Space',
+        best_for: 'United Priority Boarding (Carry-On Camera Bags), Free Checked Bags & XN Award Space',
+        sub_active: false,
+        sub_target_usd: 3000,
+        sub_spent_manual_usd: 3000,
+        sub_bonus_label: '60,000 United MileagePlus Miles',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_ua_1', name: '2 United Club One-Time Lounge Passes ($118 value)', total_usd: 118, used_usd: 118 },
+          { id: 'c_ua_2', name: '$120 Global Entry / TSA PreCheck Credit', total_usd: 120, used_usd: 120 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Delta SkyMiles® Reserve Amex',
+      subtitle: '$650 Fee • Sky Club Access + First/Main Companion Certificate + $240 Resy + $200 Delta Stays',
+      category: 'Airline',
+      data: {
+        name: 'Delta SkyMiles Reserve Amex',
+        issuer: 'American Express',
+        ecosystem: 'Delta SkyMiles',
+        card_style: 'airline-delta',
+        annual_fee: 650,
+        renewal_date: '2027-05-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x Delta Purchases • $2,500 MQD Headstart + 15% TakeOff 15 Award Discount',
+        best_for: 'Delta Sky Club Access, $2,500 MQD Boost & First Class Companion Certificate',
+        sub_active: false,
+        sub_target_usd: 6000,
+        sub_spent_manual_usd: 6000,
+        sub_bonus_label: '90,000 Delta SkyMiles',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_dl_1', name: '$240 Resy Dining Credit ($20/mo)', total_usd: 240, used_usd: 160 },
+          { id: 'c_dl_2', name: '$200 Delta Stays Annual Hotel Credit', total_usd: 200, used_usd: 200 },
+          { id: 'c_dl_3', name: '$120 Rideshare Credit ($10/mo Uber/Lyft)', total_usd: 120, used_usd: 80 }
+        ],
+        bundled_certs: [
+          {
+            title: 'Delta SkyMiles Annual Companion Certificate (First, Comfort+ or Main)',
+            type: 'Companion Pass',
+            program: 'Delta SkyMiles',
+            source_card: 'Delta SkyMiles Reserve Amex',
+            cap_details: 'Roundtrip Companion Ticket (US, Caribbean, Central America, Hawaii, Alaska)',
+            est_value_usd: 650,
+            notes: 'Covers First Class, Comfort+, or Main Cabin roundtrip for taxes/fees only.'
+          }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Alaska Airlines Visa Signature®',
+      subtitle: '$95 Fee • Famous $99 Companion Fare + Free Checked Bags • 3X Alaska',
+      category: 'Airline',
+      data: {
+        name: 'Alaska Airlines Visa Signature',
+        issuer: 'Bank of America',
+        ecosystem: 'Alaska Mileage Plan',
+        card_style: 'airline-alaska',
+        annual_fee: 95,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x Alaska Airlines • 2x Gas, EV Charging, Transit & Local Commuting',
+        best_for: 'Alaska Flights, Free Checked Crew Gear Bags & $99 Companion Fare',
+        sub_active: false,
+        sub_target_usd: 3000,
+        sub_spent_manual_usd: 3000,
+        sub_bonus_label: '70,000 Alaska Miles + $99 Companion Fare',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_as_1', name: 'Annual $99 Companion Fare Certificate (~$350 value)', total_usd: 350, used_usd: 350 },
+          { id: 'c_as_2', name: 'Free Checked Bag for Cardholder + up to 6 Crew Guests', total_usd: 140, used_usd: 140 }
+        ],
+        bundled_certs: [
+          {
+            title: 'Alaska Airlines Famous Companion Fare ($99 + tax)',
+            type: 'Companion Pass',
+            program: 'Alaska Mileage Plan',
+            source_card: 'Alaska Airlines Visa Signature',
+            cap_details: 'Roundtrip Economy Companion Ticket for $99 + taxes ($23 min)',
+            est_value_usd: 350,
+            notes: 'Great for West Coast, Hawaii, or Alaska crew flights.'
+          }
+        ]
+      }
+    },
+
+    // =========================================================================
+    // LOYALTY PROGRAMS DATABASE (BANK, HOTEL, AIRLINE)
+    // =========================================================================
+    {
+      kind: 'program',
+      title: 'Capital One Miles',
+      subtitle: 'Transferable Bank Points • 1:1 Aeroplan, Flying Blue, Avios, Turkish & Wyndham',
+      category: 'Capital One',
+      data: {
+        name: 'Capital One Miles',
+        ecosystem: 'bank',
+        status_tier: 'Venture X',
+        member_id: '',
+        points: 100000,
+        cpp: 1.85,
+        qualifying_nights: 0,
+        target_nights: 0,
+        metric_label: '',
+        expiration_policy: 'Never expires while card open',
+        transfer_partners: 'Aeroplan (1:1), Flying Blue (1:1), British Airways Avios (1:1), Turkish Miles&Smiles (1:1), Singapore KrisFlyer (1:1), Wyndham (1:1)',
+        notes: 'Earn 2x everywhere with Venture X + $300 Annual Travel Credit + 10k Anniversary Bonus Miles.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Chase Ultimate Rewards',
+      subtitle: 'Transferable Bank Points • 1:1 Instant to World of Hyatt, United, Aeroplan, Avios & Southwest',
+      category: 'Chase',
+      data: {
+        name: 'Chase Ultimate Rewards',
+        ecosystem: 'bank',
+        status_tier: 'Sapphire Reserve / Preferred',
+        member_id: '',
+        points: 150000,
+        cpp: 2.05,
+        qualifying_nights: 0,
+        target_nights: 0,
+        metric_label: '',
+        expiration_policy: 'Never expires while account open',
+        transfer_partners: 'World of Hyatt (1:1 Instant), United (1:1), Air Canada Aeroplan (1:1), British Airways Avios (1:1), Flying Blue (1:1), Virgin Atlantic (1:1), Southwest (1:1)',
+        notes: 'Top bank currency for 1:1 World of Hyatt luxury hotel redemptions and Star Alliance flights.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Amex Membership Rewards',
+      subtitle: 'Transferable Bank Points • 1:1 ANA, Aeroplan, Delta, Flying Blue, Avios & Hilton (1:2)',
+      category: 'American Express',
+      data: {
+        name: 'Amex Membership Rewards',
+        ecosystem: 'bank',
+        status_tier: 'Platinum / Gold',
+        member_id: '',
+        points: 150000,
+        cpp: 2.0,
+        qualifying_nights: 0,
+        target_nights: 0,
+        metric_label: '',
+        expiration_policy: 'Never expires while 1 MR card open',
+        transfer_partners: 'ANA (1:1 ~48h), Aeroplan (1:1 Instant), Delta (1:1), Flying Blue (1:1), Avios (1:1), Virgin Atlantic (1:1), Hilton Honors (1:2)',
+        notes: 'Premier currency for International Business Class awards (ANA, Aeroplan, Flying Blue, Qatar Avios).'
       }
     },
     {
       kind: 'program',
       title: 'Bilt Rewards',
-      subtitle: '1:1 Transfers to Hyatt, Alaska, Aeroplan, United & Avios',
+      subtitle: '1:1 Transfers to World of Hyatt, Alaska Airlines, Aeroplan, United & Avios',
+      category: 'Other',
       data: {
         name: 'Bilt Rewards',
         ecosystem: 'bank',
         status_tier: 'Platinum',
-        member_id: 'BLT-7741',
+        member_id: '',
         points: 85000,
         cpp: 2.1,
         qualifying_nights: 1,
         target_nights: 1,
         metric_label: 'Rent Day 2x Multiplier Active',
         expiration_policy: 'Never expires while account is open',
-        transfer_partners: 'Hyatt 1:1, Alaska Airlines 1:1, Aeroplan 1:1, United 1:1, Flying Blue 1:1',
+        transfer_partners: 'World of Hyatt 1:1, Alaska Airlines 1:1, Aeroplan 1:1, United 1:1, Flying Blue 1:1, Avios 1:1',
         notes: 'Earn points on rent + double points on the 1st of every month.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Citi ThankYou Rewards',
+      subtitle: '1:1 Transfers to American Airlines, Turkish, Qatar Avios, Flying Blue & Leading Hotels (1:0.2)',
+      category: 'Other',
+      data: {
+        name: 'Citi ThankYou Rewards',
+        ecosystem: 'bank',
+        status_tier: 'Strata Premier',
+        member_id: '',
+        points: 90000,
+        cpp: 1.85,
+        qualifying_nights: 0,
+        target_nights: 0,
+        metric_label: '',
+        expiration_policy: 'Never expires while card open',
+        transfer_partners: 'Turkish Miles&Smiles (1:1), Qatar/BA Avios (1:1), EVA Air (1:1), Flying Blue (1:1), Choice Privileges (1:2), Wyndham (1:1)',
+        notes: 'Unique 1:2 transfer to Choice Privileges (great for Nordic & Japanese hotels) + Turkish & Avios.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'U.S. Bank Altitude Rewards',
+      subtitle: '1.5¢/pt Real-Time Rewards on Any Airline, Hotel, Car Rental or Uber',
+      category: 'Other',
+      data: {
+        name: 'U.S. Bank Altitude Rewards',
+        ecosystem: 'bank',
+        status_tier: 'Altitude Reserve',
+        member_id: '',
+        points: 60000,
+        cpp: 1.5,
+        qualifying_nights: 0,
+        target_nights: 0,
+        metric_label: '',
+        expiration_policy: 'Never expires',
+        transfer_partners: '1.5¢/pt instant SMS text redemption on any travel purchase',
+        notes: 'Book direct with any airline or boutique hotel and reply REDEEM via text for 1.5¢/pt.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'World of Hyatt',
+      subtitle: 'Hotel Loyalty • Highest Point Valuation (2.1¢+) • Globalist Suite Upgrades & Free Breakfast',
+      category: 'Hotel',
+      data: {
+        name: 'World of Hyatt',
+        ecosystem: 'hotel',
+        status_tier: 'Globalist',
+        member_id: '',
+        points: 120000,
+        cpp: 2.1,
+        qualifying_nights: 35,
+        target_nights: 60,
+        metric_label: 'Qualifying Nights toward Globalist',
+        expiration_policy: '24 months inactivity',
+        transfer_partners: 'Receive 1:1 Instant from Chase Ultimate Rewards & Bilt Rewards',
+        notes: 'Waived resort fees on all award stays, 4pm late checkout, free Globalist breakfast & Suite Upgrade Awards.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Hilton Honors',
+      subtitle: 'Hotel Loyalty • 5th Night Free on Award Stays • Waldorf Astoria, Conrad & LXR',
+      category: 'Hotel',
+      data: {
+        name: 'Hilton Honors',
+        ecosystem: 'hotel',
+        status_tier: 'Diamond',
+        member_id: '',
+        points: 220000,
+        cpp: 0.55,
+        qualifying_nights: 28,
+        target_nights: 60,
+        metric_label: 'Nights (Auto-Diamond via Aspire)',
+        expiration_policy: '24 months inactivity',
+        transfer_partners: 'Amex MR transfers 1:2 (up to 1:2.6 with bonus) • 5th Night Free on points',
+        notes: 'Automatic top-tier Diamond status + $400 Resort Credit + Uncapped Free Night via Hilton Aspire card.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Marriott Bonvoy',
+      subtitle: 'Hotel Loyalty • 8,500+ Hotels Worldwide • 5th Night Free on Award Stays',
+      category: 'Hotel',
+      data: {
+        name: 'Marriott Bonvoy',
+        ecosystem: 'hotel',
+        status_tier: 'Platinum Elite',
+        member_id: '',
+        points: 180000,
+        cpp: 0.85,
+        qualifying_nights: 40,
+        target_nights: 50,
+        metric_label: 'Elite Nights',
+        expiration_policy: '24 months inactivity',
+        transfer_partners: 'Chase UR 1:1, Amex MR 1:1, Bilt 1:1 • Transfers 3:1 to 35+ airlines',
+        notes: 'Stacks 25 nights (Brilliant) + 15 nights (Business card) = 40 automatic Elite Nights/yr.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'IHG One Rewards',
+      subtitle: 'Hotel Loyalty • 4th Night Free on Award Stays • Kimpton & InterContinental',
+      category: 'Hotel',
+      data: {
+        name: 'IHG One Rewards',
+        ecosystem: 'hotel',
+        status_tier: 'Diamond Elite',
+        member_id: '',
+        points: 165000,
+        cpp: 0.65,
+        qualifying_nights: 44,
+        target_nights: 70,
+        metric_label: 'Qualifying Nights',
+        expiration_policy: 'Never expires with Elite status',
+        transfer_partners: 'Chase Ultimate Rewards 1:1, Bilt 1:1 (Best bought on 100% bonus sales)',
+        notes: '4th Night Free on all point redemptions with IHG One Rewards Premier card.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'United MileagePlus',
+      subtitle: 'Star Alliance • Instant 1:1 from Chase UR & Bilt • Excursionist Perk',
+      category: 'Airline',
+      data: {
+        name: 'United MileagePlus',
+        ecosystem: 'airline',
+        status_tier: 'Premier Gold',
+        member_id: '',
+        points: 110000,
+        cpp: 1.35,
+        qualifying_nights: 8000,
+        target_nights: 10000,
+        metric_label: 'PQP toward Next Premier Tier',
+        expiration_policy: 'Miles never expire',
+        transfer_partners: 'Star Alliance • Instant 1:1 from Chase UR & Bilt',
+        notes: 'No change/cancellation fees on award flights + Excursionist Perk free one-way flight.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Air Canada Aeroplan',
+      subtitle: 'Star Alliance + Emirates/Etihad/Oman Air • 5,000-Pt International Stopovers',
+      category: 'Airline',
+      data: {
+        name: 'Air Canada Aeroplan',
+        ecosystem: 'airline',
+        status_tier: '50K Elite (Star Gold)',
+        member_id: '',
+        points: 115000,
+        cpp: 1.65,
+        qualifying_nights: 25,
+        target_nights: 50,
+        metric_label: 'Status Qualifying Segments',
+        expiration_policy: '18 months inactivity',
+        transfer_partners: '1:1 Instant from Amex MR, Chase UR, Capital One Miles & Bilt',
+        notes: 'Add a multi-day stopover on any international one-way award for just 5,000 points!'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Delta SkyMiles',
+      subtitle: 'SkyTeam Alliance • 1:1 Instant from Amex MR • 15% Off Awards with Delta Amex',
+      category: 'Airline',
+      data: {
+        name: 'Delta SkyMiles',
+        ecosystem: 'airline',
+        status_tier: 'Gold Medallion',
+        member_id: '',
+        points: 95000,
+        cpp: 1.25,
+        qualifying_nights: 7500,
+        target_nights: 10000,
+        metric_label: 'MQDs (Medallion Qualification Dollars)',
+        expiration_policy: 'Miles never expire',
+        transfer_partners: 'SkyTeam • 1:1 Instant from Amex Membership Rewards',
+        notes: 'TakeOff 15 gives 15% discount on all Delta-operated award flights when holding a Delta Amex.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Alaska Mileage Plan',
+      subtitle: 'Oneworld Alliance • 1:1 from Bilt + Hawaiian Airlines Merger • Free Stopovers',
+      category: 'Airline',
+      data: {
+        name: 'Alaska Mileage Plan',
+        ecosystem: 'airline',
+        status_tier: 'MVP Gold (Oneworld Sapphire)',
+        member_id: '',
+        points: 85000,
+        cpp: 1.75,
+        qualifying_nights: 28000,
+        target_nights: 40000,
+        metric_label: 'Elite Qualifying Miles (EQMs)',
+        expiration_policy: 'Miles never expire (active account)',
+        transfer_partners: 'Oneworld + Starlux • 1:1 from Bilt Rewards & HawaiianMiles',
+        notes: 'Sweet spots on Japan Airlines (JAL), Cathay Pacific, Starlux, and American Airlines.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'American Airlines AAdvantage',
+      subtitle: 'Oneworld Alliance • 60k–70k Business Class to Japan/Europe/Middle East',
+      category: 'Airline',
+      data: {
+        name: 'American Airlines AAdvantage',
+        ecosystem: 'airline',
+        status_tier: 'Platinum Pro (Oneworld Emerald)',
+        member_id: '',
+        points: 105000,
+        cpp: 1.7,
+        qualifying_nights: 90000,
+        target_nights: 125000,
+        metric_label: 'Loyalty Points',
+        expiration_policy: '24 months inactivity (no expiry with AA credit card)',
+        transfer_partners: 'Oneworld • Earn via AA Cards, SimplyMiles & AAdvantage Hotels',
+        notes: '60k JAL Business / 80k JAL First Class to Tokyo & 70k Qatar Qsuites to Doha.'
       }
     },
     {
       kind: 'program',
       title: 'British Airways / Qatar Avios',
       subtitle: 'Oneworld Alliance • Qatar Qsuites & JAL Domestic Sweet Spots',
+      category: 'Airline',
       data: {
         name: 'British Airways / Qatar Avios',
         ecosystem: 'airline',
         status_tier: 'Oneworld Emerald',
-        member_id: 'AV-4410982',
+        member_id: '',
         points: 120000,
         cpp: 1.5,
         qualifying_nights: 600,
@@ -3574,11 +4371,12 @@
       kind: 'program',
       title: 'Air France / KLM Flying Blue',
       subtitle: 'SkyTeam Alliance • Monthly 25%–50% Promo Rewards to Europe',
+      category: 'Airline',
       data: {
         name: 'Air France / KLM Flying Blue',
         ecosystem: 'airline',
         status_tier: 'Gold (SkyTeam Elite Plus)',
-        member_id: 'FB-20948112',
+        member_id: '',
         points: 95000,
         cpp: 1.45,
         qualifying_nights: 180,
@@ -3591,24 +4389,468 @@
     },
     {
       kind: 'program',
-      title: 'IHG One Rewards',
-      subtitle: '4th Night Free on Award Stays • Kimpton & InterContinental',
+      title: 'ANA Mileage Club',
+      subtitle: 'Star Alliance • 105k–110k Roundtrip Business Class ("The Room") to Tokyo',
+      category: 'Airline',
       data: {
-        name: 'IHG One Rewards',
-        ecosystem: 'hotel',
-        status_tier: 'Diamond Elite',
-        member_id: 'IHG-6619042',
-        points: 165000,
-        cpp: 0.65,
-        qualifying_nights: 44,
-        target_nights: 70,
-        metric_label: 'Qualifying Nights',
-        expiration_policy: 'Never expires with Elite status',
-        transfer_partners: 'Chase Ultimate Rewards 1:1, Bilt 1:1 (Best bought on 100% bonus sales)',
-        notes: '4th Night Free on all point redemptions with IHG One Rewards Premier card.'
+        name: 'ANA Mileage Club',
+        ecosystem: 'airline',
+        status_tier: 'Bronze',
+        member_id: '',
+        points: 95000,
+        cpp: 1.9,
+        qualifying_nights: 0,
+        target_nights: 0,
+        metric_label: '',
+        expiration_policy: 'Hard 36-month expiration from transfer',
+        transfer_partners: 'Star Alliance • 1:1 from Amex MR (~48 hrs)',
+        notes: 'Sweet spot: US to Tokyo roundtrip in "The Room" Business Class for 105k–110k miles.'
       }
     }
   ];
+
+  // =========================================================================
+  // CERTIFICATES & PERKS DATABASE (FOR INSTANT LOOKUP IN CERT MODAL)
+  // =========================================================================
+  const POPULAR_CERT_TEMPLATES = [
+    {
+      title: 'World of Hyatt Cat 1–4 Free Night Award',
+      type: 'Free Night Certificate',
+      program: 'World of Hyatt',
+      source_card: 'Chase World of Hyatt Card',
+      cap_details: 'Category 1–4 Standard Room (up to 18,000 pts peak)',
+      est_value_usd: 320,
+      notes: 'Annual cardholder free night certificate.'
+    },
+    {
+      title: 'World of Hyatt Cat 1–7 Free Night Award',
+      type: 'Free Night Certificate',
+      program: 'World of Hyatt',
+      source_card: '60-Night Globalist Milestone',
+      cap_details: 'Category 1–7 Standard Room (up to 35,000 pts peak)',
+      est_value_usd: 780,
+      notes: 'Save for Park Hyatt Kyoto, Andaz Tokyo, or Alila Ventana Big Sur.'
+    },
+    {
+      title: 'Hyatt Suite Upgrade Award (SUA — Up to 7 Nights)',
+      type: 'Suite / Flight Upgrade',
+      program: 'World of Hyatt',
+      source_card: '50/60-Night Milestone Reward',
+      cap_details: 'Confirm a Standard Suite at time of booking for up to 7 nights',
+      est_value_usd: 900,
+      notes: 'Locks in a confirmed suite months before the shoot.'
+    },
+    {
+      title: 'Hilton Honors Uncapped Free Night Reward',
+      type: 'Free Night Certificate',
+      program: 'Hilton Honors',
+      source_card: 'Amex Hilton Honors Aspire',
+      cap_details: 'Uncapped Standard Room — Any Night of the Week Worldwide',
+      est_value_usd: 850,
+      notes: 'No point cap on Standard Room rewards! Use at Waldorf Astoria, Conrad, or Roku Kyoto LXR.'
+    },
+    {
+      title: 'Marriott Bonvoy 85,000-Pt Free Night Award',
+      type: 'Free Night Certificate',
+      program: 'Marriott Bonvoy',
+      source_card: 'Amex Marriott Bonvoy Brilliant',
+      cap_details: 'Up to 85k pts + 15k point top-off (100,000 pts max)',
+      est_value_usd: 680,
+      notes: 'Can top off up to 100k pts for Ritz-Carlton or EDITION.'
+    },
+    {
+      title: 'Marriott Bonvoy 35,000-Pt Free Night Award',
+      type: 'Free Night Certificate',
+      program: 'Marriott Bonvoy',
+      source_card: 'Chase Marriott Boundless / Amex Business',
+      cap_details: 'Up to 35k pts + 15k point top-off (50,000 pts max)',
+      est_value_usd: 260,
+      notes: 'Good for 40k–50k Autograph Collection or airport stays.'
+    },
+    {
+      title: 'IHG One Rewards 40,000-Pt Anniversary Free Night',
+      type: 'Free Night Certificate',
+      program: 'IHG One Rewards',
+      source_card: 'Chase IHG One Rewards Premier',
+      cap_details: 'Up to 40,000 pts + unlimited point top-off',
+      est_value_usd: 250,
+      notes: 'Can top off with IHG points for Kimpton or InterContinental stays.'
+    },
+    {
+      title: 'Alaska Airlines Famous Companion Fare ($99 + tax)',
+      type: 'Companion Pass',
+      program: 'Alaska Mileage Plan',
+      source_card: 'Alaska Airlines Visa Signature',
+      cap_details: 'Roundtrip Economy Companion Ticket for $99 + taxes ($23 min)',
+      est_value_usd: 350,
+      notes: 'Great for West Coast, Hawaii, or Alaska crew flights.'
+    },
+    {
+      title: 'Delta SkyMiles Annual Companion Certificate',
+      type: 'Companion Pass',
+      program: 'Delta SkyMiles',
+      source_card: 'Delta SkyMiles Reserve / Platinum Amex',
+      cap_details: 'Roundtrip Companion Ticket (US, Caribbean, Central America, Hawaii)',
+      est_value_usd: 650,
+      notes: 'Pay only taxes & fees ($80 max) for second passenger.'
+    },
+    {
+      title: 'Capital One Lounge & Priority Pass Select Membership',
+      type: 'Lounge & Security Perk',
+      program: 'Capital One Miles',
+      source_card: 'Capital One Venture X',
+      cap_details: 'Unlimited access to Capital One Lounges + 1,400+ Priority Pass Lounges',
+      est_value_usd: 469,
+      notes: 'Complimentary airport lounge access + 2 guests per visit.'
+    },
+    {
+      title: 'Global Entry / TSA PreCheck & CLEAR Plus Membership',
+      type: 'Lounge & Security Perk',
+      program: 'Amex Membership Rewards',
+      source_card: 'Amex Business Platinum / Venture X / Sapphire Reserve',
+      cap_details: 'Expedited US Customs & TSA PreCheck lanes with Pelican camera cases',
+      est_value_usd: 319,
+      notes: '100% covered via annual card statement credits.'
+    }
+  ];
+
+  // =========================================================================
+  // REALISTIC CREDIT CARD SVG GRAPHIC GENERATOR & CUSTOM IMAGE HELPER
+  // =========================================================================
+  function detectCardArtPreset(card) {
+    if (!card) return 'venture-x';
+    if (card.card_style) return card.card_style;
+    const raw = `${card.name || ''} ${card.issuer || ''} ${card.ecosystem || ''}`.toLowerCase();
+    if (raw.includes('venture')) return 'venture-x';
+    if (raw.includes('sapphire reserve')) return 'sapphire-reserve';
+    if (raw.includes('sapphire preferred')) return 'sapphire-preferred';
+    if (raw.includes('ink')) return 'chase-ink';
+    if (raw.includes('platinum')) return 'amex-platinum';
+    if (raw.includes('gold')) return 'amex-gold';
+    if (raw.includes('hilton') || raw.includes('aspire') || raw.includes('surpass')) return 'hilton-aspire';
+    if (raw.includes('hyatt')) return 'hyatt';
+    if (raw.includes('marriott') || raw.includes('bonvoy') || raw.includes('brilliant') || raw.includes('boundless')) return 'marriott-brilliant';
+    if (raw.includes('bilt')) return 'bilt';
+    if (raw.includes('citi') || raw.includes('strata')) return 'citi-strata';
+    if (raw.includes('united')) return 'airline-united';
+    if (raw.includes('delta')) return 'airline-delta';
+    if (raw.includes('alaska')) return 'airline-alaska';
+    if (raw.includes('chase')) return 'sapphire-reserve';
+    if (raw.includes('amex') || raw.includes('american express')) return 'amex-platinum';
+    if (raw.includes('capital one')) return 'venture-x';
+    return 'venture-x';
+  }
+
+  const CARD_ART_THEMES = {
+    'venture-x': {
+      bg1: '#071124', bg2: '#162f59', bg3: '#0b1a36',
+      accent: '#dc2626', accent2: '#38bdf8',
+      textColor: '#f8fafc', subColor: '#94a3b8', chipColor: '#cbd5e1',
+      issuerText: 'CAPITAL ONE', brandLine: 'VENTURE X', network: 'VISA INFINITE'
+    },
+    'sapphire-reserve': {
+      bg1: '#05152e', bg2: '#0f3b7a', bg3: '#07224d',
+      accent: '#38bdf8', accent2: '#60a5fa',
+      textColor: '#f8fafc', subColor: '#bae6fd', chipColor: '#e2e8f0',
+      issuerText: 'CHASE SAPPHIRE', brandLine: 'RESERVE®', network: 'VISA INFINITE'
+    },
+    'sapphire-preferred': {
+      bg1: '#0b254d', bg2: '#1d4ed8', bg3: '#0f3166',
+      accent: '#60a5fa', accent2: '#93c5fd',
+      textColor: '#f8fafc', subColor: '#bfdbfe', chipColor: '#e2e8f0',
+      issuerText: 'CHASE SAPPHIRE', brandLine: 'PREFERRED®', network: 'VISA SIGNATURE'
+    },
+    'chase-ink': {
+      bg1: '#0f172a', bg2: '#1e293b', bg3: '#334155',
+      accent: '#38bdf8', accent2: '#0284c7',
+      textColor: '#f8fafc', subColor: '#94a3b8', chipColor: '#cbd5e1',
+      issuerText: 'CHASE for BUSINESS', brandLine: 'INK PREFERRED℠', network: 'VISA'
+    },
+    'amex-platinum': {
+      bg1: '#d1d5db', bg2: '#f3f4f6', bg3: '#9ca3af',
+      accent: '#374151', accent2: '#111827',
+      textColor: '#111827', subColor: '#374151', chipColor: '#eab308',
+      issuerText: 'AMERICAN EXPRESS', brandLine: 'PLATINUM', network: 'AMEX'
+    },
+    'amex-gold': {
+      bg1: '#a16207', bg2: '#eab308', bg3: '#854d0e',
+      accent: '#422006', accent2: '#fef08a',
+      textColor: '#1c1917', subColor: '#422006', chipColor: '#fef08a',
+      issuerText: 'AMERICAN EXPRESS', brandLine: 'GOLD CARD', network: 'AMEX'
+    },
+    'hilton-aspire': {
+      bg1: '#14102e', bg2: '#31256e', bg3: '#1b143d',
+      accent: '#f59e0b', accent2: '#a855f7',
+      textColor: '#f8fafc', subColor: '#ddd6fe', chipColor: '#facc15',
+      issuerText: 'HILTON HONORS', brandLine: 'ASPIRE', network: 'AMEX'
+    },
+    'hyatt': {
+      bg1: '#06262d', bg2: '#0e525e', bg3: '#083640',
+      accent: '#10b981', accent2: '#2dd4bf',
+      textColor: '#f8fafc', subColor: '#99f6e4', chipColor: '#e2e8f0',
+      issuerText: 'WORLD OF HYATT', brandLine: 'HYATT', network: 'VISA SIGNATURE'
+    },
+    'marriott-brilliant': {
+      bg1: '#121318', bg2: '#272932', bg3: '#181920',
+      accent: '#f97316', accent2: '#fdba74',
+      textColor: '#f8fafc', subColor: '#fed7aa', chipColor: '#fbbf24',
+      issuerText: 'MARRIOTT BONVOY', brandLine: 'BRILLIANT™', network: 'AMEX'
+    },
+    'bilt': {
+      bg1: '#09090b', bg2: '#27272a', bg3: '#18181b',
+      accent: '#f4f4f5', accent2: '#ef4444',
+      textColor: '#fafafa', subColor: '#a1a1aa', chipColor: '#d4d4d8',
+      issuerText: 'BILT REWARDS', brandLine: 'BILT', network: 'WORLD ELITE'
+    },
+    'citi-strata': {
+      bg1: '#071b36', bg2: '#0d3b75', bg3: '#09274d',
+      accent: '#ef4444', accent2: '#38bdf8',
+      textColor: '#f8fafc', subColor: '#bae6fd', chipColor: '#e2e8f0',
+      issuerText: 'CITI THANKYOU', brandLine: 'STRATA PREMIER', network: 'WORLD ELITE'
+    },
+    'airline-united': {
+      bg1: '#061a40', bg2: '#0353a4', bg3: '#003559',
+      accent: '#38bdf8', accent2: '#f59e0b',
+      textColor: '#f8fafc', subColor: '#bae6fd', chipColor: '#fbbf24',
+      issuerText: 'UNITED MILEAGEPLUS', brandLine: 'EXPLORER', network: 'VISA'
+    },
+    'airline-delta': {
+      bg1: '#2a0818', bg2: '#5c1233', bg3: '#1f102e',
+      accent: '#e11d48', accent2: '#c084fc',
+      textColor: '#f8fafc', subColor: '#fecdd3', chipColor: '#e2e8f0',
+      issuerText: 'DELTA SKYMILES', brandLine: 'RESERVE', network: 'AMEX'
+    },
+    'airline-alaska': {
+      bg1: '#042a2b', bg2: '#0b5351', bg3: '#09383a',
+      accent: '#4ade80', accent2: '#38bdf8',
+      textColor: '#f8fafc', subColor: '#a7f3d0', chipColor: '#fbbf24',
+      issuerText: 'ALASKA AIRLINES', brandLine: 'MILEAGE PLAN', network: 'VISA SIGNATURE'
+    }
+  };
+
+  function getCardArtDataUri(card) {
+    if (card && card.image_url && String(card.image_url).trim()) {
+      return String(card.image_url).trim();
+    }
+    const presetKey = detectCardArtPreset(card);
+    const theme = CARD_ART_THEMES[presetKey] || CARD_ART_THEMES['venture-x'];
+    const rawName = (card && (card.name || card.title)) ? String(card.name || card.title) : '';
+    const rawIssuer = (card && card.issuer) ? String(card.issuer).toUpperCase() : theme.issuerText;
+
+    let displayMain = theme.brandLine;
+    if (rawName) {
+      const upper = rawName.toUpperCase();
+      if (upper.includes('VENTURE X')) displayMain = 'VENTURE X';
+      else if (upper.includes('VENTURE')) displayMain = 'VENTURE';
+      else if (upper.includes('SAPPHIRE RESERVE')) displayMain = 'SAPPHIRE RESERVE';
+      else if (upper.includes('SAPPHIRE PREFERRED')) displayMain = 'SAPPHIRE PREFERRED';
+      else if (upper.includes('INK')) displayMain = 'INK PREFERRED';
+      else if (upper.includes('BUSINESS PLATINUM')) displayMain = 'BUSINESS PLATINUM';
+      else if (upper.includes('PLATINUM')) displayMain = 'PLATINUM';
+      else if (upper.includes('BUSINESS GOLD')) displayMain = 'BUSINESS GOLD';
+      else if (upper.includes('GOLD')) displayMain = 'GOLD CARD';
+      else if (upper.includes('ASPIRE')) displayMain = 'HILTON ASPIRE';
+      else if (upper.includes('SURPASS')) displayMain = 'HILTON SURPASS';
+      else if (upper.includes('HYATT')) displayMain = 'WORLD OF HYATT';
+      else if (upper.includes('BRILLIANT')) displayMain = 'BONVOY BRILLIANT';
+      else if (upper.includes('BOUNDLESS')) displayMain = 'BONVOY BOUNDLESS';
+      else if (upper.includes('IHG')) displayMain = 'IHG ONE PREMIER';
+      else if (upper.includes('BILT')) displayMain = 'BILT MASTERCARD';
+      else displayMain = upper.slice(0, 20);
+    }
+
+    const safeIssuer = rawIssuer.replace(/[&<>'"]/g, '').slice(0, 22);
+    const safeMain = displayMain.replace(/[&<>'"]/g, '');
+    const safeNet = theme.network.replace(/[&<>'"]/g, '');
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 202" width="320" height="202">
+      <defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${theme.bg1}"/>
+          <stop offset="52%" stop-color="${theme.bg2}"/>
+          <stop offset="100%" stop-color="${theme.bg3}"/>
+        </linearGradient>
+        <linearGradient id="sheen" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0"/>
+          <stop offset="45%" stop-color="#ffffff" stop-opacity="0.13"/>
+          <stop offset="55%" stop-color="#ffffff" stop-opacity="0.04"/>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <rect width="320" height="202" rx="16" fill="url(#bg)"/>
+      <path d="M-20 160 L190 -20 L265 -20 L55 190 Z" fill="url(#sheen)"/>
+      <circle cx="285" cy="36" r="88" fill="${theme.accent2}" fill-opacity="0.09"/>
+      <circle cx="265" cy="175" r="70" fill="${theme.accent}" fill-opacity="0.12"/>
+      <rect x="8" y="8" width="304" height="186" rx="12" fill="none" stroke="${theme.textColor}" stroke-opacity="0.16" stroke-width="1"/>
+      <!-- Top Issuer Header -->
+      <text x="22" y="34" font-family="Inter, system-ui, sans-serif" font-size="11" font-weight="800" letter-spacing="1.6" fill="${theme.subColor}">${safeIssuer}</text>
+      <path d="M22 41 L92 41" stroke="${theme.accent}" stroke-width="2.2" stroke-linecap="round"/>
+      <!-- Metallic EMV Chip -->
+      <rect x="24" y="64" width="42" height="31" rx="6" fill="${theme.chipColor}" fill-opacity="0.92" stroke="#475569" stroke-width="0.8"/>
+      <path d="M24 74 H66 M24 84 H66 M38 64 V95 M52 64 V95" stroke="#334155" stroke-width="0.7" opacity="0.55"/>
+      <!-- Contactless Wave -->
+      <path d="M76 74 Q81 79 76 85 M81 71 Q88 79 81 88 M86 68 Q95 79 86 91" fill="none" stroke="${theme.subColor}" stroke-width="1.5" stroke-linecap="round" opacity="0.75"/>
+      <!-- Center / Hero Card Name -->
+      <text x="22" y="134" font-family="Inter, system-ui, sans-serif" font-size="18.5" font-weight="900" letter-spacing="1.5" fill="${theme.textColor}">${safeMain}</text>
+      <!-- Masked Card Digits -->
+      <text x="22" y="156" font-family="JetBrains Mono, monospace" font-size="10.5" font-weight="600" letter-spacing="2" fill="${theme.subColor}" opacity="0.85">•••• •••• •••• 9042</text>
+      <!-- Bottom Left Ecosystem & Bottom Right Network -->
+      <text x="22" y="180" font-family="Inter, system-ui, sans-serif" font-size="9.5" font-weight="700" letter-spacing="0.8" fill="${theme.subColor}" opacity="0.9">WORLD TRAVEL CARD</text>
+      <text x="296" y="180" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="10.5" font-weight="900" letter-spacing="1.2" fill="${theme.textColor}">${safeNet}</text>
+    </svg>`;
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  }
+
+  function renderCreditCardArtHtml(card, sizeClass = 'cc-art-sm') {
+    const src = getCardArtDataUri(card);
+    const label = (card && (card.name || card.title)) || 'Credit Card';
+    return `
+      <div class="cc-art-wrap ${sizeClass}" title="${escapeHtml(label)}">
+        <img src="${escapeHtml(src)}" alt="${escapeHtml(label)}" class="cc-art-img" loading="lazy" />
+      </div>
+    `;
+  }
+
+  // =========================================================================
+  // UNIFIED ECOSYSTEM LINKING HELPERS (CARDS <-> PROGRAMS <-> CERTIFICATES)
+  // =========================================================================
+  function normalizeEcoStr(str) {
+    return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function doesCardMatchProgram(card, prog) {
+    if (!card || !prog) return false;
+    if (card.linked_program_id && card.linked_program_id === prog.id) return true;
+    const pName = normalizeEcoStr(prog.name);
+    const cEco = normalizeEcoStr(card.ecosystem || card.points_program);
+    const cName = normalizeEcoStr(card.name);
+    if (!pName) return false;
+    if (cEco && (cEco === pName || cEco.includes(pName) || pName.includes(cEco))) return true;
+    // Brand token matching (e.g. "Capital One", "Hyatt", "Hilton", "Marriott", "Bilt", "United", "Delta", "Alaska")
+    const brandTokens = ['capital one', 'chase ultimate', 'amex membership', 'hilton', 'hyatt', 'marriott', 'ihg', 'bilt', 'citi thankyou', 'united', 'delta', 'alaska', 'aeroplan', 'american airlines', 'avios', 'flying blue', 'ana'];
+    for (const token of brandTokens) {
+      if (pName.includes(token) && (cEco.includes(token) || cName.includes(token))) return true;
+    }
+    return false;
+  }
+
+  function getLinkedCardsForProgram(prog) {
+    ensureRewardsStructure();
+    return (state.rewards.cards || []).filter(c => doesCardMatchProgram(c, prog));
+  }
+
+  function getLinkedCertsForProgram(prog, linkedCards = []) {
+    ensureRewardsStructure();
+    const pName = normalizeEcoStr(prog.name);
+    const cardNames = linkedCards.map(c => normalizeEcoStr(c.name)).filter(Boolean);
+    return (state.rewards.certificates || []).filter(cert => {
+      if (cert.linked_program_id && cert.linked_program_id === prog.id) return true;
+      const cProg = normalizeEcoStr(cert.program);
+      const cSource = normalizeEcoStr(cert.source_card);
+      if (pName && cProg && (cProg.includes(pName) || pName.includes(cProg))) return true;
+      for (const cn of cardNames) {
+        if (cn && ((cSource && (cSource.includes(cn) || cn.includes(cSource))) || (cProg && cProg.includes(cn)))) {
+          return true;
+        }
+      }
+      // Check brand tokens
+      const brandTokens = ['capital one', 'venture x', 'hyatt', 'hilton', 'marriott', 'ihg', 'bilt', 'united', 'delta', 'alaska', 'aeroplan'];
+      for (const token of brandTokens) {
+        if (pName.includes(token) && (cProg.includes(token) || cSource.includes(token))) return true;
+      }
+      return false;
+    });
+  }
+
+  function integrateCardIntoEcosystem(cardItem, opts = { autoLinkProg: true, autoAddCerts: true }) {
+    ensureRewardsStructure();
+    const addedItems = [];
+    const catTplEntry = POPULAR_REWARD_TEMPLATES.find(
+      t => t.kind === 'card' && normalizeEcoStr(t.data.name) === normalizeEcoStr(cardItem.name)
+    );
+    const tplData = catTplEntry ? catTplEntry.data : null;
+
+    // 1. Auto-link or create matching Loyalty Program
+    if (opts.autoLinkProg) {
+      let matchProg = (state.rewards.programs || []).find(p => doesCardMatchProgram(cardItem, p));
+      if (!matchProg && cardItem.ecosystem) {
+        // Look up program template in database
+        const progTplEntry = POPULAR_REWARD_TEMPLATES.find(
+          t => t.kind === 'program' && (
+            normalizeEcoStr(t.data.name) === normalizeEcoStr(cardItem.ecosystem) ||
+            normalizeEcoStr(t.data.name).includes(normalizeEcoStr(cardItem.ecosystem)) ||
+            normalizeEcoStr(cardItem.ecosystem).includes(normalizeEcoStr(t.data.name))
+          )
+        );
+        const ecoRaw = normalizeEcoStr(cardItem.ecosystem + ' ' + cardItem.name);
+        const inferredEco = progTplEntry
+          ? progTplEntry.data.ecosystem
+          : (ecoRaw.includes('hilton') || ecoRaw.includes('hyatt') || ecoRaw.includes('marriott') || ecoRaw.includes('ihg'))
+          ? 'hotel'
+          : (ecoRaw.includes('united') || ecoRaw.includes('delta') || ecoRaw.includes('alaska') || ecoRaw.includes('air') || ecoRaw.includes('miles') && !ecoRaw.includes('capital one'))
+          ? 'airline'
+          : 'bank';
+
+        const newProg = progTplEntry
+          ? {
+              ...JSON.parse(JSON.stringify(progTplEntry.data)),
+              id: 'prog-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)
+            }
+          : {
+              id: 'prog-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+              name: cardItem.ecosystem,
+              ecosystem: inferredEco,
+              status_tier: (tplData && tplData.auto_status) || cardItem.name || 'Member',
+              member_id: '',
+              points: 0,
+              cpp: inferredEco === 'hotel' ? 1.2 : 1.75,
+              qualifying_nights: 0,
+              target_nights: inferredEco === 'hotel' ? 60 : 0,
+              metric_label: inferredEco === 'hotel' ? 'Qualifying Nights' : '',
+              expiration_policy: 'Never expires while card open',
+              transfer_partners: '',
+              notes: `Linked to ${cardItem.name}`
+            };
+        if (tplData && tplData.auto_status) {
+          newProg.status_tier = tplData.auto_status;
+        }
+        state.rewards.programs.unshift(newProg);
+        matchProg = newProg;
+        addedItems.push(`Program "${newProg.name}"`);
+      } else if (matchProg && tplData && tplData.auto_status && (!matchProg.status_tier || matchProg.status_tier === 'Member')) {
+        matchProg.status_tier = tplData.auto_status;
+      }
+      if (matchProg) {
+        cardItem.linked_program_id = matchProg.id;
+      }
+    }
+
+    // 2. Auto-add bundled Free Night Certificates / Lounge Perks
+    if (opts.autoAddCerts && tplData && Array.isArray(tplData.bundled_certs)) {
+      const nextYear = new Date(Date.now() + 330 * 86400000).toISOString().slice(0, 10);
+      for (const bCert of tplData.bundled_certs) {
+        const alreadyExists = (state.rewards.certificates || []).some(
+          c => normalizeEcoStr(c.title) === normalizeEcoStr(bCert.title)
+        );
+        if (!alreadyExists) {
+          state.rewards.certificates.unshift({
+            id: 'cert-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+            title: bCert.title,
+            type: bCert.type || 'Free Night Certificate',
+            program: bCert.program || cardItem.ecosystem || 'Loyalty Program',
+            source_card: bCert.source_card || cardItem.name,
+            cap_details: bCert.cap_details || '',
+            expires_date: nextYear,
+            est_value_usd: Number(bCert.est_value_usd || 350),
+            status: 'available',
+            notes: bCert.notes || ''
+          });
+          addedItems.push(`Perk "${bCert.title}"`);
+        }
+      }
+    }
+    return addedItems;
+  }
 
   function ensureRewardsStructure() {
     if (!state.rewards || typeof state.rewards !== 'object') {
@@ -3812,6 +5054,58 @@
     renderRewardsRedemptionsTab();
   }
 
+  function renderInteractiveCreditRowHtml(card, cr, idx, compact = false) {
+    const label = cr.name || cr.label || 'Statement Credit';
+    const tot = Math.max(0, Number(cr.total_usd ?? cr.amount ?? 0));
+    const used = Math.min(tot, Math.max(0, cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? tot : 0)));
+    const isDone = tot > 0 && used >= tot;
+    const pct = tot > 0 ? Math.min(100, Math.round((used / tot) * 100)) : 0;
+    const step = tot >= 100 ? 5 : 1;
+
+    return `
+      <div class="interactive-credit-row ${isDone ? 'completed' : ''}">
+        <div class="interactive-credit-main">
+          <label class="interactive-credit-label">
+            <input type="checkbox" data-toggle-card-credit="${escapeHtml(card.id)}" data-credit-idx="${idx}" ${isDone ? 'checked' : ''} />
+            <span class="credit-title-txt">${escapeHtml(label)}</span>
+          </label>
+          <span class="mono" style="font-size: 12px; font-weight: 700; color: ${isDone ? 'var(--accent-primary)' : (used > 0 ? 'var(--accent-sky)' : 'var(--accent-amber)')}; white-space: nowrap;">
+            ${isDone ? '✓ ' : ''}${fmtUsdCompact(used)} / ${fmtUsdCompact(tot)}
+          </span>
+        </div>
+        ${tot > 0 ? `
+          <div class="interactive-credit-controls">
+            <input
+              type="range"
+              class="credit-range-slider"
+              min="0"
+              max="${tot}"
+              step="${step}"
+              value="${used}"
+              data-slider-card-credit="${escapeHtml(card.id)}"
+              data-credit-idx="${idx}"
+              title="Slide to record partial or full credit usage (${pct}%)"
+            />
+            <div style="display: inline-flex; align-items: center; gap: 3px;">
+              <span style="font-size: 11px; color: var(--text-muted);">$</span>
+              <input
+                type="number"
+                min="0"
+                max="${tot}"
+                step="1"
+                class="credit-used-input mono"
+                value="${used}"
+                data-input-card-credit="${escapeHtml(card.id)}"
+                data-credit-idx="${idx}"
+                title="Enter exact dollar amount used"
+              />
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
   function renderRewardsProgramsTab() {
     document.querySelectorAll('#rewards-ecosystem-chips [data-eco-filter]').forEach(btn => {
       const fKey = btn.getAttribute('data-eco-filter');
@@ -3840,23 +5134,24 @@
       state.rewardsEcoFilter === 'all' ? true : p.ecosystem === state.rewardsEcoFilter
     );
 
-    if (filtered.length === 0) {
+    if (filtered.length === 0 && (state.rewards.cards || []).length === 0) {
       grid.innerHTML = `
         <div class="panel-card" style="grid-column: 1 / -1; text-align: center; padding: 32px;">
-          <div style="font-size: 15px; font-weight: 700; margin-bottom: 6px;">No loyalty programs in this category yet</div>
+          <div style="font-size: 15px; font-weight: 700; margin-bottom: 6px;">No loyalty programs or cards in this category yet</div>
           <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
-            Add your transferable bank points (Chase, Amex, Capital One, Bilt), hotel programs (Hyatt, Marriott, Hilton), or airline miles.
+            Add a credit card (e.g. Capital One Venture X, Chase Sapphire Reserve, Hilton Aspire, World of Hyatt) or loyalty program from the database to auto-populate its card art, statement credits, and free night perks!
           </div>
-          <div style="display: flex; gap: 8px; justify-content: center;">
-            <button type="button" class="btn btn-sm" id="btn-empty-prog-tpl">⚡ Add from Templates</button>
-            <button type="button" class="btn btn-sm btn-primary" id="btn-empty-prog-add">+ Add Loyalty Program</button>
+          <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sm btn-primary" id="btn-empty-prog-tpl">⚡ Smart Add from Database</button>
+            <button type="button" class="btn btn-sm" id="btn-empty-card-add">+ Add Credit Card</button>
+            <button type="button" class="btn btn-sm" id="btn-empty-prog-add">+ Add Loyalty Program</button>
           </div>
         </div>
       `;
       return;
     }
 
-    grid.innerHTML = filtered.map(p => {
+    const progCardsHtml = filtered.map(p => {
       const meta = ECOSYSTEM_META[p.ecosystem] || ECOSYSTEM_META.other;
       const cardColor = getProgramColor(p);
       const pts = Number(p.points ?? p.balance ?? 0);
@@ -3868,6 +5163,10 @@
       const metricLabel = p.metric_label || p.qualifying_label || 'Qualifying Nights';
       const partners = p.transfer_partners || p.transfer_sources || '';
       const expPolicy = p.expiration_policy || 'Active';
+
+      // Unified Ecosystem: Linked Credit Cards & Linked Certificates/Perks
+      const linkedCards = getLinkedCardsForProgram(p);
+      const linkedCerts = getLinkedCertsForProgram(p, linkedCards);
 
       return `
         <div class="reward-item-card color-coded" style="border-color: ${hexToRgba(cardColor, 0.65)}; background-image: linear-gradient(180deg, ${hexToRgba(cardColor, 0.09)} 0%, transparent 90px);">
@@ -3931,6 +5230,101 @@
             </div>
           ` : ''}
 
+          <!-- UNIFIED LINKED CREDIT CARDS & STATEMENT CREDITS -->
+          <div class="unified-eco-section">
+            <div class="unified-eco-header">
+              <span class="unified-eco-title">💳 Linked Credit Cards &amp; Statement Credits (${linkedCards.length})</span>
+              <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 11px;" data-add-card-for-prog="${escapeHtml(p.name)}" title="Add or link a credit card from the database to ${escapeHtml(p.name)}">
+                + Add / Link Card
+              </button>
+            </div>
+            ${linkedCards.length === 0 ? `
+              <div style="font-size: 11.5px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                <span>No credit card linked yet. Add a card to display its card art &amp; statement credits right here.</span>
+              </div>
+            ` : linkedCards.map(c => {
+              const cName = c.name || c.card_name || 'Travel Card';
+              const cFee = Number(c.annual_fee || 0);
+              const cCredits = Array.isArray(c.credits) ? c.credits : [];
+              let cTot = 0;
+              let cUsed = 0;
+              for (const cr of cCredits) {
+                const t = Number(cr.total_usd ?? cr.amount ?? 0);
+                const u = cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? t : 0);
+                cTot += t;
+                cUsed += u;
+              }
+              const netVal = cUsed - cFee;
+              return `
+                <div class="linked-cc-card">
+                  <div class="linked-cc-top">
+                    ${renderCreditCardArtHtml(c, 'cc-art-sm')}
+                    <div class="linked-cc-info">
+                      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; flex-wrap: wrap;">
+                        <div class="linked-cc-name">${escapeHtml(cName)}</div>
+                        <div style="display: inline-flex; align-items: center; gap: 4px;">
+                          <span class="kpi-tag ${netVal >= 0 ? 'positive' : 'sky'}" style="font-size: 10.5px; padding: 2px 6px;">
+                            ${cTot > 0 ? `${fmtUsdCompact(cUsed)}/${fmtUsdCompact(cTot)} Credits` : `${fmtUsdCompact(cFee)}/yr`}
+                          </span>
+                          <button type="button" class="btn btn-sm" style="padding: 2px 6px; font-size: 10.5px;" data-edit-rcard="${escapeHtml(c.id)}" title="Edit Card, Art & Credits">✎</button>
+                        </div>
+                      </div>
+                      <div class="linked-cc-meta">
+                        <span><strong>Fee:</strong> ${fmtUsdCompact(cFee)}/yr</span>
+                        ${c.multipliers ? ` • <span>⚡ ${escapeHtml(c.multipliers)}</span>` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  ${cCredits.length > 0 ? `
+                    <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 2px;">
+                      ${cCredits.map((cr, idx) => renderInteractiveCreditRowHtml(c, cr, idx, true)).join('')}
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- UNIFIED LINKED FREE NIGHTS, COMPANION PASSES & PERKS -->
+          <div class="unified-eco-section">
+            <div class="unified-eco-header">
+              <span class="unified-eco-title">🎟️ Free Nights, Companion &amp; Lounge Perks (${linkedCerts.length})</span>
+              <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 11px;" data-add-cert-for-prog="${escapeHtml(p.name)}" title="Add a Free Night Certificate, Companion Pass, or Lounge Perk for ${escapeHtml(p.name)}">
+                + Add Perk
+              </button>
+            </div>
+            ${linkedCerts.length === 0 ? `
+              <div style="font-size: 11.5px; color: var(--text-muted);">
+                No free night certificates or perks linked yet.
+              </div>
+            ` : linkedCerts.map(cert => {
+              const isRed = cert.status === 'redeemed';
+              const expD = cert.expires_date || cert.expiration_date || '';
+              const daysLeft = daysUntilDate(expD);
+              const cVal = Number(cert.est_value_usd ?? cert.estimated_value_usd ?? 0);
+              return `
+                <div class="linked-cert-row" style="${isRed ? 'opacity: 0.68;' : ''}">
+                  <div style="min-width: 0; flex: 1;">
+                    <div style="font-size: 12.5px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                      <span style="${isRed ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">🎟️ ${escapeHtml(cert.title)}</span>
+                      <span class="mono" style="font-size: 11.5px; color: var(--accent-primary);">${fmtUsdCompact(cVal)}</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                      ${cert.cap_details ? `${escapeHtml(cert.cap_details)} • ` : ''}
+                      ${isRed ? '✅ Redeemed' : (daysLeft <= 60 && daysLeft >= 0 ? `🔴 Expires in ${daysLeft}d (${escapeHtml(expD)})` : `Valid thru ${escapeHtml(expD)}`)}
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <button type="button" class="btn btn-sm ${isRed ? '' : 'btn-primary'}" style="padding: 3px 8px; font-size: 11px;" data-toggle-rcert="${escapeHtml(cert.id)}">
+                      ${isRed ? '↺ Undo' : '✓ Use'}
+                    </button>
+                    <button type="button" class="btn btn-sm" style="padding: 3px 6px; font-size: 11px;" data-edit-rcert="${escapeHtml(cert.id)}" title="Edit Perk">✎</button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
           <div style="font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
             ${partners ? `<div>🔄 <strong>Partners:</strong> ${escapeHtml(partners)}</div>` : ''}
             <div>⏳ <strong>Expiration:</strong> ${escapeHtml(expPolicy)}</div>
@@ -3958,6 +5352,48 @@
         </div>
       `;
     }).join('');
+
+    // Check for any standalone credit cards not yet linked to a program in state.rewards.programs
+    const unlinkedCards = (state.rewards.cards || []).filter(
+      c => !(state.rewards.programs || []).some(p => doesCardMatchProgram(c, p))
+    );
+    let unlinkedHtml = '';
+    if (unlinkedCards.length > 0 && state.rewardsEcoFilter === 'all') {
+      unlinkedHtml = unlinkedCards.map(c => {
+        const cName = c.name || c.card_name || 'Travel Card';
+        const cFee = Number(c.annual_fee || 0);
+        const cCredits = Array.isArray(c.credits) ? c.credits : [];
+        return `
+          <div class="reward-item-card" style="border-style: dashed;">
+            <div class="reward-card-top">
+              <div style="display: flex; gap: 12px; align-items: center;">
+                ${renderCreditCardArtHtml(c, 'cc-art-sm')}
+                <div>
+                  <span class="reward-ecosystem-pill">💳 ${escapeHtml(c.issuer || 'Bank')} • ${escapeHtml(c.ecosystem || 'Unlinked Card')}</span>
+                  <h4 style="font-size: 15.5px; font-weight: 700; margin-top: 5px; color: var(--text-primary);">${escapeHtml(cName)}</h4>
+                  <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">${fmtUsdCompact(cFee)}/yr • ${escapeHtml(c.multipliers || '')}</div>
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary" data-auto-integrate-card="${escapeHtml(c.id)}" title="Automatically create & link its Loyalty Program and Free Night Perks">
+                🔗 Auto-Link Program
+              </button>
+            </div>
+            ${cCredits.length > 0 ? `
+              <div class="unified-eco-section">
+                <div class="unified-eco-title">Statement Credits</div>
+                ${cCredits.map((cr, idx) => renderInteractiveCreditRowHtml(c, cr, idx, true)).join('')}
+              </div>
+            ` : ''}
+            <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border-subtle);">
+              <button type="button" class="btn btn-sm" data-edit-rcard="${escapeHtml(c.id)}">Edit Card</button>
+              <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcard="${escapeHtml(c.id)}">✕</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    grid.innerHTML = progCardsHtml + unlinkedHtml;
   }
 
   function renderRewardsCertsTab() {
@@ -4106,10 +5542,13 @@
 
           return `
             <div class="reward-item-card" style="padding: 15px;">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-                <div>
-                  <div style="font-weight: 700; font-size: 15px; color: var(--text-primary);">🎯 ${escapeHtml(cardName)}</div>
-                  <div style="font-size: 12px; color: var(--accent-primary); font-weight: 600;">Reward: ${escapeHtml(bonusLabel)}</div>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  ${renderCreditCardArtHtml(c, 'cc-art-sm')}
+                  <div>
+                    <div style="font-weight: 700; font-size: 15px; color: var(--text-primary);">🎯 ${escapeHtml(cardName)}</div>
+                    <div style="font-size: 12px; color: var(--accent-primary); font-weight: 600;">Reward: ${escapeHtml(bonusLabel)}</div>
+                  </div>
                 </div>
                 <span class="kpi-tag ${remaining === 0 ? 'positive' : (days <= 30 ? 'danger' : 'sky')}">
                   ${remaining === 0 ? '🎉 Bonus Unlocked!' : (days < 900 ? `${days}d left (${escapeHtml(c.sub_deadline)})` : 'In Progress')}
@@ -4156,11 +5595,11 @@
         <div class="panel-card" style="grid-column: 1 / -1; text-align: center; padding: 32px;">
           <div style="font-size: 15px; font-weight: 700; margin-bottom: 6px;">No travel credit cards added yet</div>
           <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
-            Add your cards to track annual fees, statement credits ($300 travel credit, Uber cash, airline credits, Dell credits), and earning multipliers.
+            Add your cards from the database to automatically bring in their realistic card image, annual fee, statement credits ($300 travel credit, Uber cash, airline credits), and linked free night perks.
           </div>
           <div style="display: flex; gap: 8px; justify-content: center;">
-            <button type="button" class="btn btn-sm" id="btn-empty-card-tpl">⚡ Add Card from Template</button>
-            <button type="button" class="btn btn-sm btn-primary" id="btn-empty-card-add">+ Custom Credit Card</button>
+            <button type="button" class="btn btn-sm" id="btn-empty-card-tpl">⚡ Smart Add from Database</button>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-empty-card-add">+ Add Credit Card</button>
           </div>
         </div>
       `;
@@ -4180,17 +5619,31 @@
         credUsed += used;
       }
       const netOffset = credUsed - fee;
+      const linkedProg = (state.rewards.programs || []).find(p => doesCardMatchProgram(c, p));
 
       return `
         <div class="reward-item-card">
-          <div class="reward-card-top">
-            <div>
-              <span class="reward-ecosystem-pill">💳 ${escapeHtml(c.issuer || 'Bank')} • ${escapeHtml(c.ecosystem || c.points_program || 'Rewards')}</span>
-              <h4 style="font-size: 16px; font-weight: 700; margin-top: 6px; color: var(--text-primary);">${escapeHtml(cardName)}</h4>
+          <div class="reward-card-top" style="align-items: center;">
+            <div style="display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1;">
+              ${renderCreditCardArtHtml(c, 'cc-art-md')}
+              <div style="min-width: 0; flex: 1;">
+                <span class="reward-ecosystem-pill">💳 ${escapeHtml(c.issuer || 'Bank')} • ${escapeHtml(c.ecosystem || c.points_program || 'Rewards')}</span>
+                <h4 style="font-size: 16px; font-weight: 700; margin-top: 6px; color: var(--text-primary);">${escapeHtml(cardName)}</h4>
+                <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">
+                  ${linkedProg ? `<span style="color: var(--accent-primary); font-weight: 600;">🔗 Synced to ${escapeHtml(linkedProg.name)}</span>` : `<span>Not yet linked to a loyalty program</span>`}
+                </div>
+              </div>
             </div>
-            <span class="kpi-tag ${netOffset >= 0 ? 'positive' : 'sky'}">
-              ${netOffset >= 0 ? `✓ +${fmtUsdCompact(netOffset)} Net Keeper` : `${fmtUsdCompact(fee)}/yr Fee`}
-            </span>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+              <span class="kpi-tag ${netOffset >= 0 ? 'positive' : 'sky'}">
+                ${netOffset >= 0 ? `✓ +${fmtUsdCompact(netOffset)} Net Keeper` : `${fmtUsdCompact(fee)}/yr Fee`}
+              </span>
+              ${!linkedProg ? `
+                <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 10.5px;" data-auto-integrate-card="${escapeHtml(c.id)}">
+                  🔗 Link Program
+                </button>
+              ` : ''}
+            </div>
           </div>
 
           <div class="reward-balance-box">
@@ -4215,25 +5668,9 @@
           ${credits.length > 0 ? `
             <div class="credit-checklist">
               <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">
-                Annual Statement Credits Checklist (Tap to Toggle Used)
+                Interactive Statement Credits (Check off or slide for partial usage)
               </div>
-              ${credits.map((cr, idx) => {
-                const label = cr.name || cr.label || 'Statement Credit';
-                const tot = Number(cr.total_usd ?? cr.amount ?? 0);
-                const used = cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? tot : 0);
-                const isDone = tot > 0 && used >= tot;
-                return `
-                  <label class="credit-check-row ${isDone ? 'completed' : ''}" style="cursor: pointer;">
-                    <span style="display: flex; align-items: center; gap: 8px;">
-                      <input type="checkbox" data-toggle-card-credit="${escapeHtml(c.id)}" data-credit-idx="${idx}" ${isDone ? 'checked' : ''} />
-                      <span style="${isDone ? 'text-decoration: line-through; color: var(--text-muted);' : 'font-weight: 600;'}">${escapeHtml(label)}</span>
-                    </span>
-                    <span class="mono" style="font-weight: 700; color: ${isDone ? 'var(--accent-primary)' : 'var(--accent-amber)'};">
-                      ${fmtUsdCompact(used)} / ${fmtUsdCompact(tot)}
-                    </span>
-                  </label>
-                `;
-              }).join('')}
+              ${credits.map((cr, idx) => renderInteractiveCreditRowHtml(c, cr, idx, false)).join('')}
             </div>
           ` : ''}
 
@@ -4249,7 +5686,7 @@
 
           <div style="display: flex; justify-content: flex-end; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto; flex-wrap: wrap;">
             <button type="button" class="btn btn-sm" data-update-rcard="${escapeHtml(c.id)}" title="Check & update latest statement credits, annual fee, and multipliers">🔄 Update</button>
-            <button type="button" class="btn btn-sm" data-edit-rcard="${escapeHtml(c.id)}">Edit Card &amp; Credits</button>
+            <button type="button" class="btn btn-sm" data-edit-rcard="${escapeHtml(c.id)}">Edit Card, Art &amp; Credits</button>
             <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcard="${escapeHtml(c.id)}">✕</button>
           </div>
         </div>
@@ -4460,11 +5897,259 @@
     return fields;
   }
 
+  // =========================================================================
+  // VISUAL CREDITS EDITOR, CARD ART PREVIEW & DATABASE AUTO-FILL HELPERS
+  // =========================================================================
+  function renderRcardCreditsVisualEditor(credits = []) {
+    const container = document.getElementById('rcard-credits-visual-list');
+    if (!container) return;
+    container.innerHTML = '';
+    const arr = Array.isArray(credits) ? credits : [];
+    arr.forEach(cr => {
+      const nm = cr.name || cr.label || 'Statement Credit';
+      const tot = Number(cr.total_usd ?? cr.amount ?? 0);
+      const used = cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? tot : 0);
+      addRcardCreditVisualRow(nm, tot, used);
+    });
+  }
+
+  function addRcardCreditVisualRow(name = '', total = 100, used = 0) {
+    const container = document.getElementById('rcard-credits-visual-list');
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'visual-credit-editor-row';
+    row.innerHTML = `
+      <input type="text" class="form-input form-input-sm vcred-name" placeholder="Credit / Perk Name (e.g. $300 Annual Travel Credit)" value="${escapeHtml(name)}" />
+      <div style="display: flex; align-items: center; gap: 3px;">
+        <span style="font-size: 11px; color: var(--text-muted);">Tot $</span>
+        <input type="number" min="0" step="1" class="form-input form-input-sm mono vcred-total" value="${Number(total) || 0}" style="width: 72px;" />
+      </div>
+      <div style="display: flex; align-items: center; gap: 3px;">
+        <span style="font-size: 11px; color: var(--text-muted);">Used $</span>
+        <input type="number" min="0" step="1" class="form-input form-input-sm mono vcred-used" value="${Number(used) || 0}" style="width: 72px;" />
+      </div>
+      <div style="display: flex; gap: 4px;">
+        <button type="button" class="btn btn-sm vcred-max-btn" style="padding: 3px 6px; font-size: 10.5px;" title="Mark 100% Used">✓ Max</button>
+        <button type="button" class="btn btn-sm btn-danger-ghost vcred-del-btn" style="padding: 3px 6px; font-size: 10.5px;" title="Remove credit row">✕</button>
+      </div>
+    `;
+    container.appendChild(row);
+  }
+
+  function readRcardCreditsFromVisualEditor() {
+    const container = document.getElementById('rcard-credits-visual-list');
+    if (!container) return [];
+    const rows = container.querySelectorAll('.visual-credit-editor-row');
+    const credits = [];
+    rows.forEach((r, idx) => {
+      const name = ((r.querySelector('.vcred-name') || {}).value || '').trim();
+      const tot = Math.max(0, Number((r.querySelector('.vcred-total') || {}).value) || 0);
+      const used = Math.max(0, Number((r.querySelector('.vcred-used') || {}).value) || 0);
+      if (name || tot > 0) {
+        credits.push({
+          id: `cred-${Date.now()}-${idx}`,
+          name: name || `Statement Credit ${idx + 1}`,
+          total_usd: tot,
+          used_usd: Math.min(tot, used)
+        });
+      }
+    });
+    return credits;
+  }
+
+  function updateRcardArtPreview() {
+    const previewBox = document.getElementById('rcard-art-preview-box');
+    if (!previewBox) return;
+    const tempCard = {
+      name: (document.getElementById('rcard-name') || {}).value || 'Travel Rewards Card',
+      issuer: (document.getElementById('rcard-issuer') || {}).value || 'Bank',
+      card_style: (document.getElementById('rcard-style-preset') || {}).value || 'auto',
+      image_url: (document.getElementById('rcard-image-url') || {}).value || ''
+    };
+    previewBox.innerHTML = renderCreditCardArtHtml(tempCard, 'cc-art-lg');
+  }
+
+  let activeRcardDbIssuer = 'all';
+  let activeRprogDbCat = 'all';
+  let activeTplModalFilter = 'all';
+
+  function renderRcardDbResults(query = '', issuerFilter = activeRcardDbIssuer) {
+    activeRcardDbIssuer = issuerFilter || 'all';
+    const resultsEl = document.getElementById('rcard-db-results');
+    if (!resultsEl) return;
+    const q = normalizeEcoStr(query);
+    const iss = normalizeEcoStr(activeRcardDbIssuer);
+
+    const matches = POPULAR_REWARD_TEMPLATES
+      .map((tpl, idx) => ({ tpl, idx }))
+      .filter(x => x.tpl.kind === 'card')
+      .filter(({ tpl }) => {
+        const hay = normalizeEcoStr(`${tpl.title} ${tpl.subtitle} ${tpl.data.issuer} ${tpl.data.ecosystem} ${tpl.data.best_for}`);
+        if (iss !== 'all' && !hay.includes(iss)) return false;
+        if (q && !hay.includes(q)) return false;
+        return true;
+      });
+
+    if (matches.length === 0) {
+      resultsEl.innerHTML = `<div style="padding: 10px; font-size: 12px; color: var(--text-muted); text-align: center;">No matching credit cards in database. You can enter any custom card below!</div>`;
+      return;
+    }
+
+    resultsEl.innerHTML = matches.map(({ tpl, idx }) => {
+      const creditsCount = Array.isArray(tpl.data.credits) ? tpl.data.credits.length : 0;
+      const certsCount = Array.isArray(tpl.data.bundled_certs) ? tpl.data.bundled_certs.length : 0;
+      return `
+        <div class="db-lookup-item" data-pick-rcard-db="${idx}">
+          <div class="db-lookup-item-left">
+            ${renderCreditCardArtHtml(tpl.data, 'cc-art-xs')}
+            <div style="min-width: 0;">
+              <div class="db-lookup-item-title">${escapeHtml(tpl.data.name)}</div>
+              <div class="db-lookup-item-sub">
+                ${escapeHtml(tpl.data.issuer)} → <strong>${escapeHtml(tpl.data.ecosystem)}</strong> • ${fmtUsdCompact(tpl.data.annual_fee)}/yr • ${creditsCount} credits${certsCount > 0 ? ` + ${certsCount} free night/perk` : ''}
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 11px; white-space: nowrap;">
+            ⚡ Auto-Fill Card &amp; Perks
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function applyCardDbTemplateToModal(tplData) {
+    if (!tplData) return;
+    document.getElementById('rcard-name').value = tplData.name || '';
+    document.getElementById('rcard-issuer').value = tplData.issuer || '';
+    document.getElementById('rcard-ecosystem').value = tplData.ecosystem || '';
+    document.getElementById('rcard-fee').value = Number(tplData.annual_fee || 0);
+    document.getElementById('rcard-ftf').value = tplData.ftf || 'None ($0 Foreign Tx Fee)';
+    document.getElementById('rcard-multipliers').value = tplData.multipliers || '';
+    document.getElementById('rcard-best-for').value = tplData.best_for || '';
+    const styleEl = document.getElementById('rcard-style-preset');
+    if (styleEl) styleEl.value = tplData.card_style || 'auto';
+    const imgUrlEl = document.getElementById('rcard-image-url');
+    if (imgUrlEl) imgUrlEl.value = tplData.image_url || '';
+
+    renderRcardCreditsVisualEditor(tplData.credits || []);
+    updateRcardArtPreview();
+    showToast(`⚡ Auto-filled ${tplData.name} (${(tplData.credits || []).length} credits + card art ready)!`);
+  }
+
+  function renderRprogDbResults(query = '', catFilter = activeRprogDbCat) {
+    activeRprogDbCat = catFilter || 'all';
+    const resultsEl = document.getElementById('rprog-db-results');
+    if (!resultsEl) return;
+    const q = normalizeEcoStr(query);
+
+    const matches = POPULAR_REWARD_TEMPLATES
+      .map((tpl, idx) => ({ tpl, idx }))
+      .filter(x => x.tpl.kind === 'program')
+      .filter(({ tpl }) => {
+        if (activeRprogDbCat !== 'all' && tpl.data.ecosystem !== activeRprogDbCat) return false;
+        const hay = normalizeEcoStr(`${tpl.title} ${tpl.subtitle} ${tpl.data.name} ${tpl.data.transfer_partners}`);
+        if (q && !hay.includes(q)) return false;
+        return true;
+      });
+
+    if (matches.length === 0) {
+      resultsEl.innerHTML = `<div style="padding: 10px; font-size: 12px; color: var(--text-muted); text-align: center;">No matching loyalty programs found. Enter custom details below!</div>`;
+      return;
+    }
+
+    resultsEl.innerHTML = matches.map(({ tpl, idx }) => {
+      const meta = ECOSYSTEM_META[tpl.data.ecosystem] || ECOSYSTEM_META.other;
+      return `
+        <div class="db-lookup-item" data-pick-rprog-db="${idx}">
+          <div class="db-lookup-item-left">
+            <span style="font-size: 20px;">${meta.icon}</span>
+            <div style="min-width: 0;">
+              <div class="db-lookup-item-title">${escapeHtml(tpl.data.name)}</div>
+              <div class="db-lookup-item-sub">${escapeHtml(tpl.subtitle)} • Target: ${Number(tpl.data.cpp || 1.5).toFixed(2)}¢/pt</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 11px; white-space: nowrap;">
+            ⚡ Auto-Fill
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function applyProgDbTemplateToModal(tplData) {
+    if (!tplData) return;
+    document.getElementById('rprog-name').value = tplData.name || '';
+    document.getElementById('rprog-ecosystem').value = tplData.ecosystem || 'bank';
+    document.getElementById('rprog-cpp').value = Number(tplData.cpp || 1.8);
+    document.getElementById('rprog-status').value = tplData.status_tier || 'Member';
+    document.getElementById('rprog-target-nights').value = Number(tplData.target_nights ?? 0);
+    document.getElementById('rprog-metric-label').value = tplData.metric_label || 'Qualifying Nights';
+    document.getElementById('rprog-expiration').value = tplData.expiration_policy || 'Active';
+    document.getElementById('rprog-partners').value = tplData.transfer_partners || '';
+    document.getElementById('rprog-notes').value = tplData.notes || '';
+    syncRprogColorPickerUi(getEcosystemColor(tplData.ecosystem || 'bank'));
+    showToast(`⚡ Auto-filled ${tplData.name} from Loyalty Database!`);
+  }
+
+  function renderRcertDbResults(query = '') {
+    const resultsEl = document.getElementById('rcert-db-results');
+    if (!resultsEl) return;
+    const q = normalizeEcoStr(query);
+    const matches = POPULAR_CERT_TEMPLATES
+      .map((tpl, idx) => ({ tpl, idx }))
+      .filter(({ tpl }) => {
+        const hay = normalizeEcoStr(`${tpl.title} ${tpl.program} ${tpl.source_card} ${tpl.type} ${tpl.cap_details}`);
+        return !q || hay.includes(q);
+      });
+
+    if (matches.length === 0) {
+      resultsEl.innerHTML = `<div style="padding: 10px; font-size: 12px; color: var(--text-muted); text-align: center;">No matching certificates in database. Enter custom perk details below!</div>`;
+      return;
+    }
+
+    resultsEl.innerHTML = matches.map(({ tpl, idx }) => `
+      <div class="db-lookup-item" data-pick-rcert-db="${idx}">
+        <div class="db-lookup-item-left">
+          <span style="font-size: 18px;">🎟️</span>
+          <div style="min-width: 0;">
+            <div class="db-lookup-item-title">${escapeHtml(tpl.title)}</div>
+            <div class="db-lookup-item-sub">${escapeHtml(tpl.program)} (${escapeHtml(tpl.source_card)}) • Est. ${fmtUsdCompact(tpl.est_value_usd)}</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size: 11px; white-space: nowrap;">
+          ⚡ Auto-Fill
+        </button>
+      </div>
+    `).join('');
+  }
+
+  function applyCertDbTemplateToModal(tplData) {
+    if (!tplData) return;
+    document.getElementById('rcert-title').value = tplData.title || '';
+    document.getElementById('rcert-type').value = tplData.type || 'Free Night Certificate';
+    document.getElementById('rcert-program').value = tplData.program || '';
+    document.getElementById('rcert-card').value = tplData.source_card || '';
+    document.getElementById('rcert-value').value = Number(tplData.est_value_usd || 350);
+    document.getElementById('rcert-cap').value = tplData.cap_details || '';
+    document.getElementById('rcert-notes').value = tplData.notes || '';
+    showToast(`⚡ Auto-filled "${tplData.title}"!`);
+  }
+
   // Modal Open & Save Handlers for Rewards
   function openRewardProgramModal(editProg = null) {
     const titleEl = document.getElementById('modal-reward-program-title');
     const scopeEcoRadio = document.getElementById('rprog-color-scope-eco');
     const scopeCardRadio = document.getElementById('rprog-color-scope-card');
+    const searchInput = document.getElementById('rprog-db-search');
+    if (searchInput) searchInput.value = '';
+    activeRprogDbCat = 'all';
+    document.querySelectorAll('#rprog-db-filter-pills [data-rprog-db-cat]').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-rprog-db-cat') === 'all');
+    });
+    renderRprogDbResults('', 'all');
+    const progDbRes = document.getElementById('rprog-db-results');
+    if (progDbRes) progDbRes.style.display = editProg ? 'none' : 'flex';
+
     if (editProg) {
       if (titleEl) titleEl.textContent = 'Edit Loyalty Program';
       document.getElementById('rprog-id').value = editProg.id;
@@ -4558,8 +6243,14 @@
     await saveRewardsState(id ? `Updated ${name}` : `Added ${name} to Loyalty Programs!`);
   }
 
-  function openRewardCertModal(editCert = null) {
+  function openRewardCertModal(editCert = null, prefillProgram = '') {
     const titleEl = document.getElementById('modal-reward-cert-title');
+    const searchEl = document.getElementById('rcert-db-search');
+    if (searchEl) searchEl.value = prefillProgram || '';
+    renderRcertDbResults(prefillProgram || '');
+    const certDbRes = document.getElementById('rcert-db-results');
+    if (certDbRes) certDbRes.style.display = editCert ? 'none' : 'flex';
+
     if (editCert) {
       if (titleEl) titleEl.textContent = 'Edit Certificate / Travel Perk';
       document.getElementById('rcert-id').value = editCert.id;
@@ -4578,7 +6269,7 @@
       document.getElementById('rcert-id').value = '';
       document.getElementById('rcert-title').value = '';
       document.getElementById('rcert-type').value = 'Free Night Certificate';
-      document.getElementById('rcert-program').value = '';
+      document.getElementById('rcert-program').value = prefillProgram || '';
       document.getElementById('rcert-card').value = '';
       const nextYear = new Date(Date.now() + 180 * 86400000).toISOString().slice(0, 10);
       document.getElementById('rcert-expires').value = nextYear;
@@ -4618,14 +6309,38 @@
       state.rewards.certificates.unshift(item);
     }
     closeModal('modal-reward-cert');
-    state.rewardsTab = 'certs';
-    await saveRewardsState(id ? `Updated "${title}"` : `Added "${title}" to Certificates Vault!`);
+    await saveRewardsState(id ? `Updated "${title}"` : `Added "${title}" to Loyalty & Perks!`);
   }
 
-  function openRewardCardModal(editCard = null) {
+  function openRewardCardModal(editCard = null, prefillEcosystem = '') {
     const titleEl = document.getElementById('modal-reward-card-title');
+    // Populate ecosystem datalist with existing loyalty programs
+    const dl = document.getElementById('rcard-ecosystem-datalist');
+    if (dl) {
+      const names = new Set((state.rewards.programs || []).map(p => p.name).filter(Boolean));
+      ['Capital One Miles', 'Chase Ultimate Rewards', 'Amex Membership Rewards', 'Bilt Rewards', 'World of Hyatt', 'Hilton Honors', 'Marriott Bonvoy', 'IHG One Rewards', 'United MileagePlus', 'Delta SkyMiles', 'Alaska Airlines Atmos Rewards'].forEach(n => names.add(n));
+      dl.innerHTML = Array.from(names).map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+    }
+
+    const searchEl = document.getElementById('rcard-db-search');
+    if (searchEl) searchEl.value = prefillEcosystem || '';
+    activeRcardDbIssuer = 'all';
+    document.querySelectorAll('#rcard-db-filter-pills [data-rcard-db-issuer]').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-rcard-db-issuer') === 'all');
+    });
+    renderRcardDbResults(prefillEcosystem || '', 'all');
+    const cardDbRes = document.getElementById('rcard-db-results');
+    if (cardDbRes) cardDbRes.style.display = editCard ? 'none' : 'flex';
+
+    const styleEl = document.getElementById('rcard-style-preset');
+    const imgUrlEl = document.getElementById('rcard-image-url');
+    const autoLinkEl = document.getElementById('rcard-auto-link-prog');
+    const autoCertEl = document.getElementById('rcard-auto-add-certs');
+    if (autoLinkEl) autoLinkEl.checked = true;
+    if (autoCertEl) autoCertEl.checked = true;
+
     if (editCard) {
-      if (titleEl) titleEl.textContent = 'Edit Travel Credit Card & Perks';
+      if (titleEl) titleEl.textContent = 'Edit Travel Credit Card, Art & Statement Credits';
       document.getElementById('rcard-id').value = editCard.id;
       document.getElementById('rcard-name').value = editCard.name || editCard.card_name || '';
       document.getElementById('rcard-issuer').value = editCard.issuer || '';
@@ -4640,22 +6355,18 @@
       document.getElementById('rcard-sub-deadline').value = editCard.sub_deadline || '';
       document.getElementById('rcard-sub-target').value = Number(editCard.sub_target_usd ?? editCard.sub_spend_target ?? 4000);
       document.getElementById('rcard-sub-spent').value = Number(editCard.sub_spent_manual_usd ?? editCard.sub_base_spend ?? 0);
+      if (styleEl) styleEl.value = editCard.card_style || 'auto';
+      if (imgUrlEl) imgUrlEl.value = editCard.image_url || '';
 
-      const creditsLines = (Array.isArray(editCard.credits) ? editCard.credits : []).map(cr => {
-        const nm = cr.name || cr.label || 'Credit';
-        const tot = Number(cr.total_usd ?? cr.amount ?? 0);
-        const used = cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? tot : 0);
-        return `${nm} | ${tot} | ${used}`;
-      });
-      document.getElementById('rcard-credits-text').value = creditsLines.join('\n');
+      renderRcardCreditsVisualEditor(editCard.credits || []);
       renderCustomFieldsEditor('rcard-custom-fields-container', editCard.custom_fields);
     } else {
-      if (titleEl) titleEl.textContent = 'Add Travel Credit Card & Perks';
+      if (titleEl) titleEl.textContent = 'Add Travel Credit Card & Auto-Import Perks';
       document.getElementById('rcard-id').value = '';
       document.getElementById('rcard-name').value = '';
       document.getElementById('rcard-issuer').value = '';
-      document.getElementById('rcard-ecosystem').value = '';
-      document.getElementById('rcard-fee').value = '95';
+      document.getElementById('rcard-ecosystem').value = prefillEcosystem || '';
+      document.getElementById('rcard-fee').value = '395';
       document.getElementById('rcard-renewal').value = new Date(Date.now() + 300 * 86400000).toISOString().slice(0, 10);
       document.getElementById('rcard-ftf').value = 'None ($0 Foreign Tx Fee)';
       document.getElementById('rcard-multipliers').value = '';
@@ -4665,44 +6376,37 @@
       document.getElementById('rcard-sub-deadline').value = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
       document.getElementById('rcard-sub-target').value = '4000';
       document.getElementById('rcard-sub-spent').value = '0';
-      document.getElementById('rcard-credits-text').value = '$300 Annual Travel Credit | 300 | 0\n$100 Global Entry / TSA PreCheck | 100 | 100';
+      if (styleEl) styleEl.value = 'auto';
+      if (imgUrlEl) imgUrlEl.value = '';
+
+      renderRcardCreditsVisualEditor([
+        { name: '$300 Annual Travel Credit', total_usd: 300, used_usd: 0 },
+        { name: '$120 Global Entry / TSA PreCheck', total_usd: 120, used_usd: 0 }
+      ]);
       renderCustomFieldsEditor('rcard-custom-fields-container', []);
     }
+    updateRcardArtPreview();
     openModal('modal-reward-card');
   }
 
   async function saveRewardCardFromModal() {
     const name = document.getElementById('rcard-name').value.trim();
     if (!name) {
-      showToast('Please enter a credit card name');
+      showToast('Please select a card from the database above or enter a card name');
       return;
     }
     const id = document.getElementById('rcard-id').value;
-    const rawCredits = document.getElementById('rcard-credits-text').value
-      .split('\n')
-      .map(l => l.trim())
-      .filter(Boolean);
-
-    const parsedCredits = rawCredits.map((line, idx) => {
-      const parts = line.split('|').map(s => s.trim());
-      const cName = parts[0] || `Perk ${idx + 1}`;
-      const tot = Number((parts[1] || '0').replace(/[^0-9.]/g, '')) || 0;
-      const used = parts[2] !== undefined
-        ? (Number(parts[2].replace(/[^0-9.]/g, '')) || 0)
-        : 0;
-      return {
-        id: `cred-${Date.now()}-${idx}`,
-        name: cName,
-        total_usd: tot,
-        used_usd: Math.min(tot, used)
-      };
-    });
+    const parsedCredits = readRcardCreditsFromVisualEditor();
+    const stylePreset = (document.getElementById('rcard-style-preset') || {}).value || 'auto';
+    const imageUrl = ((document.getElementById('rcard-image-url') || {}).value || '').trim();
 
     const item = {
       id: id || ('card-' + Date.now()),
       name,
       issuer: document.getElementById('rcard-issuer').value.trim() || 'Bank',
       ecosystem: document.getElementById('rcard-ecosystem').value.trim() || 'Travel Rewards',
+      card_style: stylePreset,
+      image_url: imageUrl,
       annual_fee: Number(document.getElementById('rcard-fee').value) || 0,
       renewal_date: document.getElementById('rcard-renewal').value,
       ftf: document.getElementById('rcard-ftf').value.trim() || 'None ($0 Foreign Tx Fee)',
@@ -4717,14 +6421,18 @@
       custom_fields: readCustomFields('rcard-custom-fields-container')
     };
 
+    const autoLinkProg = Boolean((document.getElementById('rcard-auto-link-prog') || {}).checked);
+    const autoAddCerts = Boolean((document.getElementById('rcard-auto-add-certs') || {}).checked);
+    const syncedExtras = integrateCardIntoEcosystem(item, { autoLinkProg, autoAddCerts });
+
     if (id) {
       state.rewards.cards = state.rewards.cards.map(c => (c.id === id ? item : c));
     } else {
       state.rewards.cards.unshift(item);
     }
     closeModal('modal-reward-card');
-    state.rewardsTab = 'cards';
-    await saveRewardsState(id ? `Updated ${name}` : `Added ${name} to Credit Card Wallet!`);
+    const extraMsg = syncedExtras.length > 0 ? ` + Linked ${syncedExtras.join(' & ')}` : '';
+    await saveRewardsState(id ? `Updated ${name}${extraMsg}!` : `Added ${name}${extraMsg}!`);
   }
 
   function openRewardRedemptionModal(editRed = null, prefillProgram = '', prefillCalc = false) {
@@ -4820,40 +6528,77 @@
     await saveRewardsState(`Logged redemption: Saved ${fmtUsd(netSaved)} (${cpp > 0 ? `${cpp}¢/pt` : 'Free Night'})!`);
   }
 
-  function openRewardTemplatesModal() {
+  function renderRewardTemplatesModalContent(searchQuery = '', filterCat = activeTplModalFilter) {
+    activeTplModalFilter = filterCat || 'all';
     const cardsList = document.getElementById('template-cards-list');
     const progsList = document.getElementById('template-programs-list');
+    const q = normalizeEcoStr(searchQuery);
 
     if (cardsList) {
-      cardsList.innerHTML = POPULAR_REWARD_TEMPLATES
+      const cardMatches = POPULAR_REWARD_TEMPLATES
         .map((tpl, idx) => ({ tpl, idx }))
         .filter(x => x.tpl.kind === 'card')
-        .map(({ tpl, idx }) => `
+        .filter(({ tpl }) => {
+          if (activeTplModalFilter === 'program') return false;
+          const hay = normalizeEcoStr(`${tpl.title} ${tpl.subtitle} ${tpl.data.issuer} ${tpl.data.ecosystem} ${tpl.data.best_for}`);
+          return !q || hay.includes(q);
+        });
+
+      cardsList.innerHTML = cardMatches.length > 0
+        ? cardMatches.map(({ tpl, idx }) => `
           <div class="template-picker-card">
-            <div>
-              <div style="font-weight: 700; font-size: 13.5px; color: var(--text-primary);">${escapeHtml(tpl.title)}</div>
-              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(tpl.subtitle)}</div>
+            <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+              ${renderCreditCardArtHtml(tpl.data, 'cc-art-xs')}
+              <div style="min-width: 0;">
+                <div style="font-weight: 700; font-size: 13.5px; color: var(--text-primary);">${escapeHtml(tpl.title)}</div>
+                <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(tpl.subtitle)}</div>
+              </div>
             </div>
-            <button type="button" class="btn btn-sm btn-primary" data-add-reward-tpl="${idx}">+ Add Card to Wallet</button>
+            <button type="button" class="btn btn-sm btn-primary" style="white-space: nowrap;" data-add-reward-tpl="${idx}">⚡ + Add Card &amp; Perks</button>
           </div>
-        `).join('');
+        `).join('')
+        : `<div style="padding: 12px; color: var(--text-muted); font-size: 12px;">No matching cards for "${escapeHtml(searchQuery)}".</div>`;
     }
 
     if (progsList) {
-      progsList.innerHTML = POPULAR_REWARD_TEMPLATES
+      const progMatches = POPULAR_REWARD_TEMPLATES
         .map((tpl, idx) => ({ tpl, idx }))
         .filter(x => x.tpl.kind === 'program')
-        .map(({ tpl, idx }) => `
-          <div class="template-picker-card">
-            <div>
-              <div style="font-weight: 700; font-size: 13.5px; color: var(--text-primary);">${escapeHtml(tpl.title)}</div>
-              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(tpl.subtitle)}</div>
-            </div>
-            <button type="button" class="btn btn-sm btn-primary" data-add-reward-tpl="${idx}">+ Add Program</button>
-          </div>
-        `).join('');
-    }
+        .filter(({ tpl }) => {
+          if (activeTplModalFilter === 'card') return false;
+          if (['hotel', 'airline', 'bank'].includes(activeTplModalFilter) && tpl.data.ecosystem !== activeTplModalFilter) return false;
+          const hay = normalizeEcoStr(`${tpl.title} ${tpl.subtitle} ${tpl.data.name} ${tpl.data.transfer_partners}`);
+          return !q || hay.includes(q);
+        });
 
+      progsList.innerHTML = progMatches.length > 0
+        ? progMatches.map(({ tpl, idx }) => {
+          const meta = ECOSYSTEM_META[tpl.data.ecosystem] || ECOSYSTEM_META.other;
+          return `
+            <div class="template-picker-card">
+              <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+                <span style="font-size: 20px;">${meta.icon}</span>
+                <div style="min-width: 0;">
+                  <div style="font-weight: 700; font-size: 13.5px; color: var(--text-primary);">${escapeHtml(tpl.title)}</div>
+                  <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(tpl.subtitle)}</div>
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-primary" style="white-space: nowrap;" data-add-reward-tpl="${idx}">+ Add Program</button>
+            </div>
+          `;
+        }).join('')
+        : `<div style="padding: 12px; color: var(--text-muted); font-size: 12px;">No matching programs for "${escapeHtml(searchQuery)}".</div>`;
+    }
+  }
+
+  function openRewardTemplatesModal() {
+    const searchEl = document.getElementById('tpl-modal-search');
+    if (searchEl) searchEl.value = '';
+    activeTplModalFilter = 'all';
+    document.querySelectorAll('#tpl-modal-filter-pills [data-tpl-filter]').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-tpl-filter') === 'all');
+    });
+    renderRewardTemplatesModalContent('', 'all');
     openModal('modal-reward-templates');
   }
 
@@ -5957,7 +7702,7 @@
       }
     });
 
-    // Statement Credit Checkbox delegation
+    // Statement Credit Checkbox, Slider & Numeric Input + Card Image Upload delegation
     document.addEventListener('change', async e => {
       const credCheck = e.target.closest('[data-toggle-card-credit]');
       if (credCheck) {
@@ -5975,6 +7720,102 @@
               ? `✓ Marked "${label}" (${fmtUsdCompact(tot)}) used`
               : `Unchecked "${label}"`
           );
+        }
+        return;
+      }
+
+      const credSlider = e.target.closest('[data-slider-card-credit]');
+      if (credSlider) {
+        const cardId = credSlider.getAttribute('data-slider-card-credit');
+        const idx = Number(credSlider.getAttribute('data-credit-idx'));
+        const card = state.rewards.cards.find(c => c.id === cardId);
+        if (card && Array.isArray(card.credits) && card.credits[idx]) {
+          const cr = card.credits[idx];
+          const tot = Number(cr.total_usd ?? cr.amount ?? 0);
+          const val = Math.min(tot, Math.max(0, Number(credSlider.value) || 0));
+          cr.used_usd = val;
+          cr.used = tot > 0 && val >= tot;
+          const label = cr.name || cr.label || 'Credit';
+          await saveRewardsState(`Updated "${label}": ${fmtUsdCompact(val)} / ${fmtUsdCompact(tot)} used`);
+        }
+        return;
+      }
+
+      const credInput = e.target.closest('[data-input-card-credit]');
+      if (credInput) {
+        const cardId = credInput.getAttribute('data-input-card-credit');
+        const idx = Number(credInput.getAttribute('data-credit-idx'));
+        const card = state.rewards.cards.find(c => c.id === cardId);
+        if (card && Array.isArray(card.credits) && card.credits[idx]) {
+          const cr = card.credits[idx];
+          const tot = Number(cr.total_usd ?? cr.amount ?? 0);
+          const val = Math.min(tot, Math.max(0, Number(credInput.value) || 0));
+          cr.used_usd = val;
+          cr.used = tot > 0 && val >= tot;
+          const label = cr.name || cr.label || 'Credit';
+          await saveRewardsState(`Updated "${label}": ${fmtUsdCompact(val)} / ${fmtUsdCompact(tot)} used`);
+        }
+        return;
+      }
+
+      if (e.target && e.target.id === 'rcard-style-preset') {
+        updateRcardArtPreview();
+        return;
+      }
+
+      if (e.target && e.target.id === 'rcard-image-file') {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxW = 480;
+            const scale = Math.min(1, maxW / Math.max(1, img.width));
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
+            const urlInput = document.getElementById('rcard-image-url');
+            if (urlInput) urlInput.value = dataUrl;
+            updateRcardArtPreview();
+            showToast('Uploaded custom card image!');
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+      }
+    });
+
+    // Live Database Search & Card Art Preview input delegation
+    document.addEventListener('input', e => {
+      const t = e.target;
+      if (!t) return;
+      if (t.id === 'rcard-db-search') {
+        const res = document.getElementById('rcard-db-results');
+        if (res) res.style.display = 'flex';
+        renderRcardDbResults(t.value, activeRcardDbIssuer);
+      } else if (t.id === 'rprog-db-search') {
+        const res = document.getElementById('rprog-db-results');
+        if (res) res.style.display = 'flex';
+        renderRprogDbResults(t.value, activeRprogDbCat);
+      } else if (t.id === 'rcert-db-search') {
+        const res = document.getElementById('rcert-db-results');
+        if (res) res.style.display = 'flex';
+        renderRcertDbResults(t.value);
+      } else if (t.id === 'tpl-modal-search') {
+        renderRewardTemplatesModalContent(t.value, activeTplModalFilter);
+      } else if (t.id === 'rcard-name' || t.id === 'rcard-issuer' || t.id === 'rcard-image-url') {
+        updateRcardArtPreview();
+      } else if (t.hasAttribute && t.hasAttribute('data-slider-card-credit')) {
+        // Live sync accompanying number input while dragging slider
+        const row = t.closest('.interactive-credit-row');
+        if (row) {
+          const numInput = row.querySelector('[data-input-card-credit]');
+          if (numInput) numInput.value = t.value;
         }
       }
     });
@@ -6431,6 +8272,149 @@
         return;
       }
 
+      // Quick "+ Add / Link Card" or "+ Add Perk" directly from a Loyalty Program card
+      const addCardForProgBtn = e.target.closest('[data-add-card-for-prog]');
+      if (addCardForProgBtn) {
+        e.preventDefault();
+        openRewardCardModal(null, addCardForProgBtn.getAttribute('data-add-card-for-prog'));
+        return;
+      }
+      const addCertForProgBtn = e.target.closest('[data-add-cert-for-prog]');
+      if (addCertForProgBtn) {
+        e.preventDefault();
+        openRewardCertModal(null, addCertForProgBtn.getAttribute('data-add-cert-for-prog'));
+        return;
+      }
+      const autoIntCardBtn = e.target.closest('[data-auto-integrate-card]');
+      if (autoIntCardBtn) {
+        e.preventDefault();
+        const cId = autoIntCardBtn.getAttribute('data-auto-integrate-card');
+        const card = (state.rewards.cards || []).find(c => c.id === cId);
+        if (card) {
+          const added = integrateCardIntoEcosystem(card, { autoLinkProg: true, autoAddCerts: true });
+          await saveRewardsState(
+            added.length > 0
+              ? `🔗 Synced ${card.name}: Created & linked ${added.join(' & ')}!`
+              : `🔗 Linked ${card.name} to Loyalty Hub!`
+          );
+        }
+        return;
+      }
+
+      // Database Auto-Fill Pickers & Filter Pills inside Modals
+      const pickRcardDb = e.target.closest('[data-pick-rcard-db]');
+      if (pickRcardDb) {
+        e.preventDefault();
+        const tpl = POPULAR_REWARD_TEMPLATES[Number(pickRcardDb.getAttribute('data-pick-rcard-db'))];
+        if (tpl && tpl.data) applyCardDbTemplateToModal(tpl.data);
+        return;
+      }
+      const pickRprogDb = e.target.closest('[data-pick-rprog-db]');
+      if (pickRprogDb) {
+        e.preventDefault();
+        const tpl = POPULAR_REWARD_TEMPLATES[Number(pickRprogDb.getAttribute('data-pick-rprog-db'))];
+        if (tpl && tpl.data) applyProgDbTemplateToModal(tpl.data);
+        return;
+      }
+      const pickRcertDb = e.target.closest('[data-pick-rcert-db]');
+      if (pickRcertDb) {
+        e.preventDefault();
+        const tpl = POPULAR_CERT_TEMPLATES[Number(pickRcertDb.getAttribute('data-pick-rcert-db'))];
+        if (tpl) applyCertDbTemplateToModal(tpl);
+        return;
+      }
+
+      const rcardIssBtn = e.target.closest('[data-rcard-db-issuer]');
+      if (rcardIssBtn) {
+        e.preventDefault();
+        const iss = rcardIssBtn.getAttribute('data-rcard-db-issuer');
+        document.querySelectorAll('#rcard-db-filter-pills [data-rcard-db-issuer]').forEach(b => {
+          b.classList.toggle('active', b === rcardIssBtn);
+        });
+        const res = document.getElementById('rcard-db-results');
+        if (res) res.style.display = 'flex';
+        renderRcardDbResults((document.getElementById('rcard-db-search') || {}).value || '', iss);
+        return;
+      }
+
+      const rprogCatBtn = e.target.closest('[data-rprog-db-cat]');
+      if (rprogCatBtn) {
+        e.preventDefault();
+        const cat = rprogCatBtn.getAttribute('data-rprog-db-cat');
+        document.querySelectorAll('#rprog-db-filter-pills [data-rprog-db-cat]').forEach(b => {
+          b.classList.toggle('active', b === rprogCatBtn);
+        });
+        const res = document.getElementById('rprog-db-results');
+        if (res) res.style.display = 'flex';
+        renderRprogDbResults((document.getElementById('rprog-db-search') || {}).value || '', cat);
+        return;
+      }
+
+      const tplFilterBtn = e.target.closest('[data-tpl-filter]');
+      if (tplFilterBtn) {
+        e.preventDefault();
+        const f = tplFilterBtn.getAttribute('data-tpl-filter');
+        document.querySelectorAll('#tpl-modal-filter-pills [data-tpl-filter]').forEach(b => {
+          b.classList.toggle('active', b === tplFilterBtn);
+        });
+        renderRewardTemplatesModalContent((document.getElementById('tpl-modal-search') || {}).value || '', f);
+        return;
+      }
+
+      if (e.target.closest('#btn-toggle-rcard-db-list')) {
+        e.preventDefault();
+        const res = document.getElementById('rcard-db-results');
+        if (res) res.style.display = res.style.display === 'none' ? 'flex' : 'none';
+        return;
+      }
+      if (e.target.closest('#btn-toggle-rprog-db-list')) {
+        e.preventDefault();
+        const res = document.getElementById('rprog-db-results');
+        if (res) res.style.display = res.style.display === 'none' ? 'flex' : 'none';
+        return;
+      }
+      if (e.target.closest('#btn-toggle-rcert-db-list')) {
+        e.preventDefault();
+        const res = document.getElementById('rcert-db-results');
+        if (res) res.style.display = res.style.display === 'none' ? 'flex' : 'none';
+        return;
+      }
+
+      // Clear custom card image button
+      if (e.target.closest('#btn-rcard-clear-image')) {
+        e.preventDefault();
+        const urlEl = document.getElementById('rcard-image-url');
+        if (urlEl) urlEl.value = '';
+        updateRcardArtPreview();
+        showToast('Restored built-in card graphic');
+        return;
+      }
+
+      // Visual Credits Repeater Buttons inside Add/Edit Credit Card Modal
+      if (e.target.closest('#btn-rcard-add-credit-row')) {
+        e.preventDefault();
+        addRcardCreditVisualRow('', 100, 0);
+        return;
+      }
+      const vcredDelBtn = e.target.closest('.vcred-del-btn');
+      if (vcredDelBtn) {
+        e.preventDefault();
+        const row = vcredDelBtn.closest('.visual-credit-editor-row');
+        if (row) row.remove();
+        return;
+      }
+      const vcredMaxBtn = e.target.closest('.vcred-max-btn');
+      if (vcredMaxBtn) {
+        e.preventDefault();
+        const row = vcredMaxBtn.closest('.visual-credit-editor-row');
+        if (row) {
+          const totEl = row.querySelector('.vcred-total');
+          const usedEl = row.querySelector('.vcred-used');
+          if (totEl && usedEl) usedEl.value = totEl.value;
+        }
+        return;
+      }
+
       if (e.target.closest('#btn-open-add-card, #btn-card-add-new-top, #btn-card-add-new, #btn-empty-card-add')) {
         e.preventDefault();
         openRewardCardModal(null);
@@ -6513,18 +8497,21 @@
         if (tpl) {
           const clone = JSON.parse(JSON.stringify(tpl.data));
           clone.id = 'tpl_' + Math.random().toString(36).slice(2, 9);
+          let extraMsg = '';
           if (tpl.kind === 'card') {
+            const synced = integrateCardIntoEcosystem(clone, { autoLinkProg: true, autoAddCerts: true });
             state.rewards.cards.unshift(clone);
-            state.rewardsTab = 'cards';
+            state.rewardsTab = 'programs';
+            if (synced.length > 0) extraMsg = ` + Auto-linked ${synced.join(' & ')}`;
           } else if (tpl.kind === 'program') {
             state.rewards.programs.unshift(clone);
             state.rewardsTab = 'programs';
           } else if (tpl.kind === 'cert') {
             state.rewards.certificates.unshift(clone);
-            state.rewardsTab = 'certs';
+            state.rewardsTab = 'programs';
           }
           closeModal('modal-reward-templates');
-          await saveRewardsState(`Added ${tpl.title} to your Rewards Command Center!`);
+          await saveRewardsState(`⚡ Added ${tpl.title}${extraMsg} to your Unified Loyalty Hub!`);
         }
         return;
       }

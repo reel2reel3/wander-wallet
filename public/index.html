@@ -418,23 +418,25 @@
             <div class="panel-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px;">
               <div>
                 <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-amber); margin-bottom: 4px;">
-                  🏆 TRAVEL REWARDS, POINTS, FREE NIGHTS &amp; CARD PERKS VAULT
+                  🏆 UNIFIED TRAVEL REWARDS, CARDS, FREE NIGHTS &amp; PERKS COMMAND CENTER
                 </div>
                 <h2 class="panel-title" style="font-size: 20px;">Loyalty &amp; Rewards Command Center</h2>
                 <p class="panel-subtitle" style="margin-top: 3px;">
-                  Monitor transferable bank points, hotel &amp; airline status nights, expiring free night certificates, annual card statement credits, welcome bonus minimum spend, and trip redemption savings.
+                  Unified ecosystem hub connecting your loyalty programs, credit card images, live statement credits ($300 Venture X, resort &amp; airline credits), free night certificates, and trip redemptions.
                 </p>
               </div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
                 <button type="button" class="btn btn-sm" id="btn-rewards-back-finance">← Back to Finance Ledger</button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-open-reward-templates" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); border: none; font-weight: 700; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35);">
+                  ⚡ Smart Add from Database
+                </button>
                 <button type="button" class="btn btn-sm btn-primary" id="btn-update-all-rewards" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; font-weight: 700; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);">
                   🔄 Update All Rewards
                 </button>
-                <button type="button" class="btn btn-sm" id="btn-open-reward-templates">⚡ Popular Card &amp; Program Templates</button>
+                <button type="button" class="btn btn-sm" id="btn-open-add-card">+ Credit Card</button>
                 <button type="button" class="btn btn-sm" id="btn-open-add-program">+ Loyalty Program</button>
                 <button type="button" class="btn btn-sm" id="btn-open-add-cert">+ Free Night / Perk</button>
-                <button type="button" class="btn btn-sm" id="btn-open-add-card">+ Credit Card</button>
-                <button type="button" class="btn btn-sm btn-primary" id="btn-open-add-redemption">+ Log Point Redemption</button>
+                <button type="button" class="btn btn-sm" id="btn-open-add-redemption">+ Log Redemption</button>
               </div>
             </div>
 
@@ -446,16 +448,16 @@
             <!-- Sub-Navigation Tabs inside Rewards Command Center -->
             <div class="rewards-subnav" role="tablist" aria-label="Rewards Sections">
               <button type="button" class="rewards-tab-btn active" data-rewards-tab="programs">
-                <span>💎 Points, Miles &amp; Elite Status</span>
+                <span>💎 Unified Loyalty, Cards &amp; Perks Hub</span>
                 <span class="nav-badge" id="r-badge-programs">0</span>
+              </button>
+              <button type="button" class="rewards-tab-btn" data-rewards-tab="cards">
+                <span>💳 Credit Card Wallet &amp; SUB Tracker</span>
+                <span class="nav-badge" id="r-badge-cards">0</span>
               </button>
               <button type="button" class="rewards-tab-btn" data-rewards-tab="certs">
                 <span>🎟️ Free Nights, Companion &amp; Perks</span>
                 <span class="nav-badge" id="r-badge-certs">0</span>
-              </button>
-              <button type="button" class="rewards-tab-btn" data-rewards-tab="cards">
-                <span>💳 Credit Cards, Credits &amp; SUB Spend</span>
-                <span class="nav-badge" id="r-badge-cards">0</span>
               </button>
               <button type="button" class="rewards-tab-btn" data-rewards-tab="matrix">
                 <span>🔄 Transfer Partners &amp; CPP Calculator</span>
@@ -467,7 +469,7 @@
             </div>
           </section>
 
-          <!-- REWARDS TAB 1: POINTS, MILES & ELITE STATUS -->
+          <!-- REWARDS TAB 1: UNIFIED LOYALTY, LINKED CARDS & PERKS HUB -->
           <div id="rewards-pane-programs" class="rewards-tab-pane">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
               <div class="category-chips" id="rewards-ecosystem-chips">
@@ -479,7 +481,7 @@
               </div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <button type="button" class="btn btn-sm" id="btn-open-eco-colors" title="Customize category banner &amp; outline colors">🎨 Category Colors</button>
-                <button type="button" class="btn btn-sm" id="btn-prog-open-templates">⚡ Add from Templates</button>
+                <button type="button" class="btn btn-sm" id="btn-prog-open-templates">⚡ Browse Card &amp; Program Database</button>
                 <button type="button" class="btn btn-sm btn-primary" id="btn-prog-add-custom">+ Add Loyalty Program</button>
               </div>
             </div>
@@ -1541,7 +1543,7 @@
 
   <!-- MODAL 7: ADD / EDIT LOYALTY PROGRAM & STATUS -->
   <div class="modal-backdrop" id="modal-reward-program" role="dialog" aria-modal="true" aria-labelledby="modal-reward-program-title">
-    <div class="modal-dialog modal-lg" style="max-width: 720px;">
+    <div class="modal-dialog modal-lg" style="max-width: 760px;">
       <div class="modal-header">
         <h3 class="modal-title" id="modal-reward-program-title">Add / Edit Loyalty Program</h3>
         <button type="button" class="modal-close" data-close-modal="modal-reward-program" aria-label="Close">&times;</button>
@@ -1549,6 +1551,31 @@
       <form id="form-reward-program">
         <input type="hidden" id="rprog-id" />
         <div class="modal-body">
+          <!-- Instant Loyalty Database Lookup & Auto-Fill -->
+          <div class="db-lookup-box" id="rprog-db-lookup-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+              <div>
+                <div style="font-size: 12px; font-weight: 800; color: var(--accent-sky); text-transform: uppercase; letter-spacing: 0.05em;">
+                  ⚡ Instant Loyalty Program Database Auto-Fill
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-secondary);">
+                  Search &amp; select any bank, hotel, or airline program below to auto-populate valuations, status targets, transfer partners, and rules.
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-toggle-rprog-db-list" style="font-size: 11px;">▼ Browse All Programs</button>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <input type="text" id="rprog-db-search" class="form-input" style="flex: 1; min-width: 220px;" placeholder="🔍 Search database (e.g., Capital One Miles, Hyatt, Hilton, Delta, United, Bilt)..." autocomplete="off" />
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="rprog-db-filter-pills">
+                <button type="button" class="chip-btn active" data-rprog-db-cat="all" style="padding: 3px 8px; font-size: 11px;">All</button>
+                <button type="button" class="chip-btn" data-rprog-db-cat="bank" style="padding: 3px 8px; font-size: 11px;">🏦 Bank</button>
+                <button type="button" class="chip-btn" data-rprog-db-cat="hotel" style="padding: 3px 8px; font-size: 11px;">🏨 Hotel</button>
+                <button type="button" class="chip-btn" data-rprog-db-cat="airline" style="padding: 3px 8px; font-size: 11px;">✈️ Airline</button>
+              </div>
+            </div>
+            <div id="rprog-db-results" class="db-lookup-results" style="display: none;"></div>
+          </div>
+
           <div class="form-grid-2">
             <div class="form-group">
               <label class="form-label" for="rprog-name">Program Name</label>
@@ -1663,7 +1690,7 @@
 
   <!-- MODAL 8: ADD / EDIT FREE NIGHT CERTIFICATE, COMPANION PASS OR PERK -->
   <div class="modal-backdrop" id="modal-reward-cert" role="dialog" aria-modal="true" aria-labelledby="modal-reward-cert-title">
-    <div class="modal-dialog modal-lg" style="max-width: 720px;">
+    <div class="modal-dialog modal-lg" style="max-width: 740px;">
       <div class="modal-header">
         <h3 class="modal-title" id="modal-reward-cert-title">Add Free Night Certificate / Travel Perk</h3>
         <button type="button" class="modal-close" data-close-modal="modal-reward-cert" aria-label="Close">&times;</button>
@@ -1671,6 +1698,23 @@
       <form id="form-reward-cert">
         <input type="hidden" id="rcert-id" />
         <div class="modal-body">
+          <!-- Instant Certificate / Perk Database Lookup -->
+          <div class="db-lookup-box" id="rcert-db-lookup-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+              <div>
+                <div style="font-size: 12px; font-weight: 800; color: var(--accent-amber); text-transform: uppercase; letter-spacing: 0.05em;">
+                  ⚡ Instant Certificate &amp; Travel Perk Database Auto-Fill
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-secondary);">
+                  Pick a popular hotel Free Night Certificate, Companion Pass, Suite Upgrade, or Lounge Perk to auto-fill rules and values.
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-toggle-rcert-db-list" style="font-size: 11px;">▼ Browse Perks Database</button>
+            </div>
+            <input type="text" id="rcert-db-search" class="form-input" placeholder="🔍 Search perks (e.g., Hyatt Cat 1-4, Hilton Uncapped Free Night, Marriott 85k, Companion Fare, Priority Pass)..." autocomplete="off" />
+            <div id="rcert-db-results" class="db-lookup-results" style="display: none;"></div>
+          </div>
+
           <div class="form-grid-2">
             <div class="form-group">
               <label class="form-label" for="rcert-title">Certificate / Perk Name</label>
@@ -1689,12 +1733,12 @@
 
           <div class="form-grid-2">
             <div class="form-group">
-              <label class="form-label" for="rcert-program">Loyalty Program</label>
-              <input type="text" id="rcert-program" class="form-input" placeholder="e.g., World of Hyatt, Marriott Bonvoy, Hilton Honors" />
+              <label class="form-label" for="rcert-program">Loyalty Program (Links to Main Loyalty Page)</label>
+              <input type="text" id="rcert-program" class="form-input" placeholder="e.g., World of Hyatt, Marriott Bonvoy, Hilton Honors, Capital One Miles" />
             </div>
             <div class="form-group">
               <label class="form-label" for="rcert-card">Earned From Card / Milestone</label>
-              <input type="text" id="rcert-card" class="form-input" placeholder="e.g., Amex Hilton Aspire or 60-Night Milestone" />
+              <input type="text" id="rcert-card" class="form-input" placeholder="e.g., Amex Hilton Aspire or Capital One Venture X" />
             </div>
           </div>
 
@@ -1750,7 +1794,7 @@
 
   <!-- MODAL 9: ADD / EDIT TRAVEL CREDIT CARD, STATEMENT CREDITS & SUB TRACKER -->
   <div class="modal-backdrop" id="modal-reward-card" role="dialog" aria-modal="true" aria-labelledby="modal-reward-card-title">
-    <div class="modal-dialog" style="max-width: 640px;">
+    <div class="modal-dialog modal-lg" style="max-width: 780px;">
       <div class="modal-header">
         <h3 class="modal-title" id="modal-reward-card-title">Add / Edit Travel Credit Card &amp; Perks</h3>
         <button type="button" class="modal-close" data-close-modal="modal-reward-card" aria-label="Close">&times;</button>
@@ -1758,6 +1802,77 @@
       <form id="form-reward-card">
         <input type="hidden" id="rcard-id" />
         <div class="modal-body">
+          <!-- Instant Credit Card Database Lookup & Auto-Fill -->
+          <div class="db-lookup-box" id="rcard-db-lookup-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+              <div>
+                <div style="font-size: 12px; font-weight: 800; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.05em;">
+                  ⚡ Instant Credit Card Database Lookup (Auto-Fills Card Art, Credits &amp; Perks)
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-secondary);">
+                  Select any card (e.g., <strong>Capital One Venture X</strong>, <strong>Chase Sapphire Reserve</strong>, <strong>Amex Platinum</strong>, <strong>Hilton Aspire</strong>) to auto-populate its card image, $300+ statement credits, multipliers, and free nights.
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-toggle-rcard-db-list" style="font-size: 11px;">▼ Browse 30+ Cards</button>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <input type="text" id="rcard-db-search" class="form-input" style="flex: 1; min-width: 220px;" placeholder="🔍 Type card name (e.g., Venture X, Sapphire, Amex Gold, Aspire, Hyatt, Bilt)..." autocomplete="off" />
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="rcard-db-filter-pills">
+                <button type="button" class="chip-btn active" data-rcard-db-issuer="all" style="padding: 3px 8px; font-size: 11px;">All</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Capital One" style="padding: 3px 8px; font-size: 11px;">Capital One</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Chase" style="padding: 3px 8px; font-size: 11px;">Chase</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="American Express" style="padding: 3px 8px; font-size: 11px;">Amex</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Hotel" style="padding: 3px 8px; font-size: 11px;">🏨 Hotels</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Airline" style="padding: 3px 8px; font-size: 11px;">✈️ Airlines</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Other" style="padding: 3px 8px; font-size: 11px;">Bilt / Citi / US Bank</button>
+              </div>
+            </div>
+            <div id="rcard-db-results" class="db-lookup-results" style="display: none;"></div>
+          </div>
+
+          <!-- Card Art Preview + Custom Image Upload / URL -->
+          <div style="display: flex; gap: 16px; align-items: center; padding: 12px 14px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-bottom: 12px; flex-wrap: wrap;">
+            <div id="rcard-art-preview-box" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+              <!-- Populated dynamically with realistic credit card graphic -->
+            </div>
+            <div style="flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <label class="form-label" style="margin: 0; font-weight: 700;">🖼️ Credit Card Image (Shown on Loyalty &amp; Cards Pages)</label>
+                <div style="display: flex; gap: 6px;">
+                  <label class="btn btn-sm" style="cursor: pointer; font-size: 11px; padding: 3px 9px; margin: 0;">
+                    📷 Upload Card Photo
+                    <input type="file" id="rcard-image-file" accept="image/*" style="display: none;" />
+                  </label>
+                  <button type="button" class="btn btn-sm" id="btn-rcard-clear-image" style="font-size: 11px; padding: 3px 9px;" title="Use built-in realistic card graphic">↺ Use Built-In Card Art</button>
+                </div>
+              </div>
+              <div class="form-grid-2">
+                <div>
+                  <select id="rcard-style-preset" class="form-select" style="font-size: 12px; padding: 6px 8px;">
+                    <option value="">✨ Auto-Match Built-In Card Design</option>
+                    <option value="venture-x">Capital One Venture X (Midnight Navy Metal)</option>
+                    <option value="sapphire-reserve">Chase Sapphire Reserve (Faceted Sapphire)</option>
+                    <option value="sapphire-preferred">Chase Sapphire Preferred (Cobalt Blue)</option>
+                    <option value="chase-ink">Chase Ink Business Preferred (Slate Navy)</option>
+                    <option value="amex-platinum">Amex Platinum / Biz Platinum (Brushed Silver)</option>
+                    <option value="amex-gold">Amex Gold / Biz Gold (18k Metallic Gold)</option>
+                    <option value="hilton-aspire">Amex Hilton Honors Aspire (Obsidian Royal)</option>
+                    <option value="hyatt">Chase World of Hyatt (Emerald Teal)</option>
+                    <option value="marriott-brilliant">Marriott Bonvoy Brilliant (Polished Onyx)</option>
+                    <option value="bilt">Bilt Mastercard (Matte Jet Black)</option>
+                    <option value="citi-strata">Citi Strata Premier (Deep Citi Blue)</option>
+                    <option value="airline-united">United MileagePlus (Rhapsody Blue)</option>
+                    <option value="airline-delta">Delta SkyMiles Amex (Reserve Burgundy)</option>
+                    <option value="airline-alaska">Alaska Airlines Visa (Deep Pacific Teal)</option>
+                  </select>
+                </div>
+                <div>
+                  <input type="text" id="rcard-image-url" class="form-input" style="font-size: 12px; padding: 6px 8px;" placeholder="Or paste custom card image URL..." />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="form-grid-3">
             <div class="form-group">
               <label class="form-label" for="rcard-name">Card Name</label>
@@ -1768,8 +1883,9 @@
               <input type="text" id="rcard-issuer" class="form-input" placeholder="e.g., Chase, Amex, Capital One" />
             </div>
             <div class="form-group">
-              <label class="form-label" for="rcard-ecosystem">Points Ecosystem</label>
-              <input type="text" id="rcard-ecosystem" class="form-input" placeholder="e.g., Chase Ultimate Rewards" />
+              <label class="form-label" for="rcard-ecosystem">Linked Loyalty Program</label>
+              <input type="text" id="rcard-ecosystem" class="form-input" list="rcard-ecosystem-datalist" placeholder="e.g., Capital One Miles, World of Hyatt" />
+              <datalist id="rcard-ecosystem-datalist"></datalist>
             </div>
           </div>
 
@@ -1791,12 +1907,52 @@
           <div class="form-grid-2">
             <div class="form-group">
               <label class="form-label" for="rcard-multipliers">Earning Multipliers (2x, 3x, 4x, 5x)</label>
-              <input type="text" id="rcard-multipliers" class="form-input" placeholder="e.g., 4x Dining • 3x Flights • 2x Transit" />
+              <input type="text" id="rcard-multipliers" class="form-input" placeholder="e.g., 2x Everything • 10x Portal Hotels/Cars • 5x Flights" />
             </div>
             <div class="form-group">
               <label class="form-label" for="rcard-best-for">Best Road Category to Swipe For</label>
-              <input type="text" id="rcard-best-for" class="form-input" placeholder="e.g., Crew Meals & Overseas Trains" />
+              <input type="text" id="rcard-best-for" class="form-input" placeholder="e.g., 2x Catch-All Foreign Vendors &amp; Portal Hotels" />
             </div>
+          </div>
+
+          <!-- Tight Integration Options (Auto-Link Loyalty Program + Bundled Perks) -->
+          <div style="padding: 10px 12px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: var(--radius-sm); margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="font-size: 11.5px; font-weight: 800; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.04em;">
+              🔗 Tight Loyalty Ecosystem Integration
+            </div>
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer;">
+              <input type="checkbox" id="rcard-auto-link-prog" checked />
+              <span>Automatically link (or create) matching <strong>Loyalty Program</strong> on the main Loyalty page with this card's image &amp; benefits</span>
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer;">
+              <input type="checkbox" id="rcard-auto-add-certs" checked />
+              <span>Automatically add bundled <strong>Free Night Certificates / Lounge &amp; Companion Perks</strong> for this card</span>
+            </label>
+          </div>
+
+          <!-- Visual Statement Credits & Annual Benefits Editor -->
+          <div style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+              <div>
+                <label class="form-label" style="margin: 0; font-weight: 700;">💰 Annual Statement Credits &amp; Card Benefits</label>
+                <div style="font-size: 11px; color: var(--text-muted);">
+                  Automatically populated from the database (e.g. Venture X $300 Travel Credit) — edit amounts or add custom credits below.
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-rcard-add-credit-row" style="font-size: 11.5px; padding: 3px 10px;">+ Add Credit / Benefit</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 92px 92px auto auto; gap: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; padding: 0 2px;">
+              <span>Credit / Benefit Name</span>
+              <span>Annual Total ($)</span>
+              <span>Used So Far ($)</span>
+              <span>Quick</span>
+              <span></span>
+            </div>
+            <div id="rcard-credits-visual-list" style="display: flex; flex-direction: column; gap: 6px;">
+              <!-- Populated dynamically with visual rows -->
+            </div>
+            <!-- Hidden legacy textarea kept in sync for compatibility -->
+            <textarea id="rcard-credits-text" style="display: none;"></textarea>
           </div>
 
           <!-- Welcome Bonus (SUB) Minimum Spend Tracker Config -->
@@ -1808,7 +1964,7 @@
             <div class="form-grid-2" style="margin-bottom: 8px;">
               <div class="form-group">
                 <label class="form-label" for="rcard-sub-bonus">Welcome Bonus Reward</label>
-                <input type="text" id="rcard-sub-bonus" class="form-input" placeholder="e.g., 100,000 Chase UR pts ($2,000 value)" />
+                <input type="text" id="rcard-sub-bonus" class="form-input" placeholder="e.g., 75,000 Capital One Miles ($1,385 value)" />
               </div>
               <div class="form-group">
                 <label class="form-label" for="rcard-sub-deadline">Minimum Spend Deadline</label>
@@ -1830,14 +1986,6 @@
             </div>
           </div>
 
-          <!-- Statement Credits Editor (1 per line: Name | Total $ | Used $) -->
-          <div class="form-group">
-            <label class="form-label" for="rcard-credits-text">
-              Annual Statement Credits &amp; Perks Checklist (One per line: <code>Perk Name | Total $ | Used $</code>)
-            </label>
-            <textarea id="rcard-credits-text" class="form-textarea mono" rows="4" style="font-size: 12px;" placeholder="$300 Annual Travel Credit | 300 | 300&#10;$120 Uber Cash ($10/mo) | 120 | 80&#10;$100 Global Entry Credit | 100 | 100"></textarea>
-          </div>
-
           <!-- Custom Fields Repeater -->
           <div class="custom-fields-section" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -1854,7 +2002,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn" data-close-modal="modal-reward-card">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="btn-submit-reward-card">Save Credit Card</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-reward-card">Save Credit Card &amp; Sync Perks</button>
         </div>
       </form>
     </div>
@@ -1938,17 +2086,17 @@
     </div>
   </div>
 
-  <!-- MODAL 11: POPULAR TRAVEL CREDIT CARD & LOYALTY PROGRAM TEMPLATE LIBRARY -->
+  <!-- MODAL 11: MASTER TRAVEL CREDIT CARD & LOYALTY PROGRAM DATABASE -->
   <div class="modal-backdrop" id="modal-reward-templates" role="dialog" aria-modal="true" aria-labelledby="modal-reward-templates-title">
-    <div class="modal-dialog" style="max-width: 720px;">
+    <div class="modal-dialog modal-lg" style="max-width: 860px;">
       <div class="modal-header">
-        <h3 class="modal-title" id="modal-reward-templates-title">⚡ One-Click Travel Card &amp; Loyalty Program Templates</h3>
+        <h3 class="modal-title" id="modal-reward-templates-title">⚡ Smart Travel Card, Loyalty Program &amp; Perks Database</h3>
         <button type="button" class="modal-close" data-close-modal="modal-reward-templates" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
           <p style="font-size: 12.5px; color: var(--text-secondary);">
-            Click any popular travel card or loyalty program below to add it to your Rewards Command Center with pre-configured multipliers, statement credits, and point valuations — or reset/clear sample data.
+            Search or click any travel credit card or loyalty program below. Adding a card <strong>automatically brings in its card image, annual statement credits ($300 Venture X credit, resort credits, etc.), multipliers, AND links/creates its Loyalty Program &amp; Free Nights</strong> in one click!
           </p>
           <div style="display: flex; gap: 8px;">
             <button type="button" class="btn btn-sm" id="btn-rewards-reset-defaults">↺ Restore Sample Lineup</button>
@@ -1956,17 +2104,29 @@
           </div>
         </div>
 
-        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-amber); margin-top: 6px;">
-          Popular Travel Credit Cards (Pre-Loaded Statement Credits &amp; Multipliers)
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0;">
+          <input type="text" id="tpl-modal-search" class="form-input" style="flex: 1; min-width: 240px;" placeholder="🔍 Filter database by card, bank, hotel, or airline (e.g., Venture X, Sapphire, Amex, Hyatt, Hilton, Delta)..." autocomplete="off" />
+          <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="tpl-modal-filter-pills">
+            <button type="button" class="chip-btn active" data-tpl-filter="all" style="font-size: 11px; padding: 4px 10px;">All</button>
+            <button type="button" class="chip-btn" data-tpl-filter="Capital One" style="font-size: 11px; padding: 4px 10px;">Capital One</button>
+            <button type="button" class="chip-btn" data-tpl-filter="Chase" style="font-size: 11px; padding: 4px 10px;">Chase</button>
+            <button type="button" class="chip-btn" data-tpl-filter="American Express" style="font-size: 11px; padding: 4px 10px;">Amex</button>
+            <button type="button" class="chip-btn" data-tpl-filter="Hotel" style="font-size: 11px; padding: 4px 10px;">🏨 Hotels</button>
+            <button type="button" class="chip-btn" data-tpl-filter="Airline" style="font-size: 11px; padding: 4px 10px;">✈️ Airlines</button>
+          </div>
         </div>
-        <div id="template-cards-list" class="template-picker-grid">
+
+        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-amber); margin-top: 6px;">
+          💳 Travel Credit Cards (Auto-Integrates Card Image + Statement Credits + Loyalty Program + Perks)
+        </div>
+        <div id="template-cards-list" class="template-picker-grid" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));">
           <!-- Populated dynamically -->
         </div>
 
-        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-sky); margin-top: 8px;">
-          Popular Airline, Hotel &amp; Bank Loyalty Programs
+        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-sky); margin-top: 12px;">
+          💎 Airline, Hotel &amp; Bank Loyalty Programs
         </div>
-        <div id="template-programs-list" class="template-picker-grid">
+        <div id="template-programs-list" class="template-picker-grid" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));">
           <!-- Populated dynamically -->
         </div>
       </div>
