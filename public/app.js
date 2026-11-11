@@ -5851,15 +5851,17 @@
     return `
       <div
         class="quick-points-trigger"
-        style="${alignRight ? 'align-items: flex-end; text-align: right;' : ''}"
+        style="${alignRight ? 'align-items: flex-end; text-align: right;' : 'width: 100%;'}"
         data-quick-points-open="${escapeHtml(prog.id)}"
         title="Click to quickly update or add points/miles without opening Edit"
       >
-        <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; display: flex; align-items: center;">
-          <span>Points / Miles Available</span>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;">
+          <span style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">
+            Points / Miles Available
+          </span>
           <span class="qp-edit-hint">⚡ Quick Edit</span>
         </div>
-        <div class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">
+        <div class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2; margin-top: 1px;">
           ${pts.toLocaleString('en-US')} <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">pts</span>
         </div>
       </div>
@@ -6243,12 +6245,6 @@
           <div class="reward-condensed-showcase">
             <div class="reward-condensed-primary-row">
               ${renderQuickPointsBlockHtml(p, false)}
-              <div style="text-align: right;">
-                <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Estimated Value</div>
-                <div class="mono tabular" style="font-size: 15px; color: var(--accent-primary); font-weight: 800;">
-                  ${fmtUsd(valUsd)} <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 500;">(@ ${cpp.toFixed(2)}¢/pt)</span>
-                </div>
-              </div>
             </div>
 
             <!-- Primary Linked Card Image, Name & Annual Fee Strip -->
@@ -6347,6 +6343,12 @@
                 🔍 Mini-Dashboard
               </button>
             </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--bg-surface); border-radius: 7px; border: 1px solid var(--border-subtle); font-size: 11.5px; margin-top: 6px;">
+              <span style="color: var(--text-muted);">
+                💵 Est. Valuation (@ ${cpp.toFixed(2)}¢/pt):
+              </span>
+              <span class="mono tabular" style="font-weight: 700; color: var(--accent-primary);">${fmtUsd(valUsd)}</span>
+            </div>
           </div>
 
           <!-- Pane B: Condensed Statement Credits Tab -->
@@ -6416,6 +6418,7 @@
           <!-- Pane D: Program Rules, Partners & Notes Tab -->
           <div class="reward-minitab-pane ${curMiniTab === 'details' ? 'active' : ''}">
             <div style="font-size: 11.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 5px; padding: 6px 8px; background: var(--bg-elevated); border-radius: 7px; border: 1px solid var(--border-subtle);">
+              <div>💰 <strong>Estimated Value:</strong> <span class="mono" style="color: var(--accent-primary); font-weight: 700;">${fmtUsd(valUsd)}</span> (@ ${cpp.toFixed(2)}¢/pt valuation)</div>
               ${partners ? `<div>🔄 <strong>Partners:</strong> ${escapeHtml(partners)}</div>` : ''}
               <div>⏳ <strong>Expiration:</strong> ${escapeHtml(expPolicy)}</div>
               ${p.notes ? `<div style="color: var(--text-muted);">💡 ${escapeHtml(p.notes)}</div>` : ''}
