@@ -1133,6 +1133,7 @@
     rewardsTab: 'programs',
     adminTab: 'categories',
     rewardsEcoFilter: 'all',
+    rewardsOwnerFilter: (() => { try { return localStorage.getItem('ww_rewards_owner_filter') || 'all'; } catch (e) { return 'all'; } })(),
     rewardsCertFilter: 'all',
     matrixBankFilter: 'all',
     categoryFilter: 'all',
@@ -2098,6 +2099,7 @@
           <span class="meta-stat-label">Deliverables</span>
           <span class="meta-stat-val tabular">${trip.video_count} YouTube Episodes</span>
         </div>
+        <button type="button" class="btn btn-sm" data-trip-ai-advisor="${escapeHtml(trip.id)}" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(14, 165, 233, 0.16)); border: 1px solid rgba(139, 92, 246, 0.4); font-weight: 700; color: var(--text-primary);" title="Generate AI hotel, flight & rewards plan for this trip">✨ AI Rewards Plan</button>
         <button type="button" class="btn btn-sm" id="btn-banner-edit-trip" data-edit-trip="${escapeHtml(trip.id)}">✎ Edit Trip</button>
       </div>
     `;
@@ -2437,9 +2439,14 @@
             </div>
           </div>
 
-          <button type="button" class="btn btn-sm" data-open-trip-dashboard="${escapeHtml(t.id)}" style="width: 100%;">
-            Open Trip Expense Ledger →
-          </button>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <button type="button" class="btn btn-sm" data-open-trip-dashboard="${escapeHtml(t.id)}" style="flex: 1;">
+              Open Ledger →
+            </button>
+            <button type="button" class="btn btn-sm" data-trip-ai-advisor="${escapeHtml(t.id)}" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(14, 165, 233, 0.16)); border: 1px solid rgba(139, 92, 246, 0.4); font-weight: 700; color: var(--text-primary);" title="AI Rewards Plan for this trip">
+              ✨ AI Plan
+            </button>
+          </div>
         </div>
       `;
     }).join('');
@@ -4718,9 +4725,122 @@
     return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
+  // =========================================================================
+  // HOUSEHOLD OWNERS (e.g. "Jim" / "Karen") — separate accounts per person
+  // =========================================================================
+  const DEFAULT_REWARD_OWNERS = ['Jim', 'Karen'];
+
+  function normOwner(o) {
+    return String(o || '').trim().toLowerCase();
+  }
+
+  function getRewardOwners() {
+    const set = [];
+    const push = (o) => {
+      const t = String(o || '').trim();
+      if (t && !set.some(x => normOwner(x) === normOwner(t))) set.push(t);
+    };
+    const saved = state.rewards && Array.isArray(state.rewards.owners) ? state.rewards.owners : null;
+    (saved && saved.length ? saved : DEFAULT_REWARD_OWNERS).forEach(push);
+    if (state.rewards) {
+      ['programs', 'cards', 'certificates'].forEach(k => (state.rewards[k] || []).forEach(it => push(it.owner)));
+    }
+    return set;
+  }
+
+  function registerRewardOwner(name) {
+    const t = String(name || '').trim();
+    if (!t) return;
+    const owners = getRewardOwners();
+    if (!owners.some(o => normOwner(o) === normOwner(t))) owners.push(t);
+    state.rewards.owners = owners;
+  }
+
+  // Strict match used for auto-linking: owners must be identical (both blank counts as identical)
+  function sameOwner(a, b) {
+    return normOwner(a && a.owner) === normOwner(b && b.owner);
+  }
+
+  // Loose match used for display: only block when BOTH have owners and they differ
+  function ownersCompatible(a, b) {
+    const oa = normOwner(a && a.owner);
+    const ob = normOwner(b && b.owner);
+    return !oa || !ob || oa === ob;
+  }
+
+  function itemMatchesOwnerFilter(item) {
+    const f = state.rewardsOwnerFilter || 'all';
+    if (f === 'all') return true;
+    if (f === '__unassigned') return !normOwner(item && item.owner);
+    return normOwner(item && item.owner) === normOwner(f);
+  }
+
+  function ownerBadgeHtml(item, size = 'sm') {
+    const o = item && String(item.owner || '').trim();
+    if (!o) return '';
+    const fs = size === 'xs' ? '9.5px' : '10.5px';
+    return `<span class="owner-badge" style="font-size: ${fs};" title="Account holder: ${escapeHtml(o)}">👤 ${escapeHtml(o)}'s</span>`;
+  }
+
+  // Runs a render function with state.rewards temporarily scoped to the active owner filter.
+  // Arrays contain the same object references, so any in-place edits persist to the full dataset.
+  function withOwnerScopedRewards(fn) {
+    const f = state.rewardsOwnerFilter || 'all';
+    if (f === 'all' || !state.rewards || state.rewards.__scoped) return fn();
+    const full = state.rewards;
+    state.rewards = {
+      ...full,
+      __scoped: true,
+      __full: full,
+      programs: (full.programs || []).filter(itemMatchesOwnerFilter),
+      cards: (full.cards || []).filter(itemMatchesOwnerFilter),
+      certificates: (full.certificates || []).filter(itemMatchesOwnerFilter),
+      redemptions: full.redemptions || []
+    };
+    try {
+      return fn();
+    } finally {
+      state.rewards = full;
+    }
+  }
+
+  function renderOwnerFilterBars() {
+    const owners = getRewardOwners();
+    const all = state.rewards || {};
+    const countFor = (pred) => ['programs', 'cards', 'certificates'].reduce((s, k) => s + (all[k] || []).filter(pred).length, 0);
+    const unassigned = countFor(it => !normOwner(it.owner));
+    const cur = state.rewardsOwnerFilter || 'all';
+    const chip = (key, label, n) => `
+      <button type="button" class="chip-btn owner-chip ${cur === key ? 'active' : ''}" data-owner-filter="${escapeHtml(key)}">
+        ${label} <span class="owner-chip-count">${n}</span>
+      </button>`;
+    const html = `
+      <span class="owner-bar-label">👥 Viewing:</span>
+      ${chip('all', '🏠 Everyone', countFor(() => true))}
+      ${owners.map(o => chip(o, `👤 ${escapeHtml(o)}'s`, countFor(it => normOwner(it.owner) === normOwner(o)))).join('')}
+      ${unassigned > 0 ? chip('__unassigned', '❔ Unassigned', unassigned) : ''}
+      <button type="button" class="btn btn-sm owner-manage-btn" data-owner-add title="Add another household member">+ Person</button>
+      ${unassigned > 0 && owners.length > 0 ? `<button type="button" class="btn btn-sm owner-manage-btn" data-owner-assign-unassigned title="Assign all unassigned cards, programs & perks to one person">Assign ${unassigned} Unassigned…</button>` : ''}
+    `;
+    document.querySelectorAll('.owner-filter-bar').forEach(el => { el.innerHTML = html; });
+  }
+
+  function populateOwnerDatalist() {
+    const dl = document.getElementById('reward-owner-datalist');
+    if (dl) dl.innerHTML = getRewardOwners().map(o => `<option value="${escapeHtml(o)}"></option>`).join('');
+  }
+
+  function defaultOwnerForNewItem() {
+    const f = state.rewardsOwnerFilter || 'all';
+    return (f !== 'all' && f !== '__unassigned') ? f : '';
+  }
+
   function doesCardMatchProgram(card, prog) {
     if (!card || !prog) return false;
     if (card.linked_program_id && card.linked_program_id === prog.id) return true;
+    if (!ownersCompatible(card, prog)) return false;
+    // If the card is explicitly linked to a different program, don't double-show it
+    if (card.linked_program_id && ((state.rewards.__full || state.rewards).programs || []).some(p => p.id === card.linked_program_id)) return false;
     const pName = normalizeEcoStr(prog.name);
     const cEco = normalizeEcoStr(card.ecosystem || card.points_program);
     const cName = normalizeEcoStr(card.name);
@@ -4745,6 +4865,7 @@
     const cardNames = linkedCards.map(c => normalizeEcoStr(c.name)).filter(Boolean);
     return (state.rewards.certificates || []).filter(cert => {
       if (cert.linked_program_id && cert.linked_program_id === prog.id) return true;
+      if (!ownersCompatible(cert, prog)) return false;
       const cProg = normalizeEcoStr(cert.program);
       const cSource = normalizeEcoStr(cert.source_card);
       if (pName && cProg && (cProg.includes(pName) || pName.includes(cProg))) return true;
@@ -4772,7 +4893,8 @@
 
     // 1. Auto-link or create matching Loyalty Program
     if (opts.autoLinkProg) {
-      let matchProg = (state.rewards.programs || []).find(p => doesCardMatchProgram(cardItem, p));
+      // Only auto-link to a program belonging to the SAME person (Jim's card -> Jim's Hyatt, Karen's card -> Karen's Hyatt)
+      let matchProg = (state.rewards.programs || []).find(p => sameOwner(cardItem, p) && doesCardMatchProgram(cardItem, p));
       if (!matchProg && cardItem.ecosystem) {
         // Look up program template in database
         const progTplEntry = POPULAR_REWARD_TEMPLATES.find(
@@ -4814,9 +4936,12 @@
         if (tplData && tplData.auto_status) {
           newProg.status_tier = tplData.auto_status;
         }
+        newProg.owner = cardItem.owner || '';
+        newProg.member_id = '';
+        newProg.points = Number(newProg.points || 0);
         state.rewards.programs.unshift(newProg);
         matchProg = newProg;
-        addedItems.push(`Program "${newProg.name}"`);
+        addedItems.push(`${newProg.owner ? newProg.owner + "'s " : ''}Program "${newProg.name}"`);
       } else if (matchProg && tplData && tplData.auto_status && (!matchProg.status_tier || matchProg.status_tier === 'Member')) {
         matchProg.status_tier = tplData.auto_status;
       }
@@ -4830,11 +4955,13 @@
       const nextYear = new Date(Date.now() + 330 * 86400000).toISOString().slice(0, 10);
       for (const bCert of tplData.bundled_certs) {
         const alreadyExists = (state.rewards.certificates || []).some(
-          c => normalizeEcoStr(c.title) === normalizeEcoStr(bCert.title)
+          c => normalizeEcoStr(c.title) === normalizeEcoStr(bCert.title) && sameOwner(c, cardItem)
         );
         if (!alreadyExists) {
           state.rewards.certificates.unshift({
             id: 'cert-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+            owner: cardItem.owner || '',
+            linked_program_id: cardItem.linked_program_id || '',
             title: bCert.title,
             type: bCert.type || 'Free Night Certificate',
             program: bCert.program || cardItem.ecosystem || 'Loyalty Program',
@@ -5181,6 +5308,10 @@
   }
 
   function updateSidebarQuickRewardsWidget() {
+    return withOwnerScopedRewards(updateSidebarQuickRewardsWidgetInner);
+  }
+
+  function updateSidebarQuickRewardsWidgetInner() {
     ensureRewardsStructure();
     const metrics = computeRewardsMetrics();
     const { reminders, totalUnusedCreditsUsd } = collectAllRewardsReminders();
@@ -5231,6 +5362,10 @@
   }
 
   function renderQuickRewardsModalContent() {
+    return withOwnerScopedRewards(renderQuickRewardsModalContentInner);
+  }
+
+  function renderQuickRewardsModalContentInner() {
     ensureRewardsStructure();
     checkAndAutoResetExpiredCredits();
     const body = document.getElementById('qr-modal-body');
@@ -5350,6 +5485,7 @@
               <div style="min-width: 0; flex: 1;">
                 <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                   <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${meta.icon} ${escapeHtml(p.name)}</span>
+                  ${ownerBadgeHtml(p, 'xs')}
                   ${p.status_tier ? `<span class="kpi-tag sky" style="font-size: 10px; padding: 1px 6px;">★ ${escapeHtml(p.status_tier)}</span>` : ''}
                 </div>
                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
@@ -5390,7 +5526,7 @@
               <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
                 ${renderCreditCardArtHtml(c, 'cc-art-xs')}
                 <div style="min-width: 0; flex: 1;">
-                  <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${escapeHtml(c.name)}</div>
+                  <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${escapeHtml(c.name)} ${ownerBadgeHtml(c, 'xs')}</div>
                   <div style="font-size: 11px; color: var(--text-secondary); margin-top: 1px;">
                     ${escapeHtml(c.multipliers || c.best_for || 'Travel Rewards')}
                   </div>
@@ -5467,6 +5603,7 @@
   }
 
   function openQuickRewardsModal() {
+    renderOwnerFilterBars();
     renderQuickRewardsModalContent();
     openModal('modal-quick-rewards');
   }
@@ -5548,6 +5685,11 @@
   function renderRewardsDashboard() {
     ensureRewardsStructure();
     checkAndAutoResetExpiredCredits();
+    renderOwnerFilterBars();
+    return withOwnerScopedRewards(renderRewardsDashboardInner);
+  }
+
+  function renderRewardsDashboardInner() {
     const metrics = computeRewardsMetrics();
 
     // Update sidebar badge
@@ -5624,7 +5766,7 @@
     }
 
     // Toggle active sub-tab & pane
-    const tabs = ['programs', 'certs', 'cards', 'matrix', 'redemptions'];
+    const tabs = ['programs', 'certs', 'cards', 'matrix', 'redemptions', 'advisor'];
     document.querySelectorAll('.rewards-subnav [data-rewards-tab]').forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-rewards-tab') === state.rewardsTab);
     });
@@ -5640,6 +5782,7 @@
     renderRewardsCardsTab();
     renderRewardsMatrixTab();
     renderRewardsRedemptionsTab();
+    renderAiTripAdvisorTab();
 
     const qrModal = document.getElementById('modal-quick-rewards');
     if (qrModal && qrModal.classList.contains('open')) {
@@ -5706,18 +5849,28 @@
     }
 
     return `
-      <div
-        class="quick-points-trigger"
-        style="${alignRight ? 'align-items: flex-end; text-align: right;' : ''}"
-        data-quick-points-open="${escapeHtml(prog.id)}"
-        title="Click to quickly update or add points/miles without opening Edit"
-      >
-        <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; display: flex; align-items: center;">
+      <div class="quick-points-container" style="${alignRight ? 'align-items: flex-end; text-align: right;' : ''}">
+        <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; display: flex; align-items: center; gap: 6px;">
           <span>Points / Miles Available</span>
-          <span class="qp-edit-hint">⚡ Quick Edit</span>
+          <span class="qp-edit-hint" data-quick-points-open="${escapeHtml(prog.id)}" title="Click to enter exact balance">⚡ Quick Edit</span>
         </div>
-        <div class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">
-          ${pts.toLocaleString('en-US')} <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">pts</span>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 3px;">
+          <div
+            class="quick-points-trigger"
+            data-quick-points-open="${escapeHtml(prog.id)}"
+            title="Click to quickly update points balance"
+          >
+            <span class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">
+              ${pts.toLocaleString('en-US')}
+            </span>
+            <span style="font-size: 12px; font-weight: 500; color: var(--text-muted); margin-left: 3px;">pts</span>
+          </div>
+          <div class="quick-bump-group">
+            <button type="button" class="btn-bump negative" data-step-rprog="${escapeHtml(prog.id)}" data-delta="-5000" title="Subtract 5,000 points">-5k</button>
+            <button type="button" class="btn-bump negative" data-step-rprog="${escapeHtml(prog.id)}" data-delta="-1000" title="Subtract 1,000 points">-1k</button>
+            <button type="button" class="btn-bump positive" data-step-rprog="${escapeHtml(prog.id)}" data-delta="1000" title="Add 1,000 points">+1k</button>
+            <button type="button" class="btn-bump positive" data-step-rprog="${escapeHtml(prog.id)}" data-delta="5000" title="Add 5,000 points">+5k</button>
+          </div>
         </div>
       </div>
     `;
@@ -6081,6 +6234,7 @@
               </div>
               <h4 style="font-size: 16.5px; font-weight: 800; margin-top: 5px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span>${escapeHtml(p.name)}</span>
+                ${ownerBadgeHtml(p)}
               </h4>
             </div>
             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
@@ -6432,7 +6586,7 @@
                 </span>
                 <button type="button" class="btn-color-edit-inline" data-quick-color-eco="${certEcoKey}" title="Change category color">✏️</button>
               </div>
-              <h4 style="font-size: 15.5px; font-weight: 700; margin-top: 6px; color: var(--text-primary);">${escapeHtml(c.title)}</h4>
+              <h4 style="font-size: 15.5px; font-weight: 700; margin-top: 6px; color: var(--text-primary);">${escapeHtml(c.title)} ${ownerBadgeHtml(c, 'xs')}</h4>
             </div>
             ${urgencyBadge}
           </div>
@@ -6595,7 +6749,10 @@
               ${renderCreditCardArtHtml(c, 'cc-art-md')}
               <div style="min-width: 0; flex: 1;">
                 <span class="reward-ecosystem-pill">💳 ${escapeHtml(c.issuer || 'Bank')} • ${escapeHtml(c.ecosystem || c.points_program || 'Rewards')}</span>
-                <h4 style="font-size: 16px; font-weight: 800; margin-top: 5px; color: var(--text-primary);">${escapeHtml(cardName)}</h4>
+                <h4 style="font-size: 16px; font-weight: 800; margin-top: 5px; color: var(--text-primary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span>${escapeHtml(cardName)}</span>
+                  ${ownerBadgeHtml(c)}
+                </h4>
                 <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
                   ${linkedProg ? `<span style="color: var(--accent-primary); font-weight: 600;">🔗 ${escapeHtml(linkedProg.name)} (${progPts.toLocaleString('en-US')} pts)</span>` : `<span>Standalone Travel Card</span>`}
                 </div>
@@ -6815,8 +6972,10 @@
 
     if (iconEl) iconEl.textContent = prog ? meta.icon : '💳';
     if (titleEl) {
+      const targetItem = prog || primaryCard;
       titleEl.innerHTML = `
         <span>${escapeHtml(prog ? prog.name : primaryCard.name)} — Mini-Dashboard</span>
+        ${ownerBadgeHtml(targetItem, 'xs')}
         ${prog && prog.status_tier ? `<span class="kpi-tag sky" style="font-size: 11px;">★ ${escapeHtml(prog.status_tier)}</span>` : ''}
       `;
     }
@@ -6920,7 +7079,7 @@
                 <div style="display: flex; align-items: center; gap: 10px;">
                   ${renderCreditCardArtHtml(c, 'cc-art-xs')}
                   <div>
-                    <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${escapeHtml(c.name)}</div>
+                    <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${escapeHtml(c.name)} ${ownerBadgeHtml(c, 'xs')}</div>
                     <div style="font-size: 11px; color: var(--text-muted);">Annual Fee: ${fmtUsd(c.annual_fee || 0)}/yr • Renews: ${escapeHtml(c.renewal_date || 'Annual')}</div>
                   </div>
                 </div>
@@ -7179,6 +7338,526 @@
         </tr>
       `;
     }).join('');
+  }
+
+  const PRESET_ADVISOR_DESTINATIONS = {
+    argentina: {
+      dest: 'Buenos Aires & Patagonia, Argentina (EZE / AEP / BRC)',
+      nights: 8,
+      origin: 'US Gateway (MIA / JFK / DFW / IAH)',
+      style: 'stretch'
+    },
+    brazil: {
+      dest: 'São Paulo & Rio de Janeiro, Brazil (GRU / GIG / SDU)',
+      nights: 7,
+      origin: 'US Gateway (MIA / JFK / ATL / ORD)',
+      style: 'stretch'
+    },
+    japan: {
+      dest: 'Tokyo & Kyoto, Japan (HND / NRT / KIX)',
+      nights: 10,
+      origin: 'US West/Central (LAX / SFO / ORD / JFK)',
+      style: 'luxury'
+    },
+    europe: {
+      dest: 'London, Paris & Rome, Europe (LHR / CDG / FCO)',
+      nights: 9,
+      origin: 'US East Coast (JFK / BOS / IAD / ORD)',
+      style: 'stretch'
+    },
+    mexico: {
+      dest: 'Mexico City & Riviera Maya, Mexico (MEX / CUN)',
+      nights: 5,
+      origin: 'US Hub (DFW / IAH / MIA / LAX)',
+      style: 'zero_cash'
+    },
+    domestic: {
+      dest: 'Domestic Production Shoot (LAX / JFK / LAS / MIA)',
+      nights: 4,
+      origin: 'Home Base',
+      style: 'zero_cash'
+    }
+  };
+
+  let lastAiAnalysisResponse = null;
+
+  function renderAiTripAdvisorTab() {
+    const pane = document.getElementById('rewards-pane-advisor');
+    if (!pane) return;
+
+    // 1. Populate trip dropdown
+    const tripSelect = document.getElementById('advisor-trip-select');
+    if (tripSelect && tripSelect.options.length <= 1) {
+      tripSelect.innerHTML = `
+        <option value="custom">🌍 Custom Destination / Manual Entry</option>
+        ${state.trips.map(t => `
+          <option value="${escapeHtml(t.id)}" ${t.id === state.selectedTripId ? 'selected' : ''}>
+            ${escapeHtml(t.name)} (${escapeHtml(t.destination || 'Shoot')})
+          </option>
+        `).join('')}
+      `;
+    }
+
+    // 2. Engine status badge
+    const badge = document.getElementById('ai-engine-status-badge');
+    if (badge) {
+      if (state.settings && state.settings.ai_key_configured) {
+        badge.className = 'kpi-tag sky';
+        badge.innerHTML = '✨ Hybrid AI Ready: Instant Strategy Engine + Live AI Model';
+      } else {
+        badge.className = 'kpi-tag';
+        badge.innerHTML = '⚡ Instant Built-In Strategy Engine Active (Zero Setup Required)';
+      }
+    }
+
+    // 3. Container
+    const container = document.getElementById('ai-trip-advisor-results');
+    if (!container) return;
+
+    const destInput = document.getElementById('advisor-destination-input');
+    const dest = (destInput ? destInput.value : 'Argentina').trim() || 'Argentina';
+    const nightsInput = document.getElementById('advisor-nights-input');
+    const nights = Math.max(1, Number(nightsInput ? nightsInput.value : 8) || 8);
+    const styleSel = document.getElementById('advisor-style-select');
+    const style = styleSel ? styleSel.value : 'stretch';
+
+    const progs = state.rewards.programs || [];
+    const cards = state.rewards.cards || [];
+    const certs = (state.rewards.certificates || []).filter(c => c.status !== 'redeemed');
+
+    const findProg = (kw) => progs.find(p => (p.name || '').toLowerCase().includes(kw));
+    const hyattProg = findProg('hyatt');
+    const ihgProg = findProg('ihg');
+    const caponeProg = findProg('capital one') || findProg('capone') || findProg('venture');
+    const chaseProg = findProg('chase') || findProg('ultimate rewards');
+    const amexProg = findProg('amex') || findProg('membership');
+    const biltProg = findProg('bilt');
+    const marriottProg = findProg('marriott');
+    const hiltonProg = findProg('hilton');
+
+    const hyattPts = hyattProg ? Number(hyattProg.points || 0) : 0;
+    const ihgPts = ihgProg ? Number(ihgProg.points || 0) : 0;
+    const caponePts = caponeProg ? Number(caponeProg.points || 0) : 0;
+    const chasePts = chaseProg ? Number(chaseProg.points || 0) : 0;
+    const amexPts = amexProg ? Number(amexProg.points || 0) : 0;
+
+    const hasIhgPremier = cards.some(c => (c.name || '').toLowerCase().includes('ihg'));
+
+    let ventureXCredLeft = 0;
+    cards.forEach(c => {
+      if ((c.name || '').toLowerCase().includes('venture x')) {
+        (c.credits || []).forEach(cr => {
+          if ((cr.name || '').toLowerCase().includes('travel') || (cr.name || '').toLowerCase().includes('portal')) {
+            const tot = Number(cr.total_usd ?? cr.amount ?? 300);
+            const used = Number(cr.used_usd ?? (cr.used ? tot : 0));
+            ventureXCredLeft += Math.max(0, tot - used);
+          }
+        });
+      }
+    });
+
+    const isArgentina = /argentina|buenos\s*aires|patagonia|bariloche|mendoza|eze|aep/i.test(dest);
+    const isJapan = /japan|tokyo|kyoto|osaka|hnd|nrt/i.test(dest);
+    const isEurope = /europe|london|paris|rome|italy|france|spain|madrid|barcelona/i.test(dest);
+
+    let hotelCardsHtml = '';
+    let flightCardsHtml = '';
+    let perksCardsHtml = '';
+    let playbookHtml = '';
+    let estCashSaved = 0;
+
+    if (isArgentina) {
+      estCashSaved = 3450;
+      const phNightsPossible = Math.floor(hyattPts / 25000);
+      hotelCardsHtml += `
+        <div class="ai-rec-card ready-match">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div>
+              <span class="ai-rec-tag gold">🌟 Top Luxury Redemption</span>
+              <h4 style="font-size: 15.5px; font-weight: 800; margin-top: 4px; color: var(--text-primary);">Park Hyatt Buenos Aires – Palacio Duhau</h4>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Recoleta, Buenos Aires • World of Hyatt Category 6</div>
+            </div>
+            <div style="text-align: right;">
+              <span class="mono" style="font-size: 16px; font-weight: 800; color: var(--accent-primary);">25,000 pts/nt</span>
+              <div style="font-size: 11px; color: var(--text-muted);">vs. $680/nt cash (~2.7¢/pt)</div>
+            </div>
+          </div>
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0; line-height: 1.45;">
+            One of the world's premier urban palaces, blending a 1934 neoclassical mansion with contemporary luxury and private underground art gallery.
+          </p>
+          <div class="ai-math-box" style="margin-top: auto;">
+            <div style="font-size: 11.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">
+              📊 Your Hyatt Balance: ${hyattPts.toLocaleString('en-US')} pts
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+              ${phNightsPossible >= 2
+                ? `✓ Covers <strong>${Math.min(nights, phNightsPossible)} night(s) completely free</strong>! Saves <strong style="color: var(--accent-primary);">$${(Math.min(nights, phNightsPossible) * 680).toLocaleString('en-US')}</strong> cash out-of-pocket.`
+                : `Use for your arrival or departure luxury stay (25k pts).`}
+            </div>
+          </div>
+        </div>
+      `;
+
+      const ihgNightRate = 32000;
+      const ihg4NightCost = hasIhgPremier ? (ihgNightRate * 3) : (ihgNightRate * 4);
+      hotelCardsHtml += `
+        <div class="ai-rec-card ready-match">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div>
+              <span class="ai-rec-tag green">⚡ 4th Night Free Super-Stretch</span>
+              <h4 style="font-size: 15.5px; font-weight: 800; margin-top: 4px; color: var(--text-primary);">InterContinental Buenos Aires &amp; Patagonia</h4>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Historic Montserrat/San Telmo • IHG One Rewards</div>
+            </div>
+            <div style="text-align: right;">
+              <span class="mono" style="font-size: 16px; font-weight: 800; color: var(--accent-primary);">~28k–34k pts/nt</span>
+              <div style="font-size: 11px; color: var(--accent-amber); font-weight: 700;">4th Night FREE Active</div>
+            </div>
+          </div>
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0; line-height: 1.45;">
+            Classic luxury hotel close to tango halls, San Telmo market, and Plaza de Mayo with indoor heated pool and executive club lounge.
+          </p>
+          <div class="ai-math-box" style="margin-top: auto;">
+            <div style="font-size: 11.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">
+              📊 Your IHG Balance: ${ihgPts.toLocaleString('en-US')} pts ${hasIhgPremier ? '• Chase IHG Premier Linked' : ''}
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+              ${hasIhgPremier
+                ? `Book 4 nights for only <strong>~${ihg4NightCost.toLocaleString('en-US')} pts total</strong> (saving ~${ihgNightRate.toLocaleString('en-US')} pts on the free 4th night)! With ${ihgPts.toLocaleString('en-US')} pts, you can cover your entire stay.`
+                : `With ${ihgPts.toLocaleString('en-US')} pts, you have plenty of points to cover multiple weeks of hotel stays with zero room charges.`}
+            </div>
+          </div>
+        </div>
+      `;
+
+      flightCardsHtml += `
+        <div class="ai-rec-card transfer-match">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div>
+              <span class="ai-rec-tag sky">✈️ Transfer Partner Sweet Spot</span>
+              <h4 style="font-size: 15.5px; font-weight: 800; margin-top: 4px; color: var(--text-primary);">Avianca LifeMiles / Air Canada Aeroplan</h4>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">1:1 Instant Transfer from Capital One Miles • Star Alliance</div>
+            </div>
+            <div style="text-align: right;">
+              <span class="mono" style="font-size: 16px; font-weight: 800; color: var(--accent-sky);">30k–35k mi/way</span>
+              <div style="font-size: 11px; color: var(--text-muted);">Economy (60k Biz)</div>
+            </div>
+          </div>
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0; line-height: 1.45;">
+            Transfer Capital One miles 1:1 to Avianca LifeMiles or Aeroplan to book United / Avianca flights to Buenos Aires (EZE) with zero fuel surcharges.
+          </p>
+          <div class="ai-math-box" style="margin-top: auto;">
+            <div style="font-size: 11.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">
+              📊 Your Balance: ${caponePts.toLocaleString('en-US')} Capital One Miles
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+              ${caponePts >= 60000
+                ? `✓ Covers a roundtrip flight (or one-way Business class) to Argentina! Saves ~$900–$1,400 in cash airfare.`
+                : `Covers a one-way award ticket (~30k–35k miles). Top off or pair with portal credit.`}
+            </div>
+          </div>
+        </div>
+      `;
+
+      flightCardsHtml += `
+        <div class="ai-rec-card credit-match">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div>
+              <span class="ai-rec-tag amber">💳 Remaining Travel Credit Play</span>
+              <h4 style="font-size: 15.5px; font-weight: 800; margin-top: 4px; color: var(--text-primary);">Domestic Argentina Flights (AEP ⇄ BRC / IGR)</h4>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Capital One Travel Portal • Aerolíneas Argentinas / Flybondi</div>
+            </div>
+            <div style="text-align: right;">
+              <span class="mono" style="font-size: 16px; font-weight: 800; color: var(--accent-amber);">$${ventureXCredLeft > 0 ? ventureXCredLeft.toFixed(0) : '300'} Credit</span>
+              <div style="font-size: 11px; color: var(--text-muted);">$0 out-of-pocket</div>
+            </div>
+          </div>
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0; line-height: 1.45;">
+            Domestic flights inside Argentina (e.g. Buenos Aires Aeroparque AEP to Bariloche or Iguazu Falls) usually cost $75–$140 each. Burn your remaining Venture X travel credit to wipe these out completely!
+          </p>
+          <div class="ai-math-box" style="margin-top: auto;">
+            <div style="font-size: 11.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px;">
+              📊 Statement Credit Status: ${ventureXCredLeft > 0 ? `$${ventureXCredLeft.toFixed(2)} remaining` : 'Use annual $300 reset'}
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+              Book through Capital One Travel portal to trigger the statement credit automatically before your card anniversary reset date.
+            </div>
+          </div>
+        </div>
+      `;
+
+      perksCardsHtml += `
+        <div class="ai-rec-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div>
+              <span class="ai-rec-tag green">💵 Argentina Secret: Dólar Tarjeta / MEP</span>
+              <h4 style="font-size: 15.5px; font-weight: 800; margin-top: 4px; color: var(--text-primary);">Credit Card FX &amp; MEP Exchange Rate</h4>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">US Visa &amp; Mastercard automatically get the preferential tourist rate</div>
+            </div>
+          </div>
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0; line-height: 1.45;">
+            When paying with a foreign credit card in Argentina, foreign transaction fees must be $0. The Argentine government automatically applies the MEP tourist rate (saving ~40% vs official rate) directly onto your statement!
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; margin-top: auto; padding-top: 6px;">
+            <div>⚡ <strong>Best Catch-All:</strong> Capital One Venture X (2x miles on all non-category spend, $0 FTF).</div>
+            <div>🍷 <strong>Best Dining / Steakhouses:</strong> Chase Sapphire Reserve (3x) or Amex Gold (4x on dining, $0 FTF).</div>
+          </div>
+        </div>
+
+        <div class="ai-rec-card">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div>
+              <span class="ai-rec-tag sky">🛋️ Airport Lounge Access</span>
+              <h4 style="font-size: 15.5px; font-weight: 800; margin-top: 4px; color: var(--text-primary);">Priority Pass Select at EZE &amp; Gateways</h4>
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Venture X / Amex Platinum Priority Pass Included</div>
+            </div>
+          </div>
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 8px 0; line-height: 1.45;">
+            Enjoy complimentary food, Malbec wine, hot showers, and Wi-Fi at Buenos Aires Ezeiza (EZE) Star Alliance Lounge &amp; Aeropuertos VIP Club, plus layovers at MIA, DFW, or JFK.
+          </p>
+          <div class="ai-math-box" style="margin-top: auto;">
+            <div style="font-size: 11px; color: var(--accent-primary); font-weight: 700;">
+              ✓ Saves ~$80–$160 in airport meals per person across roundtrip journey.
+            </div>
+          </div>
+        </div>
+      `;
+
+      playbookHtml = `
+        <div class="ai-playbook-step">
+          <div class="ai-step-num">1</div>
+          <div style="flex: 1;">
+            <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">Transfer Capital One Miles to Avianca LifeMiles or Aeroplan</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              Search award seats first on LifeMiles/Aeroplan. Transfer 60k–70k miles 1:1 once seats are confirmed. (Capital One miles: ${caponePts.toLocaleString('en-US')}).
+            </div>
+          </div>
+        </div>
+        <div class="ai-playbook-step">
+          <div class="ai-step-num">2</div>
+          <div style="flex: 1;">
+            <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">Book 4 Nights at InterContinental Buenos Aires to Trigger 4th Night Free</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              Use ~96k of your ${ihgPts.toLocaleString('en-US')} IHG points. The 4th consecutive night is completely free with your IHG Premier card.
+            </div>
+          </div>
+        </div>
+        <div class="ai-playbook-step">
+          <div class="ai-step-num">3</div>
+          <div style="flex: 1;">
+            <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">Book 2–3 Nights at Park Hyatt Buenos Aires (Palacio Duhau)</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              Redeem 50k–75k of your ${hyattPts.toLocaleString('en-US')} Hyatt points for an unforgettable luxury palace stay in Recoleta (saves ~$1,400–$2,100 cash).
+            </div>
+          </div>
+        </div>
+        <div class="ai-playbook-step">
+          <div class="ai-step-num">4</div>
+          <div style="flex: 1;">
+            <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">Burn Remaining Venture X Travel Credit on Domestic Flights</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              Book Aerolíneas Argentinas or Flybondi flights (e.g. to Bariloche or Iguazu) through the Capital One portal to use remaining credits ($${ventureXCredLeft > 0 ? ventureXCredLeft.toFixed(0) : '300'}).
+            </div>
+          </div>
+        </div>
+        <div class="ai-playbook-step">
+          <div class="ai-step-num">5</div>
+          <div style="flex: 1;">
+            <div style="font-size: 13.5px; font-weight: 700; color: var(--text-primary);">Swipe $0 Foreign Transaction Fee Cards Everywhere in Argentina</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              Venture X (2x) for general spend, Sapphire/Amex Gold (3x-4x) for restaurants. Never pay in USD cash when credit card gets the official MEP tourist exchange rate!
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      estCashSaved = 2150;
+      hotelCardsHtml = `
+        <div class="ai-rec-card ready-match">
+          <h4 style="font-size: 15.5px; font-weight: 800; color: var(--text-primary);">World of Hyatt Award Stays (${hyattPts.toLocaleString('en-US')} pts)</h4>
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 6px 0;">
+            Target Category 1–4 properties (8k–15k pts) or luxury Category 6–7 (25k–30k pts) in ${escapeHtml(dest)}. Hyatt points consistently yield 2.0¢–2.8¢/point in value.
+          </p>
+        </div>
+        <div class="ai-rec-card ready-match">
+          <h4 style="font-size: 15.5px; font-weight: 800; color: var(--text-primary);">IHG One Rewards (${ihgPts.toLocaleString('en-US')} pts)</h4>
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 6px 0;">
+            Book in 4-night increments to trigger the automatic 4th Night Free perk with your IHG Premier card.
+          </p>
+        </div>
+      `;
+      flightCardsHtml = `
+        <div class="ai-rec-card transfer-match">
+          <h4 style="font-size: 15.5px; font-weight: 800; color: var(--text-primary);">Capital One Miles (${caponePts.toLocaleString('en-US')} pts)</h4>
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 6px 0;">
+            Transfer 1:1 to Star Alliance (Aeroplan, Avianca), SkyTeam (Flying Blue), or Oneworld (British Airways) partners for peak redemption value to ${escapeHtml(dest)}.
+          </p>
+        </div>
+      `;
+      perksCardsHtml = `
+        <div class="ai-rec-card">
+          <h4 style="font-size: 15.5px; font-weight: 800; color: var(--text-primary);">Priority Pass &amp; $0 FTF Protection</h4>
+          <p style="font-size: 12.5px; color: var(--text-secondary); margin: 6px 0;">
+            Activate Priority Pass on Venture X / Platinum before departing. Use cards with $0 foreign transaction fees for all international transactions.
+          </p>
+        </div>
+      `;
+      playbookHtml = `
+        <div class="ai-playbook-step">
+          <div class="ai-step-num">1</div>
+          <div style="flex: 1;">Book long-haul flight awards via transferable bank miles before availability vanishes.</div>
+        </div>
+        <div class="ai-playbook-step">
+          <div class="ai-step-num">2</div>
+          <div style="flex: 1;">Reserve hotel award nights utilizing 4th night free or Hyatt fixed award chart.</div>
+        </div>
+      `;
+    }
+
+    let llmBoxHtml = '';
+    if (lastAiAnalysisResponse && lastAiAnalysisResponse.analysisText) {
+      llmBoxHtml = `
+        <div class="ai-llm-response-box" style="margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px;">
+            <span style="font-size: 12px; font-weight: 800; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.06em;">
+              🤖 Live AI Model Analysis (${escapeHtml(lastAiAnalysisResponse.provider || 'AI')})
+            </span>
+            <span class="mono" style="font-size: 11px; color: var(--text-muted);">${new Date().toLocaleTimeString()}</span>
+          </div>
+          <div style="font-size: 13.5px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">${escapeHtml(lastAiAnalysisResponse.analysisText)}</div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = `
+      ${llmBoxHtml}
+
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 18px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(16, 185, 129, 0.1)); border-radius: 10px; border: 1px solid rgba(139, 92, 246, 0.3); margin-bottom: 20px; flex-wrap: wrap;">
+        <div>
+          <div style="font-size: 11.5px; font-weight: 800; color: #8b5cf6; text-transform: uppercase; letter-spacing: 0.06em;">
+            ✨ Tailored Plan for: ${escapeHtml(dest)} (${nights} Nights)
+          </div>
+          <div style="font-size: 16px; font-weight: 800; color: var(--text-primary); margin-top: 2px;">
+            Estimated Out-of-Pocket Cash Saved: <span class="tabular mono" style="color: var(--accent-primary);">$${estCashSaved.toLocaleString('en-US')} USD</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <span class="kpi-tag green">✓ ${hyattPts.toLocaleString('en-US')} Hyatt Pts</span>
+          <span class="kpi-tag green">✓ ${ihgPts.toLocaleString('en-US')} IHG Pts</span>
+          <span class="kpi-tag sky">✓ ${caponePts.toLocaleString('en-US')} CapOne Miles</span>
+          ${certs.length > 0 ? `<span class="kpi-tag amber">✓ ${certs.length} Free Night Certs</span>` : ''}
+        </div>
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <h4 style="font-size: 15px; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <span>🏨 1. Hotel &amp; Award Stay Recommendations</span>
+        </h4>
+        <div class="ai-rec-grid">
+          ${hotelCardsHtml}
+        </div>
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <h4 style="font-size: 15px; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <span>✈️ 2. Flights, Airlines &amp; Portal Credit Play</span>
+        </h4>
+        <div class="ai-rec-grid">
+          ${flightCardsHtml}
+        </div>
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <h4 style="font-size: 15px; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <span>💵 3. In-Country Card Swipes &amp; Airport Perks</span>
+        </h4>
+        <div class="ai-rec-grid">
+          ${perksCardsHtml}
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <h4 style="font-size: 15px; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <span>📋 4. Prioritized Step-by-Step Booking Playbook</span>
+        </h4>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          ${playbookHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  async function runAiTripAnalysis() {
+    const btn = document.getElementById('btn-run-ai-trip-analysis');
+    const oldText = btn ? btn.innerHTML : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Analyzing Balances & Strategy...';
+    }
+
+    try {
+      const destInput = document.getElementById('advisor-destination-input');
+      const dest = (destInput ? destInput.value : 'Argentina').trim() || 'Argentina';
+      const nightsInput = document.getElementById('advisor-nights-input');
+      const nights = Math.max(1, Number(nightsInput ? nightsInput.value : 8) || 8);
+      const styleSel = document.getElementById('advisor-style-select');
+      const style = styleSel ? styleSel.value : 'stretch';
+      const originInput = document.getElementById('advisor-origin-input');
+      const origin = (originInput ? originInput.value : 'US Gateway').trim();
+
+      const res = await apiRequest('/api/ai/trip-advisor', {
+        method: 'POST',
+        body: JSON.stringify({
+          destination: dest,
+          nights,
+          origin,
+          style,
+          trip_id: (document.getElementById('advisor-trip-select') || {}).value || 'custom',
+          rewards: state.rewards
+        })
+      });
+
+      if (res && res.analysisText) {
+        lastAiAnalysisResponse = res;
+      }
+      renderAiTripAdvisorTab();
+      showToast(`✨ Generated customized redemption plan for ${dest}!`);
+    } catch (err) {
+      console.error('AI trip analysis error:', err);
+      renderAiTripAdvisorTab();
+      showToast('⚡ Strategy generated with built-in rewards engine!');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = oldText;
+      }
+    }
+  }
+
+  async function saveAiApiKeyFromDrawer() {
+    const provider = (document.getElementById('ai-provider-select') || {}).value || 'gemini';
+    const key = ((document.getElementById('ai-api-key-input') || {}).value || '').trim();
+    if (!key) {
+      showToast('Please enter an API key');
+      return;
+    }
+    const res = await apiRequest('/api/ai/trip-advisor', {
+      method: 'POST',
+      body: JSON.stringify({
+        saveKey: true,
+        clientApiKey: key,
+        provider,
+        onlySaveKey: true
+      })
+    });
+    if (res && res.ok) {
+      if (state.settings) state.settings.ai_key_configured = true;
+      showToast(`✓ ${provider === 'gemini' ? 'Google Gemini' : 'OpenAI'} API Key configured!`);
+      const drawer = document.getElementById('ai-key-config-drawer');
+      if (drawer) drawer.style.display = 'none';
+      renderAiTripAdvisorTab();
+    } else {
+      showToast('Could not save API key');
+    }
   }
 
   function syncRprogColorPickerUi(hexColor) {
@@ -7496,10 +8175,12 @@
 
   // Modal Open & Save Handlers for Rewards
   function openRewardProgramModal(editProg = null) {
+    populateOwnerDatalist();
     const titleEl = document.getElementById('modal-reward-program-title');
     const scopeEcoRadio = document.getElementById('rprog-color-scope-eco');
     const scopeCardRadio = document.getElementById('rprog-color-scope-card');
     const searchInput = document.getElementById('rprog-db-search');
+    const progOwnerEl = document.getElementById('rprog-owner');
     if (searchInput) searchInput.value = '';
     activeRprogDbCat = 'all';
     document.querySelectorAll('#rprog-db-filter-pills [data-rprog-db-cat]').forEach(b => {
@@ -7513,6 +8194,7 @@
       if (titleEl) titleEl.textContent = 'Edit Loyalty Program';
       document.getElementById('rprog-id').value = editProg.id;
       document.getElementById('rprog-name').value = editProg.name || '';
+      if (progOwnerEl) progOwnerEl.value = editProg.owner || '';
       document.getElementById('rprog-ecosystem').value = editProg.ecosystem || 'bank';
       document.getElementById('rprog-points').value = Number(editProg.points ?? editProg.balance ?? 0);
       document.getElementById('rprog-cpp').value = Number(editProg.cpp ?? editProg.cpp_valuation ?? 1.8);
@@ -7538,6 +8220,7 @@
       if (titleEl) titleEl.textContent = 'Add Loyalty Program';
       document.getElementById('rprog-id').value = '';
       document.getElementById('rprog-name').value = '';
+      if (progOwnerEl) progOwnerEl.value = defaultOwnerForNewItem();
       document.getElementById('rprog-ecosystem').value = 'bank';
       document.getElementById('rprog-points').value = '';
       document.getElementById('rprog-cpp').value = '1.8';
@@ -7566,6 +8249,7 @@
     }
     const id = document.getElementById('rprog-id').value;
     const eco = document.getElementById('rprog-ecosystem').value;
+    const owner = ((document.getElementById('rprog-owner') || {}).value || '').trim();
     const pickedColor = resolveHexColor(
       (document.getElementById('rprog-color-input') || {}).value,
       getEcosystemColor(eco)
@@ -7575,6 +8259,7 @@
     const item = {
       id: id || ('prog-' + Date.now()),
       name,
+      owner,
       ecosystem: eco,
       points: Number(document.getElementById('rprog-points').value) || 0,
       cpp: Number(document.getElementById('rprog-cpp').value) || 1.5,
@@ -7602,14 +8287,17 @@
     } else {
       state.rewards.programs.unshift(item);
     }
+    if (owner) registerRewardOwner(owner);
     closeModal('modal-reward-program');
     state.rewardsTab = 'programs';
     await saveRewardsState(id ? `Updated ${name}` : `Added ${name} to Loyalty Programs!`);
   }
 
   function openRewardCertModal(editCert = null, prefillProgram = '') {
+    populateOwnerDatalist();
     const titleEl = document.getElementById('modal-reward-cert-title');
     const searchEl = document.getElementById('rcert-db-search');
+    const certOwnerEl = document.getElementById('rcert-owner');
     if (searchEl) searchEl.value = prefillProgram || '';
     renderRcertDbResults(prefillProgram || '');
     const certDbRes = document.getElementById('rcert-db-results');
@@ -7619,6 +8307,7 @@
       if (titleEl) titleEl.textContent = 'Edit Certificate / Travel Perk';
       document.getElementById('rcert-id').value = editCert.id;
       document.getElementById('rcert-title').value = editCert.title || '';
+      if (certOwnerEl) certOwnerEl.value = editCert.owner || '';
       document.getElementById('rcert-type').value = editCert.type || 'Free Night Certificate';
       document.getElementById('rcert-program').value = editCert.program || '';
       document.getElementById('rcert-card').value = editCert.source_card || '';
@@ -7632,6 +8321,7 @@
       if (titleEl) titleEl.textContent = 'Add Free Night Certificate / Travel Perk';
       document.getElementById('rcert-id').value = '';
       document.getElementById('rcert-title').value = '';
+      if (certOwnerEl) certOwnerEl.value = defaultOwnerForNewItem();
       document.getElementById('rcert-type').value = 'Free Night Certificate';
       document.getElementById('rcert-program').value = prefillProgram || '';
       document.getElementById('rcert-card').value = '';
@@ -7653,9 +8343,11 @@
       return;
     }
     const id = document.getElementById('rcert-id').value;
+    const owner = ((document.getElementById('rcert-owner') || {}).value || '').trim();
     const item = {
       id: id || ('cert-' + Date.now()),
       title,
+      owner,
       type: document.getElementById('rcert-type').value,
       program: document.getElementById('rcert-program').value.trim() || 'Loyalty Program',
       source_card: document.getElementById('rcert-card').value.trim(),
@@ -7672,12 +8364,15 @@
     } else {
       state.rewards.certificates.unshift(item);
     }
+    if (owner) registerRewardOwner(owner);
     closeModal('modal-reward-cert');
     await saveRewardsState(id ? `Updated "${title}"` : `Added "${title}" to Loyalty & Perks!`);
   }
 
   function openRewardCardModal(editCard = null, prefillEcosystem = '') {
+    populateOwnerDatalist();
     const titleEl = document.getElementById('modal-reward-card-title');
+    const cardOwnerEl = document.getElementById('rcard-owner');
     // Populate ecosystem datalist with existing loyalty programs
     const dl = document.getElementById('rcard-ecosystem-datalist');
     if (dl) {
@@ -7707,6 +8402,7 @@
       if (titleEl) titleEl.textContent = 'Edit Travel Credit Card, Art & Statement Credits';
       document.getElementById('rcard-id').value = editCard.id;
       document.getElementById('rcard-name').value = editCard.name || editCard.card_name || '';
+      if (cardOwnerEl) cardOwnerEl.value = editCard.owner || '';
       document.getElementById('rcard-issuer').value = editCard.issuer || '';
       document.getElementById('rcard-ecosystem').value = editCard.ecosystem || editCard.points_program || '';
       document.getElementById('rcard-fee').value = Number(editCard.annual_fee || 0);
@@ -7730,6 +8426,7 @@
       if (titleEl) titleEl.textContent = 'Add Travel Credit Card & Auto-Import Perks';
       document.getElementById('rcard-id').value = '';
       document.getElementById('rcard-name').value = '';
+      if (cardOwnerEl) cardOwnerEl.value = defaultOwnerForNewItem();
       document.getElementById('rcard-issuer').value = '';
       document.getElementById('rcard-ecosystem').value = prefillEcosystem || '';
       document.getElementById('rcard-fee').value = '395';
@@ -7764,6 +8461,7 @@
       return;
     }
     const id = document.getElementById('rcard-id').value;
+    const owner = ((document.getElementById('rcard-owner') || {}).value || '').trim();
     const parsedCredits = readRcardCreditsFromVisualEditor();
     const stylePreset = (document.getElementById('rcard-style-preset') || {}).value || 'auto';
     const imageUrl = ((document.getElementById('rcard-image-url') || {}).value || '').trim();
@@ -7771,6 +8469,7 @@
     const item = {
       id: id || ('card-' + Date.now()),
       name,
+      owner,
       issuer: document.getElementById('rcard-issuer').value.trim() || 'Bank',
       ecosystem: document.getElementById('rcard-ecosystem').value.trim() || 'Travel Rewards',
       card_style: stylePreset,
@@ -7799,6 +8498,7 @@
     } else {
       state.rewards.cards.unshift(item);
     }
+    if (owner) registerRewardOwner(owner);
     closeModal('modal-reward-card');
     const extraMsg = syncedExtras.length > 0 ? ` + Linked ${syncedExtras.join(' & ')}` : '';
     await saveRewardsState(id ? `Updated ${name}${extraMsg}!` : `Added ${name}${extraMsg}!`);
@@ -9073,6 +9773,29 @@
 
     // Statement Credit Checkbox, Slider & Numeric Input + Card Image Upload delegation
     document.addEventListener('change', async e => {
+      if (e.target && e.target.id === 'advisor-trip-select') {
+        const tId = e.target.value;
+        if (tId && tId !== 'custom') {
+          const trip = state.trips.find(t => t.id === tId);
+          if (trip) {
+            document.querySelectorAll('#advisor-preset-chips [data-advisor-preset]').forEach(b => b.classList.remove('active'));
+            const destEl = document.getElementById('advisor-destination-input');
+            if (destEl) destEl.value = `${trip.destination || trip.name} (${trip.name})`;
+            const nightEl = document.getElementById('advisor-nights-input');
+            if (nightEl && trip.start_date && trip.end_date) {
+              const diff = Math.max(1, Math.round((new Date(trip.end_date) - new Date(trip.start_date)) / (1000 * 60 * 60 * 24)));
+              nightEl.value = diff;
+            }
+            renderAiTripAdvisorTab();
+          }
+        }
+        return;
+      }
+      if (e.target && (e.target.id === 'advisor-destination-input' || e.target.id === 'advisor-nights-input' || e.target.id === 'advisor-style-select')) {
+        renderAiTripAdvisorTab();
+        return;
+      }
+
       const credCheck = e.target.closest('[data-toggle-card-credit]');
       if (credCheck) {
         const cardId = credCheck.getAttribute('data-toggle-card-credit');
@@ -9673,17 +10396,19 @@
         return;
       }
 
-      // Quick +/- points stepper on Program Card
+      // Quick +/- points stepper on Program Card & Credit Cards
       const stepProgBtn = e.target.closest('[data-step-rprog]');
       if (stepProgBtn) {
         e.preventDefault();
+        e.stopPropagation();
         const progId = stepProgBtn.getAttribute('data-step-rprog');
         const delta = Number(stepProgBtn.getAttribute('data-delta')) || 0;
         const prog = state.rewards.programs.find(p => p.id === progId);
         if (prog) {
           const cur = Number(prog.points ?? prog.balance ?? 0);
           prog.points = Math.max(0, cur + delta);
-          await saveRewardsState(`${prog.name}: ${prog.points.toLocaleString('en-US')} pts`);
+          const sign = delta > 0 ? `+${delta.toLocaleString('en-US')}` : delta.toLocaleString('en-US');
+          await saveRewardsState(`⚡ ${sign} pts → ${prog.name}: ${prog.points.toLocaleString('en-US')} pts`);
         }
         return;
       }
@@ -9692,6 +10417,7 @@
       const stepNightsBtn = e.target.closest('[data-step-rnights]');
       if (stepNightsBtn) {
         e.preventDefault();
+        e.stopPropagation();
         const progId = stepNightsBtn.getAttribute('data-step-rnights');
         const delta = Number(stepNightsBtn.getAttribute('data-delta')) || 0;
         const prog = state.rewards.programs.find(p => p.id === progId);
@@ -9700,6 +10426,115 @@
           const tgt = Number(prog.target_nights ?? prog.qualifying_target ?? 60);
           prog.qualifying_nights = Math.max(0, cur + delta);
           await saveRewardsState(`${prog.name}: ${prog.qualifying_nights} / ${tgt} ${prog.metric_label || 'Nights'}`);
+        }
+        return;
+      }
+
+      // Household Owner Filter Chips & Actions
+      const ownerFilterBtn = e.target.closest('[data-owner-filter]');
+      if (ownerFilterBtn) {
+        e.preventDefault();
+        state.rewardsOwnerFilter = ownerFilterBtn.getAttribute('data-owner-filter') || 'all';
+        try { localStorage.setItem('ww_rewards_owner_filter', state.rewardsOwnerFilter); } catch (err) {}
+        renderRewardsDashboard();
+        return;
+      }
+      const ownerAddBtn = e.target.closest('[data-owner-add]');
+      if (ownerAddBtn) {
+        e.preventDefault();
+        const person = prompt('Add cardholder / account owner name (e.g. Jim, Karen, Alex):');
+        if (person && person.trim()) {
+          registerRewardOwner(person.trim());
+          state.rewardsOwnerFilter = person.trim();
+          try { localStorage.setItem('ww_rewards_owner_filter', state.rewardsOwnerFilter); } catch (err) {}
+          await saveRewardsState(`Added cardholder: ${person.trim()}`);
+        }
+        return;
+      }
+      const ownerAssignBtn = e.target.closest('[data-owner-assign-unassigned]');
+      if (ownerAssignBtn) {
+        e.preventDefault();
+        const owners = getRewardOwners();
+        const target = prompt(`Assign all unassigned cards & programs to which person?\n\nAvailable: ${owners.join(', ')}`, owners[0] || 'Jim');
+        if (target && target.trim()) {
+          registerRewardOwner(target.trim());
+          let count = 0;
+          ['programs', 'cards', 'certificates'].forEach(k => {
+            (state.rewards[k] || []).forEach(item => {
+              if (!item.owner || !item.owner.trim()) {
+                item.owner = target.trim();
+                count++;
+              }
+            });
+          });
+          await saveRewardsState(`Assigned ${count} items to ${target.trim()}`);
+        }
+        return;
+      }
+
+      // AI Trip & Rewards Advisor Controls
+      const tripAiBtn = e.target.closest('[data-trip-ai-advisor]');
+      if (tripAiBtn) {
+        e.preventDefault();
+        const tripId = tripAiBtn.getAttribute('data-trip-ai-advisor');
+        state.selectedTripId = tripId;
+        state.rewardsTab = 'advisor';
+        switchView('rewards');
+        renderAll();
+        setTimeout(() => {
+          const tripSel = document.getElementById('advisor-trip-select');
+          if (tripSel) {
+            tripSel.value = tripId;
+            tripSel.dispatchEvent(new Event('change'));
+          }
+        }, 40);
+        return;
+      }
+      if (e.target.closest('#btn-run-ai-trip-analysis')) {
+        e.preventDefault();
+        runAiTripAnalysis();
+        return;
+      }
+      if (e.target.closest('#btn-toggle-ai-key-drawer')) {
+        e.preventDefault();
+        const drawer = document.getElementById('ai-key-config-drawer');
+        if (drawer) {
+          drawer.style.display = drawer.style.display === 'none' ? 'block' : 'none';
+        }
+        return;
+      }
+      if (e.target.closest('#btn-save-ai-api-key')) {
+        e.preventDefault();
+        saveAiApiKeyFromDrawer();
+        return;
+      }
+      if (e.target.closest('#btn-qr-open-ai-advisor')) {
+        e.preventDefault();
+        closeModal('modal-quick-rewards');
+        state.rewardsTab = 'advisor';
+        switchView('rewards');
+        renderAll();
+        return;
+      }
+      const presetBtn = e.target.closest('#advisor-preset-chips [data-advisor-preset]');
+      if (presetBtn) {
+        e.preventDefault();
+        const key = presetBtn.getAttribute('data-advisor-preset');
+        const pData = PRESET_ADVISOR_DESTINATIONS[key];
+        if (pData) {
+          document.querySelectorAll('#advisor-preset-chips [data-advisor-preset]').forEach(b => b.classList.remove('active'));
+          presetBtn.classList.add('active');
+          const destEl = document.getElementById('advisor-destination-input');
+          if (destEl) destEl.value = pData.dest;
+          const nightEl = document.getElementById('advisor-nights-input');
+          if (nightEl) nightEl.value = pData.nights;
+          const origEl = document.getElementById('advisor-origin-input');
+          if (origEl) origEl.value = pData.origin;
+          const styleEl = document.getElementById('advisor-style-select');
+          if (styleEl) styleEl.value = pData.style;
+          const tripSel = document.getElementById('advisor-trip-select');
+          if (tripSel) tripSel.value = 'custom';
+          renderAiTripAdvisorTab();
         }
         return;
       }

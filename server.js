@@ -1133,10 +1133,18 @@ function getSettingsMap() {
     meal_deduction_rate: '100',
     exchange_rates: DEFAULT_RATES,
     tax_categories: null,
-    ecosystem_colors: null
+    ecosystem_colors: null,
+    ai_provider: 'gemini',
+    ai_key_configured: Boolean(process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY)
   };
   for (const r of rows) {
     if (r.key.startsWith('auth_') || r.key === 'rewards_data') continue;
+    if (r.key === 'ai_api_key') {
+      if (r.value && String(r.value).trim()) {
+        map.ai_key_configured = true;
+      }
+      continue;
+    }
     if (r.key === 'exchange_rates') {
       try {
         map.exchange_rates = { ...DEFAULT_RATES, ...JSON.parse(r.value) };
@@ -1973,6 +1981,7 @@ const server = http.createServer(async (req, res) => {
         certificates: Array.isArray(body.certificates) ? body.certificates : current.certificates,
         cards: Array.isArray(body.cards) ? body.cards : current.cards,
         redemptions: Array.isArray(body.redemptions) ? body.redemptions : current.redemptions,
+        owners: Array.isArray(body.owners) ? body.owners.map(o => String(o).trim()).filter(Boolean).slice(0, 12) : (current.owners || []),
         ecosystem_colors: body.ecosystem_colors || current.ecosystem_colors || null
       };
       db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
@@ -1987,6 +1996,103 @@ const server = http.createServer(async (req, res) => {
       }
       markServerModified();
       return sendJson(res, 200, getBootstrapData());
+    }
+
+    // AI Trip & Rewards Advisor Endpoint (Hybrid: supports optional Gemini / OpenAI API key + server env key)
+    if (pathname === '/api/ai/trip-advisor' && method === 'POST') {
+      const body = await readJsonBody(req);
+      const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+      if (body.saveKey && body.clientApiKey !== undefined) {
+        upsert.run('ai_api_key', String(body.clientApiKey || '').trim());
+        if (body.provider) upsert.run('ai_provider', String(body.provider).trim());
+        markServerModified();
+      }
+      if (body.onlySaveKey) {
+        return sendJson(res, 200, { ok: true, bootstrap: getBootstrapData() });
+      }
+
+      const savedKeyRow = db.prepare("SELECT value FROM settings WHERE key = 'ai_api_key'").get();
+      const savedProvRow = db.prepare("SELECT value FROM settings WHERE key = 'ai_provider'").get();
+      const rawKey = (
+        (body.clientApiKey && String(body.clientApiKey).trim()) ||
+        (savedKeyRow && savedKeyRow.value && String(savedKeyRow.value).trim()) ||
+        (process.env.GEMINI_API_KEY && String(process.env.GEMINI_API_KEY).trim()) ||
+        (process.env.OPENAI_API_KEY && String(process.env.OPENAI_API_KEY).trim()) ||
+        ''
+      );
+
+      if (!rawKey) {
+        return sendJson(res, 200, {
+          ok: true,
+          mode: 'builtin',
+          message: 'Using built-in Wander Wallet Rewards Strategy Engine.'
+        });
+      }
+
+      const provider = body.provider || (savedProvRow && savedProvRow.value) || (rawKey.startsWith('sk-') ? 'openai' : 'gemini');
+      const systemPrompt = [
+        'You are the Wander Wallet AI Travel Rewards & Points Strategist.',
+        'Analyze the user\'s exact loyalty balances, transferable bank points, free night certificates, and unused credit card statement credits.',
+        'Provide concrete, actionable booking recommendations for their target trip: specific hotels (with point/night estimates & 4th/5th night free math), flights (best transfer partners vs. travel portal + remaining credits), a prioritized booking order, and lounge/card tips.',
+        'Format clearly with concise bullet points and exact numbers from their portfolio.'
+      ].join(' ');
+
+      const userPrompt = [
+        `Destination: ${body.destination || 'Argentina (Buenos Aires & Patagonia)'}`,
+        `Nights: ${body.nights || 7} | Origin: ${body.origin || 'US Gateway'} | Style: ${body.style || 'Max Point Stretch'}`,
+        body.customQuestion ? `Specific User Question: ${body.customQuestion}` : '',
+        `User Rewards Portfolio Summary:\n${body.portfolioSummary || ''}`
+      ].filter(Boolean).join('\n\n');
+
+      try {
+        if (provider === 'openai' || rawKey.startsWith('sk-')) {
+          const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${rawKey}`
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              temperature: 0.4,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+              ]
+            })
+          });
+          const data = await resp.json();
+          if (!resp.ok) {
+            throw new Error((data && data.error && data.error.message) || `OpenAI HTTP ${resp.status}`);
+          }
+          const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+          return sendJson(res, 200, { ok: true, mode: 'llm', provider: 'OpenAI GPT-4o-mini', analysisText: text });
+        } else {
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(rawKey)}`;
+          const resp = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: systemPrompt }] },
+              contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+              generationConfig: { temperature: 0.4 }
+            })
+          });
+          const data = await resp.json();
+          if (!resp.ok) {
+            throw new Error((data && data.error && data.error.message) || `Gemini HTTP ${resp.status}`);
+          }
+          const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+          const text = parts.map(p => p.text || '').join('\n');
+          return sendJson(res, 200, { ok: true, mode: 'llm', provider: 'Google Gemini 2.5 Flash', analysisText: text });
+        }
+      } catch (aiErr) {
+        return sendJson(res, 200, {
+          ok: false,
+          mode: 'builtin_fallback',
+          error: aiErr.message || 'AI API call failed — showing built-in strategy engine results.'
+        });
+      }
     }
 
     // CSV Tax Export
