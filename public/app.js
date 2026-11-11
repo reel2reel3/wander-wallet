@@ -5657,6 +5657,63 @@
   const expandedCreditDrawers = {};
   let activeMiniDashboardState = { kind: 'program', id: '', tab: 'overview' };
 
+  function resolveRewardWebsiteUrl(item, isCard = false) {
+    if (!item) return 'https://www.google.com';
+    const customUrl = String(item.website_url || '').trim();
+    if (customUrl && /^https?:\/\//i.test(customUrl)) {
+      return customUrl;
+    }
+    const hay = `${item.name || ''} ${item.card_name || ''} ${item.issuer || ''} ${item.ecosystem || ''} ${item.points_program || ''}`.toLowerCase();
+
+    // If this is a Credit Card, prioritize the Bank / Card Issuer Login Portal first
+    if (isCard) {
+      if (hay.includes('chase')) return 'https://secure.chase.com';
+      if (hay.includes('amex') || hay.includes('american express')) return 'https://global.americanexpress.com/login';
+      if (hay.includes('capital one') || hay.includes('venture')) return 'https://myaccounts.capitalone.com';
+      if (hay.includes('citi') || hay.includes('strata')) return 'https://online.citi.com';
+      if (hay.includes('bilt')) return 'https://www.biltrewards.com/account';
+      if (hay.includes('bank of america') || hay.includes('bofa')) return 'https://www.bankofamerica.com';
+      if (hay.includes('wells fargo') || hay.includes('autograph')) return 'https://connect.secure.wellsfargo.com/auth/login/present';
+      if (hay.includes('us bank') || hay.includes('u.s. bank') || hay.includes('altitude')) return 'https://onlinebanking.usbank.com/auth/login';
+      if (hay.includes('barclay')) return 'https://www.barclaycardus.com';
+    }
+
+    // Hotel Loyalty Programs
+    if (hay.includes('ihg')) return 'https://www.ihg.com/rewardsclub/us/en/account-mgmt/home';
+    if (hay.includes('hyatt')) return 'https://world.hyatt.com';
+    if (hay.includes('marriott') || hay.includes('bonvoy')) return 'https://www.marriott.com/loyalty/myAccount/default.mi';
+    if (hay.includes('hilton')) return 'https://www.hilton.com/en/hilton-honors/guest/my-account/';
+    if (hay.includes('wyndham')) return 'https://www.wyndhamhotels.com/wyndham-rewards/login';
+    if (hay.includes('choice')) return 'https://www.choicehotels.com/choice-privileges';
+    if (hay.includes('accor')) return 'https://all.accor.com';
+
+    // Airline Loyalty Programs
+    if (hay.includes('delta') || hay.includes('skymiles')) return 'https://www.delta.com/myprofile/dashboard';
+    if (hay.includes('united') || hay.includes('mileageplus')) return 'https://www.united.com/en/us/myunited';
+    if (hay.includes('american') && !hay.includes('express') || hay.includes('aadvantage')) return 'https://www.aa.com/loyalty/profile/summary';
+    if (hay.includes('southwest') || hay.includes('rapid rewards')) return 'https://www.southwest.com/loyalty/myaccount';
+    if (hay.includes('alaska') || hay.includes('atmos') || hay.includes('mileage plan')) return 'https://www.alaskaair.com/account/overview';
+    if (hay.includes('aeroplan') || hay.includes('air canada')) return 'https://www.aircanada.com/aeroplan';
+    if (hay.includes('flying blue') || hay.includes('air france') || hay.includes('klm')) return 'https://www.flyingblue.us';
+    if (hay.includes('british airways') || hay.includes('avios')) return 'https://www.britishairways.com/travel/echome/public/en_us';
+    if (hay.includes('virgin')) return 'https://www.virginatlantic.com/flying-club';
+    if (hay.includes('jetblue') || hay.includes('trueblue')) return 'https://www.jetblue.com/trueblue';
+    if (hay.includes('ana') || hay.includes('all nippon')) return 'https://www.ana.co.jp/en/us/amc/';
+    if (hay.includes('singapore') || hay.includes('krisflyer')) return 'https://www.singaporeair.com/en_UK/us/ppsclub-krisflyer/';
+
+    // Transferable Bank Currencies
+    if (hay.includes('chase') || hay.includes('ultimate rewards') || hay.includes('sapphire')) return 'https://secure.chase.com';
+    if (hay.includes('amex') || hay.includes('american express') || hay.includes('membership rewards')) return 'https://global.americanexpress.com/login';
+    if (hay.includes('capital one') || hay.includes('venture')) return 'https://myaccounts.capitalone.com';
+    if (hay.includes('citi') || hay.includes('thankyou') || hay.includes('strata')) return 'https://online.citi.com';
+    if (hay.includes('bilt')) return 'https://www.biltrewards.com/account';
+    if (hay.includes('wells fargo')) return 'https://connect.secure.wellsfargo.com/auth/login/present';
+    if (hay.includes('us bank') || hay.includes('u.s. bank')) return 'https://onlinebanking.usbank.com/auth/login';
+
+    const q = encodeURIComponent(`${item.name || item.card_name || 'Rewards'} account login`);
+    return `https://www.google.com/search?q=${q}`;
+  }
+
   function renderInteractiveCreditRowHtml(card, cr, idx, compact = false) {
     const label = cr.name || cr.label || 'Statement Credit';
     const tot = Math.max(0, Number(cr.total_usd ?? cr.amount ?? 0));
@@ -6171,9 +6228,22 @@
 
           <!-- 4. Clean Action Footer -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto; flex-wrap: wrap; gap: 6px;">
-            <div style="display: flex; gap: 5px;">
+            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
               <button type="button" class="btn btn-sm" data-open-prog-md="${escapeHtml(p.id)}" data-md-tab="overview" title="Open full Mini-Dashboard for ${escapeHtml(p.name)}">🔍 Details</button>
               <button type="button" class="btn btn-sm" data-quick-redeem-prog="${escapeHtml(p.name)}">✈️ Redeem</button>
+              <a
+                href="${escapeHtml(resolveRewardWebsiteUrl(p, false))}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-sm"
+                data-open-reward-website="${escapeHtml(resolveRewardWebsiteUrl(p, false))}"
+                data-copy-member-on-open="${escapeHtml(p.member_id || '')}"
+                data-reward-label="${escapeHtml(p.name)}"
+                title="Open ${escapeHtml(p.name)} login website in a new tab${p.member_id ? ` (auto-copies Member ID ${escapeHtml(p.member_id)})` : ''}"
+                style="text-decoration: none;"
+              >
+                🌐 Website
+              </a>
             </div>
             <div style="display: flex; gap: 5px;">
               <button type="button" class="btn btn-sm" data-update-rprog="${escapeHtml(p.id)}" title="Check & update latest program perks, valuations and rules">🔄</button>
@@ -6566,7 +6636,21 @@
 
           <!-- 4. Clean Action Footer -->
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto; flex-wrap: wrap;">
-            <button type="button" class="btn btn-sm" data-open-card-md="${escapeHtml(c.id)}" data-md-tab="overview">🔍 Details</button>
+            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-sm" data-open-card-md="${escapeHtml(c.id)}" data-md-tab="overview">🔍 Details</button>
+              <a
+                href="${escapeHtml(resolveRewardWebsiteUrl(c, true))}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-sm"
+                data-open-reward-website="${escapeHtml(resolveRewardWebsiteUrl(c, true))}"
+                data-reward-label="${escapeHtml(cardName)}"
+                title="Open ${escapeHtml(cardName)} login portal in a new tab"
+                style="text-decoration: none;"
+              >
+                🌐 Website
+              </a>
+            </div>
             <div style="display: flex; gap: 5px;">
               <button type="button" class="btn btn-sm" data-update-rcard="${escapeHtml(c.id)}" title="Check & update latest statement credits, annual fee, and multipliers">🔄</button>
               <button type="button" class="btn btn-sm" data-edit-rcard="${escapeHtml(c.id)}">Edit Card</button>
@@ -6857,8 +6941,22 @@
     body.innerHTML = heroHtml + kpisHtml + subnavHtml + tabBodyHtml;
 
     if (footer) {
+      const targetWebItem = prog || primaryCard;
+      const webUrl = resolveRewardWebsiteUrl(targetWebItem, !prog);
       footer.innerHTML = `
         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <a
+            href="${escapeHtml(webUrl)}"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-sm"
+            data-open-reward-website="${escapeHtml(webUrl)}"
+            data-copy-member-on-open="${escapeHtml((prog && prog.member_id) || '')}"
+            data-reward-label="${escapeHtml(targetWebItem ? targetWebItem.name : 'Account')}"
+            style="text-decoration: none;"
+          >
+            🌐 Website Login
+          </a>
           ${prog ? `<button type="button" class="btn btn-sm" data-md-edit-prog="${escapeHtml(prog.id)}">✎ Edit Loyalty Program</button>` : ''}
           ${primaryCard ? `<button type="button" class="btn btn-sm" data-md-edit-card="${escapeHtml(primaryCard.id)}">💳 Edit Credit Card &amp; Credits</button>` : ''}
           ${prog ? `<button type="button" class="btn btn-sm" data-add-cert-for-prog="${escapeHtml(prog.name)}">🎟️ + Add Free Night / Perk</button>` : ''}
@@ -7220,6 +7318,8 @@
     if (styleEl) styleEl.value = tplData.card_style || 'auto';
     const imgUrlEl = document.getElementById('rcard-image-url');
     if (imgUrlEl) imgUrlEl.value = tplData.image_url || '';
+    const webEl = document.getElementById('rcard-website');
+    if (webEl) webEl.value = resolveRewardWebsiteUrl(tplData, true);
 
     renderRcardCreditsVisualEditor(tplData.credits || []);
     updateRcardArtPreview();
@@ -7277,6 +7377,8 @@
     document.getElementById('rprog-expiration').value = tplData.expiration_policy || 'Active';
     document.getElementById('rprog-partners').value = tplData.transfer_partners || '';
     document.getElementById('rprog-notes').value = tplData.notes || '';
+    const webEl = document.getElementById('rprog-website');
+    if (webEl) webEl.value = resolveRewardWebsiteUrl(tplData, false);
     syncRprogColorPickerUi(getEcosystemColor(tplData.ecosystem || 'bank'));
     showToast(`⚡ Auto-filled ${tplData.name} from Loyalty Database!`);
   }
@@ -7355,6 +7457,8 @@
       document.getElementById('rprog-expiration').value = editProg.expiration_policy || '';
       document.getElementById('rprog-partners').value = editProg.transfer_partners || editProg.transfer_sources || '';
       document.getElementById('rprog-notes').value = editProg.notes || '';
+      const rprogWebEl = document.getElementById('rprog-website');
+      if (rprogWebEl) rprogWebEl.value = editProg.website_url || resolveRewardWebsiteUrl(editProg, false);
       if (editProg.custom_color) {
         if (scopeCardRadio) scopeCardRadio.checked = true;
         syncRprogColorPickerUi(editProg.custom_color);
@@ -7378,6 +7482,8 @@
       document.getElementById('rprog-expiration').value = 'No expiration while active';
       document.getElementById('rprog-partners').value = '';
       document.getElementById('rprog-notes').value = '';
+      const rprogWebEl = document.getElementById('rprog-website');
+      if (rprogWebEl) rprogWebEl.value = '';
       if (scopeEcoRadio) scopeEcoRadio.checked = true;
       syncRprogColorPickerUi(getEcosystemColor('bank'));
       renderCustomFieldsEditor('rprog-custom-fields-container', []);
@@ -7413,6 +7519,7 @@
       expiration_policy: document.getElementById('rprog-expiration').value.trim() || 'Active',
       transfer_partners: document.getElementById('rprog-partners').value.trim(),
       notes: document.getElementById('rprog-notes').value.trim(),
+      website_url: ((document.getElementById('rprog-website') || {}).value || '').trim(),
       custom_color: scopeCard ? pickedColor : '',
       custom_fields: readCustomFields('rprog-custom-fields-container')
     };
@@ -7540,6 +7647,8 @@
       document.getElementById('rcard-ftf').value = editCard.ftf || 'None ($0 Foreign Tx Fee)';
       document.getElementById('rcard-multipliers').value = editCard.multipliers || '';
       document.getElementById('rcard-best-for').value = editCard.best_for || editCard.perks || '';
+      const rcardWebEl = document.getElementById('rcard-website');
+      if (rcardWebEl) rcardWebEl.value = editCard.website_url || resolveRewardWebsiteUrl(editCard, true);
       document.getElementById('rcard-sub-active').checked = Boolean(editCard.sub_active);
       document.getElementById('rcard-sub-bonus').value = editCard.sub_bonus_label || editCard.sub_bonus_text || '';
       document.getElementById('rcard-sub-deadline').value = editCard.sub_deadline || '';
@@ -7561,6 +7670,8 @@
       document.getElementById('rcard-ftf').value = 'None ($0 Foreign Tx Fee)';
       document.getElementById('rcard-multipliers').value = '';
       document.getElementById('rcard-best-for').value = '';
+      const rcardWebEl = document.getElementById('rcard-website');
+      if (rcardWebEl) rcardWebEl.value = '';
       document.getElementById('rcard-sub-active').checked = false;
       document.getElementById('rcard-sub-bonus').value = '';
       document.getElementById('rcard-sub-deadline').value = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
@@ -7602,6 +7713,7 @@
       ftf: document.getElementById('rcard-ftf').value.trim() || 'None ($0 Foreign Tx Fee)',
       multipliers: document.getElementById('rcard-multipliers').value.trim(),
       best_for: document.getElementById('rcard-best-for').value.trim(),
+      website_url: ((document.getElementById('rcard-website') || {}).value || '').trim(),
       sub_active: document.getElementById('rcard-sub-active').checked,
       sub_bonus_label: document.getElementById('rcard-sub-bonus').value.trim(),
       sub_deadline: document.getElementById('rcard-sub-deadline').value,
@@ -9417,6 +9529,22 @@
           await navigator.clipboard.writeText(memId);
         } catch (err) {}
         showToast(`Copied Member ID: ${memId}`);
+        return;
+      }
+
+      // Open Reward / Card Website Login button (auto-copies Member ID if present)
+      const openWebBtn = e.target.closest('[data-open-reward-website]');
+      if (openWebBtn) {
+        const memId = (openWebBtn.getAttribute('data-copy-member-on-open') || '').trim();
+        const label = openWebBtn.getAttribute('data-reward-label') || 'Account';
+        if (memId) {
+          try {
+            await navigator.clipboard.writeText(memId);
+          } catch (err) {}
+          showToast(`📋 Copied Member ID (${memId}) — opening ${label} login!`);
+        } else {
+          showToast(`🌐 Opening ${label} login portal...`);
+        }
         return;
       }
 
