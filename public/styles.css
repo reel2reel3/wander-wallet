@@ -2703,54 +2703,6 @@ body {
   border-color: var(--accent-primary);
 }
 
-/* Quick Points Bump Stepper (-5k, -1k, +1k, +5k) */
-.quick-points-container {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.quick-bump-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.btn-bump {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 7px;
-  font-size: 11px;
-  font-weight: 700;
-  font-family: var(--font-mono, monospace);
-  color: var(--text-secondary);
-  background-color: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  line-height: 1.35;
-  user-select: none;
-}
-.btn-bump:hover {
-  color: var(--text-primary);
-  background-color: var(--bg-surface);
-  border-color: var(--accent-primary);
-  transform: translateY(-1px);
-}
-.btn-bump:active {
-  transform: translateY(0);
-}
-.btn-bump.positive:hover {
-  color: var(--accent-primary);
-  border-color: var(--accent-primary);
-  background-color: rgba(16, 185, 129, 0.1);
-}
-.btn-bump.negative:hover {
-  color: var(--accent-rose, #f43f5e);
-  border-color: var(--accent-rose, #f43f5e);
-  background-color: rgba(244, 63, 94, 0.1);
-}
-
 /* =========================================================================
    AI TRIP & REWARDS ADVISOR STYLES
    ========================================================================= */

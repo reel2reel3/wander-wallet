@@ -10386,23 +10386,6 @@
         return;
       }
 
-      // Quick +/- points stepper on Program Card & Credit Cards
-      const stepProgBtn = e.target.closest('[data-step-rprog]');
-      if (stepProgBtn) {
-        e.preventDefault();
-        e.stopPropagation();
-        const progId = stepProgBtn.getAttribute('data-step-rprog');
-        const delta = Number(stepProgBtn.getAttribute('data-delta')) || 0;
-        const prog = state.rewards.programs.find(p => p.id === progId);
-        if (prog) {
-          const cur = Number(prog.points ?? prog.balance ?? 0);
-          prog.points = Math.max(0, cur + delta);
-          const sign = delta > 0 ? `+${delta.toLocaleString('en-US')}` : delta.toLocaleString('en-US');
-          await saveRewardsState(`⚡ ${sign} pts → ${prog.name}: ${prog.points.toLocaleString('en-US')} pts`);
-        }
-        return;
-      }
-
       // Quick +/- Elite Nights stepper on Program Card
       const stepNightsBtn = e.target.closest('[data-step-rnights]');
       if (stepNightsBtn) {
