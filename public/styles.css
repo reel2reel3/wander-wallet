@@ -2642,5 +2642,67 @@ body {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
 }
 
+/* Click-to-Update Points / Miles Available Inline Editor */
+.quick-points-trigger {
+  cursor: pointer;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border-radius: 7px;
+  border: 1px dashed transparent;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.quick-points-trigger:hover {
+  background-color: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+.quick-points-trigger .qp-edit-hint {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--accent-primary);
+  opacity: 0.78;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background-color: rgba(16, 185, 129, 0.12);
+  transition: opacity 0.15s ease;
+}
+
+.quick-points-trigger:hover .qp-edit-hint {
+  opacity: 1;
+}
+
+.quick-points-editor-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background-color: var(--bg-surface);
+  border: 1.5px solid var(--accent-primary);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 100%;
+}
+
+.quick-points-input {
+  width: 125px;
+  padding: 5px 8px;
+  font-size: 15px;
+  font-weight: 800;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.quick-points-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+
 
 

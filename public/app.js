@@ -5656,6 +5656,72 @@
   const activeCreditCardMiniTabs = {};
   const expandedCreditDrawers = {};
   let activeMiniDashboardState = { kind: 'program', id: '', tab: 'overview' };
+  let activeQuickBalanceProgId = null;
+
+  function renderQuickPointsBlockHtml(prog, alignRight = false) {
+    if (!prog) return '';
+    const pts = Number(prog.points ?? prog.balance ?? 0);
+    const isEditing = activeQuickBalanceProgId === prog.id;
+
+    if (isEditing) {
+      return `
+        <div class="quick-points-editor-box" data-qp-box="${escapeHtml(prog.id)}">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 10.5px; font-weight: 800; color: var(--accent-primary); text-transform: uppercase;">
+            <span>⚡ Quick Update Points / Miles (${pts.toLocaleString('en-US')} current)</span>
+            <button type="button" class="btn btn-sm" style="padding: 0 5px; font-size: 10px; line-height: 1.4;" data-qp-cancel="1" title="Cancel (Esc)">✕</button>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <input
+              type="number"
+              step="1"
+              class="quick-points-input mono"
+              data-qp-input="${escapeHtml(prog.id)}"
+              value="${pts}"
+              placeholder="Enter points..."
+            />
+            <button
+              type="button"
+              class="btn btn-sm btn-primary"
+              style="padding: 5px 10px; font-size: 11px;"
+              data-qp-save-set="${escapeHtml(prog.id)}"
+              title="Set total balance to this exact number (or press Enter)"
+            >
+              ✓ Set Balance
+            </button>
+            <button
+              type="button"
+              class="btn btn-sm"
+              style="padding: 5px 9px; font-size: 11px;"
+              data-qp-save-add="${escapeHtml(prog.id)}"
+              title="Add this number onto your current ${pts.toLocaleString('en-US')} pts"
+            >
+              + Add to Current
+            </button>
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted);">
+            Tip: Type new total &amp; press <strong>Enter</strong> (or click <strong>+ Add to Current</strong> to add miles earned).
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div
+        class="quick-points-trigger"
+        style="${alignRight ? 'align-items: flex-end; text-align: right;' : ''}"
+        data-quick-points-open="${escapeHtml(prog.id)}"
+        title="Click to quickly update or add points/miles without opening Edit"
+      >
+        <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; display: flex; align-items: center;">
+          <span>Points / Miles Available</span>
+          <span class="qp-edit-hint">⚡ Quick Edit</span>
+        </div>
+        <div class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">
+          ${pts.toLocaleString('en-US')} <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">pts</span>
+        </div>
+      </div>
+    `;
+  }
 
   function resolveRewardWebsiteUrl(item, isCard = false) {
     if (!item) return 'https://www.google.com';
@@ -6032,12 +6098,7 @@
           <!-- 2. Condensed Hero Showcase: Points Available + Primary Credit Card Art & Annual Fee -->
           <div class="reward-condensed-showcase">
             <div class="reward-condensed-primary-row">
-              <div>
-                <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Points / Miles Available</div>
-                <div class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">
-                  ${pts.toLocaleString('en-US')} <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">pts</span>
-                </div>
-              </div>
+              ${renderQuickPointsBlockHtml(p, false)}
               <div style="text-align: right;">
                 <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Estimated Value</div>
                 <div class="mono tabular" style="font-size: 15px; color: var(--accent-primary); font-weight: 800;">
@@ -6552,8 +6613,17 @@
             </div>
           </div>
 
-          <!-- 2. 3 Compact At-A-Glance Stat Boxes -->
+          <!-- 2. Points / Miles Available (if linked) + 3 Compact At-A-Glance Stat Boxes -->
           <div class="reward-condensed-showcase">
+            ${linkedProg ? `
+              <div class="reward-condensed-primary-row">
+                ${renderQuickPointsBlockHtml(linkedProg, false)}
+                <div style="text-align: right;">
+                  <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Program</div>
+                  <div style="font-size: 12.5px; color: var(--accent-primary); font-weight: 700;">${escapeHtml(linkedProg.name)}</div>
+                </div>
+              </div>
+            ` : ''}
             <div class="reward-quick-stat-pills">
               <div class="reward-quick-stat-box">
                 <span class="reward-quick-stat-label">Annual Fee &amp; Renew</span>
@@ -6778,10 +6848,7 @@
         </div>
         ${prog ? `
           <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-            <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Points / Miles Available</div>
-            <div class="mono" style="font-size: 24px; font-weight: 800; color: var(--accent-primary); line-height: 1.1;">
-              ${pts.toLocaleString('en-US')} <span style="font-size: 12px; color: var(--text-muted);">pts</span>
-            </div>
+            ${renderQuickPointsBlockHtml(prog, true)}
             <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">
               Est. Value: ${fmtUsd(valUsd)} (@ ${cpp.toFixed(2)}¢/pt)
             </div>
@@ -9548,6 +9615,64 @@
         return;
       }
 
+      // Click-to-Update Points / Miles Available ("Quick Add / Set Balance")
+      const qpOpenBtn = e.target.closest('[data-quick-points-open]');
+      if (qpOpenBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        activeQuickBalanceProgId = qpOpenBtn.getAttribute('data-quick-points-open');
+        renderRewardsDashboard();
+        setTimeout(() => {
+          const inp = document.querySelector(`[data-qp-input="${activeQuickBalanceProgId}"]`);
+          if (inp) {
+            inp.focus();
+            inp.select();
+          }
+        }, 20);
+        return;
+      }
+      if (e.target.closest('[data-qp-cancel]')) {
+        e.preventDefault();
+        e.stopPropagation();
+        activeQuickBalanceProgId = null;
+        renderRewardsDashboard();
+        return;
+      }
+      const qpSaveSetBtn = e.target.closest('[data-qp-save-set]');
+      if (qpSaveSetBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const progId = qpSaveSetBtn.getAttribute('data-qp-save-set');
+        const box = qpSaveSetBtn.closest('[data-qp-box]');
+        const inp = box ? box.querySelector('[data-qp-input]') : document.querySelector(`[data-qp-input="${progId}"]`);
+        const prog = (state.rewards.programs || []).find(p => p.id === progId);
+        if (prog && inp) {
+          const val = Math.max(0, Math.round(Number(inp.value) || 0));
+          prog.points = val;
+          activeQuickBalanceProgId = null;
+          await saveRewardsState(`✓ Updated ${prog.name} balance to ${val.toLocaleString('en-US')} pts!`);
+        }
+        return;
+      }
+      const qpSaveAddBtn = e.target.closest('[data-qp-save-add]');
+      if (qpSaveAddBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const progId = qpSaveAddBtn.getAttribute('data-qp-save-add');
+        const box = qpSaveAddBtn.closest('[data-qp-box]');
+        const inp = box ? box.querySelector('[data-qp-input]') : document.querySelector(`[data-qp-input="${progId}"]`);
+        const prog = (state.rewards.programs || []).find(p => p.id === progId);
+        if (prog && inp) {
+          const cur = Number(prog.points ?? prog.balance ?? 0);
+          const delta = Math.round(Number(inp.value) || 0);
+          const nextPts = Math.max(0, cur + delta);
+          prog.points = nextPts;
+          activeQuickBalanceProgId = null;
+          await saveRewardsState(`⚡ Added ${delta.toLocaleString('en-US')} pts → ${prog.name}: ${nextPts.toLocaleString('en-US')} pts!`);
+        }
+        return;
+      }
+
       // Quick +/- points stepper on Program Card
       const stepProgBtn = e.target.closest('[data-step-rprog]');
       if (stepProgBtn) {
@@ -10605,8 +10730,30 @@
       }
     });
 
-    // Close confirmation dialog on Escape key
-    document.addEventListener('keydown', e => {
+    // Close confirmation dialog on Escape key & handle Enter/Escape inside Quick Points Input
+    document.addEventListener('keydown', async e => {
+      const t = e.target;
+      if (t && t.hasAttribute && t.hasAttribute('data-qp-input')) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const progId = t.getAttribute('data-qp-input');
+          const prog = (state.rewards.programs || []).find(p => p.id === progId);
+          if (prog) {
+            const val = Math.max(0, Math.round(Number(t.value) || 0));
+            prog.points = val;
+            activeQuickBalanceProgId = null;
+            await saveRewardsState(`✓ Updated ${prog.name} balance to ${val.toLocaleString('en-US')} pts!`);
+          }
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          activeQuickBalanceProgId = null;
+          renderRewardsDashboard();
+          return;
+        }
+      }
+
       if (e.key === 'Escape') {
         const confirmModal = document.getElementById('modal-confirm-delete');
         if (confirmModal && confirmModal.classList.contains('open')) {
