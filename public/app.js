@@ -5980,14 +5980,12 @@
                 <div class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">
                   ${pts.toLocaleString('en-US')} <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">pts</span>
                 </div>
-                <div style="font-size: 12px; color: var(--accent-primary); font-weight: 700;">
-                  Est. Value: ${fmtUsd(valUsd)} <span style="color: var(--text-muted); font-weight: 400;">(@ ${cpp.toFixed(2)}¢/pt)</span>
-                </div>
               </div>
-              <div class="stepper-group">
-                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="-1000" title="Subtract 1,000 pts">-1k</button>
-                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="1000" title="Add 1,000 pts">+1k</button>
-                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="5000" title="Add 5,000 pts">+5k</button>
+              <div style="text-align: right;">
+                <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Estimated Value</div>
+                <div class="mono tabular" style="font-size: 15px; color: var(--accent-primary); font-weight: 800;">
+                  ${fmtUsd(valUsd)} <span style="font-size: 11.5px; color: var(--text-muted); font-weight: 500;">(@ ${cpp.toFixed(2)}¢/pt)</span>
+                </div>
               </div>
             </div>
 
@@ -6695,19 +6693,13 @@
           </div>
         </div>
         ${prog ? `
-          <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+          <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
             <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Points / Miles Available</div>
             <div class="mono" style="font-size: 24px; font-weight: 800; color: var(--accent-primary); line-height: 1.1;">
               ${pts.toLocaleString('en-US')} <span style="font-size: 12px; color: var(--text-muted);">pts</span>
             </div>
             <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">
               Est. Value: ${fmtUsd(valUsd)} (@ ${cpp.toFixed(2)}¢/pt)
-            </div>
-            <div class="stepper-group">
-              <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(prog.id)}" data-delta="-5000">-5k</button>
-              <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(prog.id)}" data-delta="-1000">-1k</button>
-              <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(prog.id)}" data-delta="1000">+1k</button>
-              <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(prog.id)}" data-delta="5000">+5k</button>
             </div>
           </div>
         ` : ''}
