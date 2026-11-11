@@ -5849,28 +5849,18 @@
     }
 
     return `
-      <div class="quick-points-container" style="${alignRight ? 'align-items: flex-end; text-align: right;' : ''}">
-        <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+      <div
+        class="quick-points-trigger"
+        style="${alignRight ? 'align-items: flex-end; text-align: right;' : ''}"
+        data-quick-points-open="${escapeHtml(prog.id)}"
+        title="Click to quickly update or add points/miles without opening Edit"
+      >
+        <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; display: flex; align-items: center;">
           <span>Points / Miles Available</span>
-          <span class="qp-edit-hint" data-quick-points-open="${escapeHtml(prog.id)}" title="Click to enter exact balance">⚡ Quick Edit</span>
+          <span class="qp-edit-hint">⚡ Quick Edit</span>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 3px;">
-          <div
-            class="quick-points-trigger"
-            data-quick-points-open="${escapeHtml(prog.id)}"
-            title="Click to quickly update points balance"
-          >
-            <span class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">
-              ${pts.toLocaleString('en-US')}
-            </span>
-            <span style="font-size: 12px; font-weight: 500; color: var(--text-muted); margin-left: 3px;">pts</span>
-          </div>
-          <div class="quick-bump-group">
-            <button type="button" class="btn-bump negative" data-step-rprog="${escapeHtml(prog.id)}" data-delta="-5000" title="Subtract 5,000 points">-5k</button>
-            <button type="button" class="btn-bump negative" data-step-rprog="${escapeHtml(prog.id)}" data-delta="-1000" title="Subtract 1,000 points">-1k</button>
-            <button type="button" class="btn-bump positive" data-step-rprog="${escapeHtml(prog.id)}" data-delta="1000" title="Add 1,000 points">+1k</button>
-            <button type="button" class="btn-bump positive" data-step-rprog="${escapeHtml(prog.id)}" data-delta="5000" title="Add 5,000 points">+5k</button>
-          </div>
+        <div class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">
+          ${pts.toLocaleString('en-US')} <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">pts</span>
         </div>
       </div>
     `;
