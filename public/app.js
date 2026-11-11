@@ -10514,6 +10514,7 @@
         state.rewardsTab = 'advisor';
         switchView('rewards');
         renderAll();
+        setTimeout(() => runAiTripAnalysis(), 50);
         return;
       }
       const presetBtn = e.target.closest('#advisor-preset-chips [data-advisor-preset]');
@@ -10823,6 +10824,14 @@
       if (e.target.closest('#nav-btn-quick-rewards, #sidebar-quick-rewards-widget, #sidebar-qr-open-link')) {
         e.preventDefault();
         openQuickRewardsModal();
+        return;
+      }
+      if (e.target.closest('#btn-open-ai-trip-advisor')) {
+        e.preventDefault();
+        state.rewardsTab = 'advisor';
+        switchView('rewards');
+        renderAll();
+        setTimeout(() => runAiTripAnalysis(), 50);
         return;
       }
       if (e.target.closest('#btn-qr-open-full-hub')) {
