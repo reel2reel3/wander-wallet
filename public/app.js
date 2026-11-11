@@ -5645,7 +5645,17 @@
     if (qrModal && qrModal.classList.contains('open')) {
       renderQuickRewardsModalContent();
     }
+    const mdModal = document.getElementById('modal-reward-mini-dashboard');
+    if (mdModal && mdModal.classList.contains('open') && activeMiniDashboardState.id) {
+      renderRewardMiniDashboard();
+    }
   }
+
+  // Track active inline mini-tabs per card and active Mini-Dashboard modal state
+  const activeProgramCardMiniTabs = {};
+  const activeCreditCardMiniTabs = {};
+  const expandedCreditDrawers = {};
+  let activeMiniDashboardState = { kind: 'program', id: '', tab: 'overview' };
 
   function renderInteractiveCreditRowHtml(card, cr, idx, compact = false) {
     const label = cr.name || cr.label || 'Statement Credit';
@@ -5659,6 +5669,99 @@
     const resetLabel = formatResetMonthDisplay(resetDate, resetCycle);
     const daysLeft = daysUntilResetMonth(resetDate);
     const cycleOptions = ['Annually', 'Calendar Year (Jan 1)', 'Semi-Annually', 'Quarterly', 'Monthly', 'Every 4 Years'];
+    const drawerKey = `${card.id}_${idx}`;
+    const isExpanded = Boolean(expandedCreditDrawers[drawerKey]);
+
+    // Condensed mode for main grid cards: sleek 2-line summary with expandable slider/reset drawer
+    if (compact) {
+      return `
+        <div class="credit-condensed-item ${isDone ? 'completed' : ''} ${isExpanded ? 'expanded' : ''}" data-credit-drawer-key="${escapeHtml(drawerKey)}">
+          <div class="credit-condensed-top">
+            <label class="interactive-credit-label" style="font-size: 12px;">
+              <input type="checkbox" data-toggle-card-credit="${escapeHtml(card.id)}" data-credit-idx="${idx}" ${isDone ? 'checked' : ''} />
+              <span class="credit-title-txt" style="${isDone ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">${escapeHtml(label)}</span>
+            </label>
+            <button
+              type="button"
+              class="btn btn-sm"
+              style="padding: 2px 7px; font-size: 10px; flex-shrink: 0;"
+              data-toggle-credit-drawer="${escapeHtml(drawerKey)}"
+              title="Toggle partial usage slider & reset date settings"
+            >
+              ${isExpanded ? '▴ Hide' : '⚙️ Adjust'}
+            </button>
+          </div>
+          <div class="credit-condensed-sub">
+            <span class="credit-avail-pill ${avail === 0 ? 'zero' : ''}" style="font-size: 10.5px; padding: 1px 7px;" data-live-avail-pill>
+              ${avail > 0 ? `Reward Available: ${fmtUsd(avail)}` : `✓ $0.00 Left (${fmtUsd(tot)} Used)`}
+            </span>
+            <span class="mono" data-live-used-tot style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">
+              Used: ${fmtUsd(used)} / ${fmtUsd(tot)} • 🔄 ${escapeHtml(resetLabel)}
+            </span>
+          </div>
+          ${tot > 0 ? `
+            <div class="credit-condensed-drawer">
+              <div class="interactive-credit-controls" style="margin-top: 0;">
+                <input
+                  type="range"
+                  class="credit-range-slider"
+                  min="0"
+                  max="${tot}"
+                  step="1"
+                  value="${used}"
+                  data-slider-card-credit="${escapeHtml(card.id)}"
+                  data-credit-idx="${idx}"
+                  title="Slide to record partial or full credit usage (${pct}%)"
+                />
+                <div style="display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                  <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">Used $</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="${tot}"
+                    step="0.01"
+                    class="credit-used-input mono"
+                    value="${used}"
+                    data-input-card-credit="${escapeHtml(card.id)}"
+                    data-credit-idx="${idx}"
+                  />
+                </div>
+                ${used > 0 ? `
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    style="padding: 2px 6px; font-size: 10px;"
+                    data-reset-now-card-credit="${escapeHtml(card.id)}"
+                    data-credit-idx="${idx}"
+                  >
+                    ↺ Reset
+                  </button>
+                ` : ''}
+              </div>
+              <div class="credit-reset-meta-bar">
+                <div class="credit-reset-inline-group">
+                  <span style="font-weight: 600; color: var(--text-muted);">🔄 Resets:</span>
+                  <input
+                    type="month"
+                    class="credit-inline-month-input mono"
+                    value="${escapeHtml(resetDate)}"
+                    data-reset-date-card-credit="${escapeHtml(card.id)}"
+                    data-credit-idx="${idx}"
+                  />
+                  <select
+                    class="credit-inline-cycle-select"
+                    data-reset-cycle-card-credit="${escapeHtml(card.id)}"
+                    data-credit-idx="${idx}"
+                  >
+                    ${cycleOptions.map(opt => `<option value="${escapeHtml(opt)}" ${opt === resetCycle ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
 
     return `
       <div class="interactive-credit-row ${isDone ? 'completed' : ''}">
@@ -5813,12 +5916,37 @@
       // Unified Ecosystem: Linked Credit Cards & Linked Certificates/Perks
       const linkedCards = getLinkedCardsForProgram(p);
       const linkedCerts = getLinkedCertsForProgram(p, linkedCards);
+      const primaryCard = linkedCards[0] || null;
+
+      // Aggregate credits & fees across all linked cards for this program
+      let progCredTotal = 0;
+      let progCredUsed = 0;
+      let progAnnualFees = 0;
+      let totalCreditsCount = 0;
+      for (const lc of linkedCards) {
+        progAnnualFees += Number(lc.annual_fee || 0);
+        const crs = Array.isArray(lc.credits) ? lc.credits : [];
+        totalCreditsCount += crs.length;
+        for (const cr of crs) {
+          const t = Math.max(0, Number(cr.total_usd ?? cr.amount ?? 0));
+          const u = Math.min(t, Math.max(0, cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? t : 0)));
+          progCredTotal += t;
+          progCredUsed += u;
+        }
+      }
+      const progCredAvail = Math.max(0, Number((progCredTotal - progCredUsed).toFixed(2)));
+      const availCerts = linkedCerts.filter(c => c.status !== 'redeemed');
+      const availCertsVal = availCerts.reduce((s, c) => s + Number(c.est_value_usd ?? c.estimated_value_usd ?? 0), 0);
+
+      const curMiniTab = activeProgramCardMiniTabs[p.id] || 'overview';
 
       return `
         <div class="reward-item-card color-coded" style="border-color: ${hexToRgba(cardColor, 0.65)}; background-image: linear-gradient(180deg, ${hexToRgba(cardColor, 0.09)} 0%, transparent 90px);">
           <div class="reward-card-banner" style="background: ${cardColor};"></div>
+
+          <!-- 1. Clean Header: Category + Program Name + Status Tier -->
           <div class="reward-card-top">
-            <div>
+            <div style="min-width: 0; flex: 1;">
               <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                 <span class="reward-ecosystem-pill" style="background-color: ${hexToRgba(cardColor, 0.15)}; border-color: ${hexToRgba(cardColor, 0.65)}; color: var(--text-primary);">
                   <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${cardColor};"></span>
@@ -5828,121 +5956,175 @@
                   ✏️
                 </button>
               </div>
-              <h4 style="font-size: 16px; font-weight: 700; margin-top: 6px; color: var(--text-primary);">${escapeHtml(p.name)}</h4>
+              <h4 style="font-size: 16.5px; font-weight: 800; margin-top: 5px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span>${escapeHtml(p.name)}</span>
+              </h4>
             </div>
-            <span class="kpi-tag" style="background-color: ${hexToRgba(cardColor, 0.14)}; border: 1px solid ${hexToRgba(cardColor, 0.45)}; color: var(--text-primary);">${escapeHtml(p.status_tier || 'Member')}</span>
-          </div>
-
-          <div class="reward-balance-box">
-            <div>
-              <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Point / Mile Balance</div>
-              <div class="mono tabular" style="font-size: 22px; font-weight: 700; color: var(--text-primary);">
-                ${pts.toLocaleString('en-US')} <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">pts</span>
-              </div>
-              <div style="font-size: 12px; color: var(--accent-primary); font-weight: 600;">
-                Est. Value: ${fmtUsd(valUsd)} <span style="color: var(--text-muted); font-weight: 400;">(@ ${cpp.toFixed(2)}¢/pt)</span>
-              </div>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
-              <div class="stepper-group">
-                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="-5000" title="Subtract 5,000 pts">-5k</button>
-                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="-1000" title="Subtract 1,000 pts">-1k</button>
-                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="1000" title="Add 1,000 pts">+1k</button>
-                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="5000" title="Add 5,000 pts">+5k</button>
-              </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+              <span class="kpi-tag" style="background-color: ${hexToRgba(cardColor, 0.14)}; border: 1px solid ${hexToRgba(cardColor, 0.45)}; color: var(--text-primary);">
+                ★ ${escapeHtml(p.status_tier || 'Member')}
+              </span>
               ${p.member_id ? `
-                <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 11px;" data-copy-member="${escapeHtml(p.member_id)}" title="Click to copy Member ID">
-                  📋 ID: <span class="mono">${escapeHtml(p.member_id)}</span>
+                <button type="button" class="btn btn-sm" style="padding: 1px 7px; font-size: 10.5px;" data-copy-member="${escapeHtml(p.member_id)}" title="Click to copy Member ID">
+                  📋 <span class="mono">${escapeHtml(p.member_id)}</span>
                 </button>
               ` : ''}
             </div>
           </div>
 
-          ${qTgt > 0 ? `
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 5px;">
-                <span style="color: var(--text-secondary); font-weight: 600;">🎯 ${escapeHtml(metricLabel)}</span>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span class="mono" style="font-weight: 700;">${qCur.toLocaleString('en-US')} / ${qTgt.toLocaleString('en-US')} (${qPct}%)</span>
-                  ${qTgt <= 365 ? `
-                    <button type="button" class="btn-stepper" data-step-rnights="${escapeHtml(p.id)}" data-delta="-1" title="-1 Night">-</button>
-                    <button type="button" class="btn-stepper" data-step-rnights="${escapeHtml(p.id)}" data-delta="1" title="+1 Night">+1</button>
-                  ` : ''}
+          <!-- 2. Condensed Hero Showcase: Points Available + Primary Credit Card Art & Annual Fee -->
+          <div class="reward-condensed-showcase">
+            <div class="reward-condensed-primary-row">
+              <div>
+                <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Points / Miles Available</div>
+                <div class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2;">
+                  ${pts.toLocaleString('en-US')} <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">pts</span>
+                </div>
+                <div style="font-size: 12px; color: var(--accent-primary); font-weight: 700;">
+                  Est. Value: ${fmtUsd(valUsd)} <span style="color: var(--text-muted); font-weight: 400;">(@ ${cpp.toFixed(2)}¢/pt)</span>
                 </div>
               </div>
-              <div class="progress-track">
-                <div class="progress-fill" style="width: ${qPct}%; background-color: ${qPct >= 100 ? 'var(--accent-primary)' : cardColor};"></div>
+              <div class="stepper-group">
+                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="-1000" title="Subtract 1,000 pts">-1k</button>
+                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="1000" title="Add 1,000 pts">+1k</button>
+                <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(p.id)}" data-delta="5000" title="Add 5,000 pts">+5k</button>
               </div>
             </div>
-          ` : ''}
 
-          <!-- UNIFIED LINKED CREDIT CARDS & STATEMENT CREDITS -->
-          <div class="unified-eco-section">
-            <div class="unified-eco-header">
-              <span class="unified-eco-title">💳 Linked Credit Cards &amp; Statement Credits (${linkedCards.length})</span>
-              <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 11px;" data-add-card-for-prog="${escapeHtml(p.name)}" title="Add or link a credit card from the database to ${escapeHtml(p.name)}">
-                + Add / Link Card
+            <!-- Primary Linked Card Image, Name & Annual Fee Strip -->
+            ${primaryCard ? `
+              <div class="reward-condensed-card-strip" data-open-prog-md="${escapeHtml(p.id)}" data-md-tab="credits" title="Click to open full Card & Perks Mini-Dashboard">
+                ${renderCreditCardArtHtml(primaryCard, 'cc-art-sm')}
+                <div style="min-width: 0; flex: 1;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 13px; font-weight: 700; color: var(--text-primary);">
+                      ${escapeHtml(primaryCard.name || primaryCard.card_name)}
+                      ${linkedCards.length > 1 ? `<span style="font-size: 10.5px; color: var(--accent-sky);">+${linkedCards.length - 1} more</span>` : ''}
+                    </span>
+                    <span class="mono" style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">
+                      Fee: ${fmtUsdCompact(progAnnualFees)}/yr
+                    </span>
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ⚡ ${escapeHtml(primaryCard.multipliers || primaryCard.best_for || 'Linked Travel Card')}
+                  </div>
+                </div>
+              </div>
+            ` : `
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 9px; background: var(--bg-surface); border: 1px dashed var(--border-subtle); border-radius: 7px; font-size: 11.5px; color: var(--text-muted);">
+                <span>💳 No credit card linked yet</span>
+                <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 10.5px;" data-add-card-for-prog="${escapeHtml(p.name)}">+ Link Card</button>
+              </div>
+            `}
+
+            <!-- 3 Compact At-A-Glance Stat Boxes -->
+            <div class="reward-quick-stat-pills">
+              <div class="reward-quick-stat-box" style="${progCredAvail > 0 ? 'border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.06);' : ''}">
+                <span class="reward-quick-stat-label">Reward Available</span>
+                <span class="reward-quick-stat-val mono" style="color: ${progCredAvail > 0 ? 'var(--accent-primary)' : 'var(--text-secondary)'};">
+                  ${progCredTotal > 0 ? (progCredAvail > 0 ? `${fmtUsd(progCredAvail)} Left` : `✓ ${fmtUsdCompact(progCredTotal)} Used`) : 'No Credits'}
+                </span>
+              </div>
+              <div class="reward-quick-stat-box">
+                <span class="reward-quick-stat-label">Free Nights / Perks</span>
+                <span class="reward-quick-stat-val mono" style="color: ${availCerts.length > 0 ? 'var(--accent-sky)' : 'var(--text-secondary)'};">
+                  ${availCerts.length > 0 ? `${availCerts.length} Avail (${fmtUsdCompact(availCertsVal)})` : '0 Avail'}
+                </span>
+              </div>
+              <div class="reward-quick-stat-box">
+                <span class="reward-quick-stat-label">${qTgt > 0 ? escapeHtml(metricLabel) : 'Annual Card Fee'}</span>
+                <span class="reward-quick-stat-val mono">
+                  ${qTgt > 0 ? `${qCur}/${qTgt} (${qPct}%)` : `${fmtUsdCompact(progAnnualFees)}/yr`}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Segmented Mini-Tabs inside the Card (Keeps Main View Clean & Organized!) -->
+          <div class="reward-card-minitabs">
+            <button type="button" class="reward-minitab-btn ${curMiniTab === 'overview' ? 'active' : ''}" data-prog-minitab="${escapeHtml(p.id)}" data-tab="overview">
+              📊 Summary
+            </button>
+            <button type="button" class="reward-minitab-btn ${curMiniTab === 'credits' ? 'active' : ''}" data-prog-minitab="${escapeHtml(p.id)}" data-tab="credits">
+              💳 Credits (${totalCreditsCount})
+            </button>
+            <button type="button" class="reward-minitab-btn ${curMiniTab === 'perks' ? 'active' : ''}" data-prog-minitab="${escapeHtml(p.id)}" data-tab="perks">
+              🎟️ Perks (${linkedCerts.length})
+            </button>
+            <button type="button" class="reward-minitab-btn ${curMiniTab === 'details' ? 'active' : ''}" data-prog-minitab="${escapeHtml(p.id)}" data-tab="details">
+              ℹ️ Details
+            </button>
+          </div>
+
+          <!-- Pane A: Clean Overview (Default) -->
+          <div class="reward-minitab-pane ${curMiniTab === 'overview' ? 'active' : ''}">
+            ${qTgt > 0 ? `
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; margin-bottom: 4px;">
+                  <span style="color: var(--text-secondary); font-weight: 600;">🎯 ${escapeHtml(metricLabel)}</span>
+                  <div style="display: flex; align-items: center; gap: 5px;">
+                    <span class="mono" style="font-weight: 700;">${qCur} / ${qTgt} (${qPct}%)</span>
+                    ${qTgt <= 365 ? `
+                      <button type="button" class="btn-stepper" data-step-rnights="${escapeHtml(p.id)}" data-delta="-1" title="-1 Night">-</button>
+                      <button type="button" class="btn-stepper" data-step-rnights="${escapeHtml(p.id)}" data-delta="1" title="+1 Night">+1</button>
+                    ` : ''}
+                  </div>
+                </div>
+                <div class="progress-track" style="height: 6px;">
+                  <div class="progress-fill" style="width: ${qPct}%; background-color: ${qPct >= 100 ? 'var(--accent-primary)' : cardColor};"></div>
+                </div>
+              </div>
+            ` : ''}
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; background: var(--bg-elevated); border-radius: 7px; border: 1px solid var(--border-subtle); font-size: 11.5px;">
+              <span style="color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${progCredAvail > 0
+                  ? `💚 <strong style="color: var(--accent-primary);">${fmtUsd(progCredAvail)} Reward Available</strong> across ${totalCreditsCount} credit(s)`
+                  : totalCreditsCount > 0
+                  ? `✓ All ${fmtUsd(progCredTotal)} in statement credits captured`
+                  : `⏳ ${escapeHtml(expPolicy)}`}
+              </span>
+              <button type="button" class="btn btn-sm btn-primary" style="padding: 3px 9px; font-size: 11px; flex-shrink: 0;" data-open-prog-md="${escapeHtml(p.id)}" data-md-tab="overview">
+                🔍 Mini-Dashboard
               </button>
             </div>
+          </div>
+
+          <!-- Pane B: Condensed Statement Credits Tab -->
+          <div class="reward-minitab-pane ${curMiniTab === 'credits' ? 'active' : ''}">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+                Linked Card Credits (${fmtUsd(progCredUsed)} / ${fmtUsd(progCredTotal)} Used)
+              </span>
+              <button type="button" class="btn btn-sm" style="padding: 2px 7px; font-size: 10.5px;" data-add-card-for-prog="${escapeHtml(p.name)}">+ Add Card</button>
+            </div>
             ${linkedCards.length === 0 ? `
-              <div style="font-size: 11.5px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-                <span>No credit card linked yet. Add a card to display its card art &amp; statement credits right here.</span>
-              </div>
+              <div style="font-size: 11.5px; color: var(--text-muted); padding: 6px 0;">No credit card linked yet.</div>
             ` : linkedCards.map(c => {
-              const cName = c.name || c.card_name || 'Travel Card';
-              const cFee = Number(c.annual_fee || 0);
               const cCredits = Array.isArray(c.credits) ? c.credits : [];
-              let cTot = 0;
-              let cUsed = 0;
-              for (const cr of cCredits) {
-                const t = Number(cr.total_usd ?? cr.amount ?? 0);
-                const u = cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? t : 0);
-                cTot += t;
-                cUsed += u;
-              }
-              const netVal = cUsed - cFee;
               return `
-                <div class="linked-cc-card">
-                  <div class="linked-cc-top">
-                    ${renderCreditCardArtHtml(c, 'cc-art-sm')}
-                    <div class="linked-cc-info">
-                      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; flex-wrap: wrap;">
-                        <div class="linked-cc-name">${escapeHtml(cName)}</div>
-                        <div style="display: inline-flex; align-items: center; gap: 4px;">
-                          <span class="kpi-tag ${netVal >= 0 ? 'positive' : 'sky'}" style="font-size: 10.5px; padding: 2px 6px;">
-                            ${cTot > 0 ? `${fmtUsdCompact(cUsed)}/${fmtUsdCompact(cTot)} Credits` : `${fmtUsdCompact(cFee)}/yr`}
-                          </span>
-                          <button type="button" class="btn btn-sm" style="padding: 2px 6px; font-size: 10.5px;" data-edit-rcard="${escapeHtml(c.id)}" title="Edit Card, Art & Credits">✎</button>
-                        </div>
-                      </div>
-                      <div class="linked-cc-meta">
-                        <span><strong>Fee:</strong> ${fmtUsdCompact(cFee)}/yr</span>
-                        ${c.multipliers ? ` • <span>⚡ ${escapeHtml(c.multipliers)}</span>` : ''}
-                      </div>
-                    </div>
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; font-weight: 700; color: var(--text-secondary);">
+                    <span>💳 ${escapeHtml(c.name)} (${fmtUsdCompact(c.annual_fee || 0)}/yr)</span>
+                    <button type="button" class="btn btn-sm" style="padding: 1px 6px; font-size: 10px;" data-edit-rcard="${escapeHtml(c.id)}">✎ Edit Card</button>
                   </div>
-                  ${cCredits.length > 0 ? `
-                    <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 2px;">
-                      ${cCredits.map((cr, idx) => renderInteractiveCreditRowHtml(c, cr, idx, true)).join('')}
-                    </div>
-                  ` : ''}
+                  ${cCredits.length === 0
+                    ? `<div style="font-size: 11px; color: var(--text-muted);">No statement credits listed on this card.</div>`
+                    : cCredits.map((cr, idx) => renderInteractiveCreditRowHtml(c, cr, idx, true)).join('')}
                 </div>
               `;
             }).join('')}
           </div>
 
-          <!-- UNIFIED LINKED FREE NIGHTS, COMPANION PASSES & PERKS -->
-          <div class="unified-eco-section">
-            <div class="unified-eco-header">
-              <span class="unified-eco-title">🎟️ Free Nights, Companion &amp; Lounge Perks (${linkedCerts.length})</span>
-              <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 11px;" data-add-cert-for-prog="${escapeHtml(p.name)}" title="Add a Free Night Certificate, Companion Pass, or Lounge Perk for ${escapeHtml(p.name)}">
-                + Add Perk
-              </button>
+          <!-- Pane C: Free Nights & Perks Tab -->
+          <div class="reward-minitab-pane ${curMiniTab === 'perks' ? 'active' : ''}">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+                Free Nights, Companion &amp; Lounge Perks
+              </span>
+              <button type="button" class="btn btn-sm" style="padding: 2px 7px; font-size: 10.5px;" data-add-cert-for-prog="${escapeHtml(p.name)}">+ Add Perk</button>
             </div>
             ${linkedCerts.length === 0 ? `
-              <div style="font-size: 11.5px; color: var(--text-muted);">
-                No free night certificates or perks linked yet.
-              </div>
+              <div style="font-size: 11.5px; color: var(--text-muted); padding: 6px 0;">No free night certificates or perks linked yet.</div>
             ` : linkedCerts.map(cert => {
               const isRed = cert.status === 'redeemed';
               const expD = cert.expires_date || cert.expiration_date || '';
@@ -5951,46 +6133,52 @@
               return `
                 <div class="linked-cert-row" style="${isRed ? 'opacity: 0.68;' : ''}">
                   <div style="min-width: 0; flex: 1;">
-                    <div style="font-size: 12.5px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                       <span style="${isRed ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">🎟️ ${escapeHtml(cert.title)}</span>
-                      <span class="mono" style="font-size: 11.5px; color: var(--accent-primary);">${fmtUsdCompact(cVal)}</span>
+                      <span class="mono" style="font-size: 11px; color: var(--accent-primary);">${fmtUsdCompact(cVal)}</span>
                     </div>
-                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                    <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
                       ${cert.cap_details ? `${escapeHtml(cert.cap_details)} • ` : ''}
                       ${isRed ? '✅ Redeemed' : (daysLeft <= 60 && daysLeft >= 0 ? `🔴 Expires in ${daysLeft}d (${escapeHtml(expD)})` : `Valid thru ${escapeHtml(expD)}`)}
                     </div>
                   </div>
                   <div style="display: flex; align-items: center; gap: 4px;">
-                    <button type="button" class="btn btn-sm ${isRed ? '' : 'btn-primary'}" style="padding: 3px 8px; font-size: 11px;" data-toggle-rcert="${escapeHtml(cert.id)}">
+                    <button type="button" class="btn btn-sm ${isRed ? '' : 'btn-primary'}" style="padding: 2px 7px; font-size: 10.5px;" data-toggle-rcert="${escapeHtml(cert.id)}">
                       ${isRed ? '↺ Undo' : '✓ Use'}
                     </button>
-                    <button type="button" class="btn btn-sm" style="padding: 3px 6px; font-size: 11px;" data-edit-rcert="${escapeHtml(cert.id)}" title="Edit Perk">✎</button>
+                    <button type="button" class="btn btn-sm" style="padding: 2px 6px; font-size: 10.5px;" data-edit-rcert="${escapeHtml(cert.id)}" title="Edit Perk">✎</button>
                   </div>
                 </div>
               `;
             }).join('')}
           </div>
 
-          <div style="font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
-            ${partners ? `<div>🔄 <strong>Partners:</strong> ${escapeHtml(partners)}</div>` : ''}
-            <div>⏳ <strong>Expiration:</strong> ${escapeHtml(expPolicy)}</div>
-            ${p.notes ? `<div style="color: var(--text-muted);">💡 ${escapeHtml(p.notes)}</div>` : ''}
+          <!-- Pane D: Program Rules, Partners & Notes Tab -->
+          <div class="reward-minitab-pane ${curMiniTab === 'details' ? 'active' : ''}">
+            <div style="font-size: 11.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 5px; padding: 6px 8px; background: var(--bg-elevated); border-radius: 7px; border: 1px solid var(--border-subtle);">
+              ${partners ? `<div>🔄 <strong>Partners:</strong> ${escapeHtml(partners)}</div>` : ''}
+              <div>⏳ <strong>Expiration:</strong> ${escapeHtml(expPolicy)}</div>
+              ${p.notes ? `<div style="color: var(--text-muted);">💡 ${escapeHtml(p.notes)}</div>` : ''}
+            </div>
+            ${Array.isArray(p.custom_fields) && p.custom_fields.length > 0 ? `
+              <div class="custom-fields-wrap">
+                ${p.custom_fields.map(f => `
+                  <span class="custom-field-chip" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
+                    <strong>${escapeHtml(f.label)}:</strong> ${escapeHtml(f.value)}
+                  </span>
+                `).join('')}
+              </div>
+            ` : ''}
           </div>
 
-          ${Array.isArray(p.custom_fields) && p.custom_fields.length > 0 ? `
-            <div class="custom-fields-wrap">
-              ${p.custom_fields.map(f => `
-                <span class="custom-field-chip" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
-                  <strong>${escapeHtml(f.label)}:</strong> ${escapeHtml(f.value)}
-                </span>
-              `).join('')}
-            </div>
-          ` : ''}
-
+          <!-- 4. Clean Action Footer -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto; flex-wrap: wrap; gap: 6px;">
-            <button type="button" class="btn btn-sm" data-quick-redeem-prog="${escapeHtml(p.name)}">✈️ Log Redemption</button>
-            <div style="display: flex; gap: 6px;">
-              <button type="button" class="btn btn-sm" data-update-rprog="${escapeHtml(p.id)}" title="Check & update latest program perks, valuations and rules">🔄 Update</button>
+            <div style="display: flex; gap: 5px;">
+              <button type="button" class="btn btn-sm" data-open-prog-md="${escapeHtml(p.id)}" data-md-tab="overview" title="Open full Mini-Dashboard for ${escapeHtml(p.name)}">🔍 Details</button>
+              <button type="button" class="btn btn-sm" data-quick-redeem-prog="${escapeHtml(p.name)}">✈️ Redeem</button>
+            </div>
+            <div style="display: flex; gap: 5px;">
+              <button type="button" class="btn btn-sm" data-update-rprog="${escapeHtml(p.id)}" title="Check & update latest program perks, valuations and rules">🔄</button>
               <button type="button" class="btn btn-sm" data-edit-rprog="${escapeHtml(p.id)}">Edit</button>
               <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rprog="${escapeHtml(p.id)}">✕</button>
             </div>
@@ -6259,24 +6447,28 @@
       let credTotal = 0;
       let credUsed = 0;
       for (const cr of credits) {
-        const tot = Number(cr.total_usd ?? cr.amount ?? 0);
-        const used = cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? tot : 0);
+        const tot = Math.max(0, Number(cr.total_usd ?? cr.amount ?? 0));
+        const used = Math.min(tot, Math.max(0, cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? tot : 0)));
         credTotal += tot;
         credUsed += used;
       }
+      const credAvail = Math.max(0, Number((credTotal - credUsed).toFixed(2)));
       const netOffset = credUsed - fee;
       const linkedProg = (state.rewards.programs || []).find(p => doesCardMatchProgram(c, p));
+      const progPts = linkedProg ? Number(linkedProg.points ?? linkedProg.balance ?? 0) : 0;
+      const curCardTab = activeCreditCardMiniTabs[c.id] || 'overview';
 
       return `
         <div class="reward-item-card">
+          <!-- 1. Clean Header: Card Image + Card Name + Net Keeper Badge -->
           <div class="reward-card-top" style="align-items: center;">
-            <div style="display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1;">
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; cursor: pointer;" data-open-card-md="${escapeHtml(c.id)}" data-md-tab="overview" title="Click to open Card Mini-Dashboard">
               ${renderCreditCardArtHtml(c, 'cc-art-md')}
               <div style="min-width: 0; flex: 1;">
                 <span class="reward-ecosystem-pill">💳 ${escapeHtml(c.issuer || 'Bank')} • ${escapeHtml(c.ecosystem || c.points_program || 'Rewards')}</span>
-                <h4 style="font-size: 16px; font-weight: 700; margin-top: 6px; color: var(--text-primary);">${escapeHtml(cardName)}</h4>
-                <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">
-                  ${linkedProg ? `<span style="color: var(--accent-primary); font-weight: 600;">🔗 Synced to ${escapeHtml(linkedProg.name)}</span>` : `<span>Not yet linked to a loyalty program</span>`}
+                <h4 style="font-size: 16px; font-weight: 800; margin-top: 5px; color: var(--text-primary);">${escapeHtml(cardName)}</h4>
+                <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
+                  ${linkedProg ? `<span style="color: var(--accent-primary); font-weight: 600;">🔗 ${escapeHtml(linkedProg.name)} (${progPts.toLocaleString('en-US')} pts)</span>` : `<span>Standalone Travel Card</span>`}
                 </div>
               </div>
             </div>
@@ -6292,52 +6484,396 @@
             </div>
           </div>
 
-          <div class="reward-balance-box">
-            <div>
-              <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Annual Fee &amp; Renewal</div>
-              <div class="mono" style="font-size: 15px; font-weight: 700;">${fmtUsdCompact(fee)} / yr</div>
-              <div style="font-size: 11.5px; color: var(--text-muted);">Renews: ${escapeHtml(c.renewal_date || c.renewal_month || 'Annual')} • ${escapeHtml(c.ftf || '$0 FX Fee')}</div>
-            </div>
-            <div style="text-align: right;">
-              <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Credits Captured</div>
-              <div class="mono" style="font-size: 16px; font-weight: 700; color: var(--accent-primary);">
-                ${fmtUsdCompact(credUsed)} <span style="font-size: 12px; color: var(--text-muted);">/ ${fmtUsdCompact(credTotal)}</span>
+          <!-- 2. 3 Compact At-A-Glance Stat Boxes -->
+          <div class="reward-condensed-showcase">
+            <div class="reward-quick-stat-pills">
+              <div class="reward-quick-stat-box">
+                <span class="reward-quick-stat-label">Annual Fee &amp; Renew</span>
+                <span class="reward-quick-stat-val mono">${fmtUsdCompact(fee)}/yr • ${escapeHtml(c.renewal_date || 'Annual')}</span>
               </div>
-            </div>
-          </div>
-
-          <div style="font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
-            <div>⚡ <strong>Multipliers:</strong> ${escapeHtml(c.multipliers || '1x–5x Travel')}</div>
-            <div>🎯 <strong>Best Swipe For:</strong> ${escapeHtml(c.best_for || c.perks || 'General Travel')}</div>
-          </div>
-
-          ${credits.length > 0 ? `
-            <div class="credit-checklist">
-              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">
-                Interactive Statement Credits (Check off or slide for partial usage)
-              </div>
-              ${credits.map((cr, idx) => renderInteractiveCreditRowHtml(c, cr, idx, false)).join('')}
-            </div>
-          ` : ''}
-
-          ${Array.isArray(c.custom_fields) && c.custom_fields.length > 0 ? `
-            <div class="custom-fields-wrap">
-              ${c.custom_fields.map(f => `
-                <span class="custom-field-chip" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
-                  <strong>${escapeHtml(f.label)}:</strong> ${escapeHtml(f.value)}
+              <div class="reward-quick-stat-box" style="${credAvail > 0 ? 'border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.06);' : ''}">
+                <span class="reward-quick-stat-label">Reward Available</span>
+                <span class="reward-quick-stat-val mono" style="color: ${credAvail > 0 ? 'var(--accent-primary)' : 'var(--text-secondary)'};">
+                  ${credTotal > 0 ? (credAvail > 0 ? `${fmtUsd(credAvail)} Left` : `✓ $0.00 Left`) : 'No Credits'}
                 </span>
-              `).join('')}
+              </div>
+              <div class="reward-quick-stat-box">
+                <span class="reward-quick-stat-label">Credits Captured</span>
+                <span class="reward-quick-stat-val mono" style="color: var(--accent-sky);">
+                  ${fmtUsdCompact(credUsed)} / ${fmtUsdCompact(credTotal)}
+                </span>
+              </div>
             </div>
-          ` : ''}
+            <div style="font-size: 11.5px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ⚡ <strong>Multipliers:</strong> ${escapeHtml(c.multipliers || '1x–5x Travel')}
+            </div>
+          </div>
 
-          <div style="display: flex; justify-content: flex-end; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto; flex-wrap: wrap;">
-            <button type="button" class="btn btn-sm" data-update-rcard="${escapeHtml(c.id)}" title="Check & update latest statement credits, annual fee, and multipliers">🔄 Update</button>
-            <button type="button" class="btn btn-sm" data-edit-rcard="${escapeHtml(c.id)}">Edit Card, Art &amp; Credits</button>
-            <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcard="${escapeHtml(c.id)}">✕</button>
+          <!-- 3. Segmented Mini-Tabs inside Credit Card -->
+          <div class="reward-card-minitabs">
+            <button type="button" class="reward-minitab-btn ${curCardTab === 'overview' ? 'active' : ''}" data-card-minitab="${escapeHtml(c.id)}" data-tab="overview">
+              📊 Summary
+            </button>
+            <button type="button" class="reward-minitab-btn ${curCardTab === 'credits' ? 'active' : ''}" data-card-minitab="${escapeHtml(c.id)}" data-tab="credits">
+              💳 Credits (${credits.length})
+            </button>
+            <button type="button" class="reward-minitab-btn ${curCardTab === 'details' ? 'active' : ''}" data-card-minitab="${escapeHtml(c.id)}" data-tab="details">
+              ℹ️ Perks &amp; Rules
+            </button>
+          </div>
+
+          <!-- Pane A: Clean Summary (Default) -->
+          <div class="reward-minitab-pane ${curCardTab === 'overview' ? 'active' : ''}">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; background: var(--bg-elevated); border-radius: 7px; border: 1px solid var(--border-subtle); font-size: 11.5px;">
+              <span style="color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${credAvail > 0
+                  ? `💚 <strong style="color: var(--accent-primary);">${fmtUsd(credAvail)} Reward Available</strong> to use`
+                  : credits.length > 0
+                  ? `✓ All ${fmtUsd(credTotal)} in statement credits captured`
+                  : `🎯 Best for: ${escapeHtml(c.best_for || 'Travel')}`}
+              </span>
+              <button type="button" class="btn btn-sm btn-primary" style="padding: 3px 9px; font-size: 11px; flex-shrink: 0;" data-open-card-md="${escapeHtml(c.id)}" data-md-tab="credits">
+                🔍 Mini-Dashboard
+              </button>
+            </div>
+          </div>
+
+          <!-- Pane B: Condensed Credits List -->
+          <div class="reward-minitab-pane ${curCardTab === 'credits' ? 'active' : ''}">
+            ${credits.length === 0 ? `
+              <div style="font-size: 11.5px; color: var(--text-muted); padding: 6px 0;">No statement credits listed on this card.</div>
+            ` : `
+              <div style="display: flex; flex-direction: column; gap: 5px;">
+                ${credits.map((cr, idx) => renderInteractiveCreditRowHtml(c, cr, idx, true)).join('')}
+              </div>
+            `}
+          </div>
+
+          <!-- Pane C: Perks & Rules -->
+          <div class="reward-minitab-pane ${curCardTab === 'details' ? 'active' : ''}">
+            <div style="font-size: 11.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 5px; padding: 6px 8px; background: var(--bg-elevated); border-radius: 7px; border: 1px solid var(--border-subtle);">
+              <div>🎯 <strong>Best Swipe For:</strong> ${escapeHtml(c.best_for || c.perks || 'General Travel')}</div>
+              <div>🌍 <strong>FX Fee:</strong> ${escapeHtml(c.ftf || '$0 Foreign Transaction Fee')}</div>
+            </div>
+            ${Array.isArray(c.custom_fields) && c.custom_fields.length > 0 ? `
+              <div class="custom-fields-wrap">
+                ${c.custom_fields.map(f => `
+                  <span class="custom-field-chip" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
+                    <strong>${escapeHtml(f.label)}:</strong> ${escapeHtml(f.value)}
+                  </span>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- 4. Clean Action Footer -->
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sm" data-open-card-md="${escapeHtml(c.id)}" data-md-tab="overview">🔍 Details</button>
+            <div style="display: flex; gap: 5px;">
+              <button type="button" class="btn btn-sm" data-update-rcard="${escapeHtml(c.id)}" title="Check & update latest statement credits, annual fee, and multipliers">🔄</button>
+              <button type="button" class="btn btn-sm" data-edit-rcard="${escapeHtml(c.id)}">Edit Card</button>
+              <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcard="${escapeHtml(c.id)}">✕</button>
+            </div>
           </div>
         </div>
       `;
     }).join('');
+  }
+
+  // =========================================================================
+  // PROGRAM & CREDIT CARD MINI-DASHBOARD FLYOUT ENGINE
+  // =========================================================================
+  function openRewardMiniDashboard(kind, id, initialTab = 'overview') {
+    activeMiniDashboardState = {
+      kind: kind || 'program',
+      id: id || '',
+      tab: initialTab || 'overview'
+    };
+    renderRewardMiniDashboard();
+    openModal('modal-reward-mini-dashboard');
+  }
+
+  function renderRewardMiniDashboard() {
+    ensureRewardsStructure();
+    const { kind, id, tab } = activeMiniDashboardState;
+    const body = document.getElementById('md-modal-body');
+    const footer = document.getElementById('md-modal-footer');
+    const titleEl = document.getElementById('md-modal-title');
+    const subEl = document.getElementById('md-modal-subtitle');
+    const iconEl = document.getElementById('md-modal-icon');
+    if (!body) return;
+
+    // Resolve Program + Linked Cards + Linked Certs (whether opened from a Program or a Card)
+    let prog = null;
+    let linkedCards = [];
+    let primaryCard = null;
+
+    if (kind === 'program') {
+      prog = (state.rewards.programs || []).find(p => p.id === id) || null;
+      if (!prog) {
+        closeModal('modal-reward-mini-dashboard');
+        return;
+      }
+      linkedCards = getLinkedCardsForProgram(prog);
+      primaryCard = linkedCards[0] || null;
+    } else {
+      primaryCard = (state.rewards.cards || []).find(c => c.id === id) || null;
+      if (!primaryCard) {
+        closeModal('modal-reward-mini-dashboard');
+        return;
+      }
+      prog = (state.rewards.programs || []).find(p => doesCardMatchProgram(primaryCard, p)) || null;
+      linkedCards = prog ? getLinkedCardsForProgram(prog) : [primaryCard];
+    }
+
+    const linkedCerts = prog
+      ? getLinkedCertsForProgram(prog, linkedCards)
+      : (state.rewards.certificates || []).filter(cert =>
+          (cert.source_card || '').toLowerCase() === (primaryCard.name || '').toLowerCase()
+        );
+
+    const meta = prog ? (ECOSYSTEM_META[prog.ecosystem] || ECOSYSTEM_META.other) : ECOSYSTEM_META.bank;
+    const pts = prog ? Number(prog.points ?? prog.balance ?? 0) : 0;
+    const cpp = prog ? Number(prog.cpp ?? prog.cpp_valuation ?? 1.5) : 1.5;
+    const valUsd = (pts * cpp) / 100;
+    const qCur = prog ? Number(prog.qualifying_nights ?? prog.qualifying_current ?? 0) : 0;
+    const qTgt = prog ? Number(prog.target_nights ?? prog.qualifying_target ?? 0) : 0;
+    const qPct = qTgt > 0 ? Math.min(100, Math.round((qCur / qTgt) * 100)) : 100;
+    const metricLabel = prog ? (prog.metric_label || prog.qualifying_label || 'Qualifying Nights') : 'Qualifying Nights';
+
+    let totalFees = 0;
+    let totalCredUsd = 0;
+    let totalUsedUsd = 0;
+    let totalCreditsCount = 0;
+    for (const lc of linkedCards) {
+      totalFees += Number(lc.annual_fee || 0);
+      const crs = Array.isArray(lc.credits) ? lc.credits : [];
+      totalCreditsCount += crs.length;
+      for (const cr of crs) {
+        const t = Math.max(0, Number(cr.total_usd ?? cr.amount ?? 0));
+        const u = Math.min(t, Math.max(0, cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? t : 0)));
+        totalCredUsd += t;
+        totalUsedUsd += u;
+      }
+    }
+    const totalAvailUsd = Math.max(0, Number((totalCredUsd - totalUsedUsd).toFixed(2)));
+    const availCerts = linkedCerts.filter(c => c.status !== 'redeemed');
+    const availCertsVal = availCerts.reduce((s, c) => s + Number(c.est_value_usd ?? c.estimated_value_usd ?? 0), 0);
+    const netKeeper = totalUsedUsd + availCertsVal - totalFees;
+
+    if (iconEl) iconEl.textContent = prog ? meta.icon : '💳';
+    if (titleEl) {
+      titleEl.innerHTML = `
+        <span>${escapeHtml(prog ? prog.name : primaryCard.name)} — Mini-Dashboard</span>
+        ${prog && prog.status_tier ? `<span class="kpi-tag sky" style="font-size: 11px;">★ ${escapeHtml(prog.status_tier)}</span>` : ''}
+      `;
+    }
+    if (subEl) {
+      subEl.textContent = prog
+        ? `Unified Ecosystem View: ${linkedCards.length} Linked Card(s) • ${totalCreditsCount} Statement Credit(s) • ${linkedCerts.length} Free Night / Travel Perk(s)`
+        : `${primaryCard.issuer || 'Bank'} • Annual Fee: ${fmtUsd(primaryCard.annual_fee || 0)}/yr • ${totalCreditsCount} Statement Credit(s)`;
+    }
+
+    // 1. Hero Banner with Card Art + Key Metrics
+    const heroHtml = `
+      <div class="md-hero-banner">
+        <div style="display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1;">
+          ${primaryCard ? renderCreditCardArtHtml(primaryCard, 'cc-art-md') : ''}
+          <div style="min-width: 0; flex: 1;">
+            <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">
+              ${prog ? `${meta.icon} ${escapeHtml(meta.label)}` : `💳 ${escapeHtml(primaryCard.issuer || 'Travel Card')}`}
+              ${prog && prog.member_id ? ` • ID: <span class="mono">${escapeHtml(prog.member_id)}</span>` : ''}
+            </div>
+            <div style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin-top: 2px;">
+              ${escapeHtml(prog ? prog.name : primaryCard.name)}
+            </div>
+            ${primaryCard ? `
+              <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+                💳 <strong>${escapeHtml(primaryCard.name)}</strong> • Fee: <strong>${fmtUsd(totalFees)}/yr</strong> • ⚡ ${escapeHtml(primaryCard.multipliers || 'Travel Rewards')}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+        ${prog ? `
+          <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+            <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Points / Miles Available</div>
+            <div class="mono" style="font-size: 24px; font-weight: 800; color: var(--accent-primary); line-height: 1.1;">
+              ${pts.toLocaleString('en-US')} <span style="font-size: 12px; color: var(--text-muted);">pts</span>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">
+              Est. Value: ${fmtUsd(valUsd)} (@ ${cpp.toFixed(2)}¢/pt)
+            </div>
+            <div class="stepper-group">
+              <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(prog.id)}" data-delta="-5000">-5k</button>
+              <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(prog.id)}" data-delta="-1000">-1k</button>
+              <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(prog.id)}" data-delta="1000">+1k</button>
+              <button type="button" class="btn-stepper" data-step-rprog="${escapeHtml(prog.id)}" data-delta="5000">+5k</button>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    // 2. 4 KPI Strip Tiles inside Mini-Dashboard
+    const kpisHtml = `
+      <div class="qr-kpi-strip" style="margin-bottom: 0;">
+        <div class="qr-kpi-tile" style="${totalAvailUsd > 0 ? 'border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.06);' : ''}">
+          <span class="qr-kpi-label">💚 Reward Available (Credits)</span>
+          <span class="qr-kpi-val mono" style="color: var(--accent-primary);">${fmtUsd(totalAvailUsd)}</span>
+          <span class="qr-kpi-sub">Used ${fmtUsd(totalUsedUsd)} of ${fmtUsd(totalCredUsd)} total</span>
+        </div>
+        <div class="qr-kpi-tile">
+          <span class="qr-kpi-label">🎟️ Free Nights &amp; Perks</span>
+          <span class="qr-kpi-val mono" style="color: var(--accent-sky);">${availCerts.length} Avail (${fmtUsd(availCertsVal)})</span>
+          <span class="qr-kpi-sub">${linkedCerts.length} total perk(s) linked</span>
+        </div>
+        <div class="qr-kpi-tile">
+          <span class="qr-kpi-label">💳 Annual Fee vs. Value</span>
+          <span class="qr-kpi-val mono" style="color: ${netKeeper >= 0 ? 'var(--accent-primary)' : 'var(--accent-amber)'};">
+            ${netKeeper >= 0 ? '+' : ''}${fmtUsd(netKeeper)} Net
+          </span>
+          <span class="qr-kpi-sub">${fmtUsd(totalFees)}/yr total annual fee</span>
+        </div>
+        <div class="qr-kpi-tile">
+          <span class="qr-kpi-label">🎯 ${escapeHtml(metricLabel)}</span>
+          <span class="qr-kpi-val mono">${qTgt > 0 ? `${qCur} / ${qTgt} (${qPct}%)` : (prog && prog.status_tier ? escapeHtml(prog.status_tier) : 'Active')}</span>
+          <span class="qr-kpi-sub">${prog ? escapeHtml(prog.expiration_policy || 'Active') : escapeHtml(primaryCard.ftf || '$0 FX Fee')}</span>
+        </div>
+      </div>
+    `;
+
+    // 3. Sub-Dashboard Navigation Bar
+    const subnavHtml = `
+      <div class="md-subnav-bar">
+        <button type="button" class="md-subnav-btn ${tab === 'overview' ? 'active' : ''}" data-md-switch-tab="overview">
+          📊 All-In-One Overview
+        </button>
+        <button type="button" class="md-subnav-btn ${tab === 'credits' ? 'active' : ''}" data-md-switch-tab="credits">
+          💳 Statement Credits &amp; Reset Dates (${totalCreditsCount})
+        </button>
+        <button type="button" class="md-subnav-btn ${tab === 'perks' ? 'active' : ''}" data-md-switch-tab="perks">
+          🎟️ Free Nights &amp; Perks (${linkedCerts.length})
+        </button>
+        <button type="button" class="md-subnav-btn ${tab === 'rules' ? 'active' : ''}" data-md-switch-tab="rules">
+          ℹ️ Multipliers, Partners &amp; Rules
+        </button>
+      </div>
+    `;
+
+    // Build sections based on active tab (or show all neatly organized in Overview)
+    const creditsBlockHtml = `
+      <div class="qr-section-box" style="margin-bottom: 0;">
+        <div class="qr-section-header">
+          <h4>💳 Interactive Statement Credits, "Reward Available" &amp; Reset Schedule</h4>
+          ${prog ? `<button type="button" class="btn btn-sm" data-add-card-for-prog="${escapeHtml(prog.name)}">+ Add / Link Card</button>` : ''}
+        </div>
+        ${linkedCards.length === 0 ? `
+          <div style="padding: 12px; color: var(--text-muted); font-size: 12.5px;">No credit card linked yet.</div>
+        ` : linkedCards.map(c => {
+          const crs = Array.isArray(c.credits) ? c.credits : [];
+          return `
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--bg-surface); border-radius: 7px; border: 1px solid var(--border-subtle);">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  ${renderCreditCardArtHtml(c, 'cc-art-xs')}
+                  <div>
+                    <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${escapeHtml(c.name)}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">Annual Fee: ${fmtUsd(c.annual_fee || 0)}/yr • Renews: ${escapeHtml(c.renewal_date || 'Annual')}</div>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm" data-md-edit-card="${escapeHtml(c.id)}">✎ Edit Card &amp; Credits</button>
+              </div>
+              ${crs.length === 0
+                ? `<div style="font-size: 12px; color: var(--text-muted); padding: 4px 8px;">No statement credits configured on this card.</div>`
+                : crs.map((cr, idx) => renderInteractiveCreditRowHtml(c, cr, idx, false)).join('')}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    const perksBlockHtml = `
+      <div class="qr-section-box" style="margin-bottom: 0;">
+        <div class="qr-section-header">
+          <h4>🎟️ Free Night Certificates, Companion Passes &amp; Lounge Perks (${linkedCerts.length})</h4>
+          ${prog ? `<button type="button" class="btn btn-sm" data-add-cert-for-prog="${escapeHtml(prog.name)}">+ Add Perk</button>` : ''}
+        </div>
+        <div class="qr-compact-list">
+          ${linkedCerts.length === 0 ? `
+            <div style="padding: 12px; color: var(--text-muted); font-size: 12.5px;">No certificates or perks linked yet.</div>
+          ` : linkedCerts.map(cert => {
+            const isRed = cert.status === 'redeemed';
+            const expD = cert.expires_date || cert.expiration_date || '';
+            const daysLeft = daysUntilDate(expD);
+            const cVal = Number(cert.est_value_usd ?? cert.estimated_value_usd ?? 0);
+            return `
+              <div class="qr-compact-row" style="${isRed ? 'opacity: 0.68;' : ''}">
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 13px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span style="${isRed ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">🎟️ ${escapeHtml(cert.title)}</span>
+                    <span class="credit-avail-pill" style="font-size: 10.5px;">Est. Value: ${fmtUsd(cVal)}</span>
+                  </div>
+                  <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">
+                    ${cert.cap_details ? `${escapeHtml(cert.cap_details)} • ` : ''}
+                    ${isRed ? '✅ Redeemed' : (daysLeft <= 60 && daysLeft >= 0 ? `🔴 Use by ${escapeHtml(expD)} (${daysLeft}d left)` : `Use by ${escapeHtml(expD)}`)}
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <button type="button" class="btn btn-sm ${isRed ? '' : 'btn-primary'}" data-toggle-rcert="${escapeHtml(cert.id)}">
+                    ${isRed ? '↺ Restore Available' : '✓ Mark Used'}
+                  </button>
+                  <button type="button" class="btn btn-sm" data-md-edit-cert="${escapeHtml(cert.id)}">✎ Edit</button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    const rulesBlockHtml = `
+      <div class="qr-section-box" style="margin-bottom: 0;">
+        <div class="qr-section-header">
+          <h4>ℹ️ Earning Multipliers, Transfer Partners &amp; Strategy Notes</h4>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; color: var(--text-secondary);">
+          ${primaryCard ? `
+            <div>⚡ <strong>Card Earning Multipliers:</strong> ${escapeHtml(primaryCard.multipliers || 'Travel Rewards')}</div>
+            <div>🎯 <strong>Best Card Swipe For:</strong> ${escapeHtml(primaryCard.best_for || 'General Travel')}</div>
+            <div>🌍 <strong>Foreign Transaction Fee:</strong> ${escapeHtml(primaryCard.ftf || '$0 Foreign Transaction Fee')}</div>
+          ` : ''}
+          ${prog ? `
+            ${prog.transfer_partners ? `<div>🔄 <strong>Transfer Partners:</strong> ${escapeHtml(prog.transfer_partners)}</div>` : ''}
+            <div>⏳ <strong>Point Expiration Policy:</strong> ${escapeHtml(prog.expiration_policy || 'Active')}</div>
+            ${prog.notes ? `<div>💡 <strong>Strategy Notes:</strong> ${escapeHtml(prog.notes)}</div>` : ''}
+          ` : ''}
+        </div>
+      </div>
+    `;
+
+    let tabBodyHtml = '';
+    if (tab === 'credits') {
+      tabBodyHtml = creditsBlockHtml;
+    } else if (tab === 'perks') {
+      tabBodyHtml = perksBlockHtml;
+    } else if (tab === 'rules') {
+      tabBodyHtml = rulesBlockHtml;
+    } else {
+      tabBodyHtml = creditsBlockHtml + perksBlockHtml + rulesBlockHtml;
+    }
+
+    body.innerHTML = heroHtml + kpisHtml + subnavHtml + tabBodyHtml;
+
+    if (footer) {
+      footer.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          ${prog ? `<button type="button" class="btn btn-sm" data-md-edit-prog="${escapeHtml(prog.id)}">✎ Edit Loyalty Program</button>` : ''}
+          ${primaryCard ? `<button type="button" class="btn btn-sm" data-md-edit-card="${escapeHtml(primaryCard.id)}">💳 Edit Credit Card &amp; Credits</button>` : ''}
+          ${prog ? `<button type="button" class="btn btn-sm" data-add-cert-for-prog="${escapeHtml(prog.name)}">🎟️ + Add Free Night / Perk</button>` : ''}
+        </div>
+        <button type="button" class="btn btn-primary" data-close-modal="modal-reward-mini-dashboard">Done</button>
+      `;
+    }
   }
 
   function renderRewardsMatrixTab() {
@@ -8506,7 +9042,7 @@
         updateRcardArtPreview();
       } else if (t.hasAttribute && (t.hasAttribute('data-slider-card-credit') || t.hasAttribute('data-input-card-credit'))) {
         // Live sync accompanying number input / slider and auto-calculate "Reward Available: $XX.XX"
-        const row = t.closest('.interactive-credit-row');
+        const row = t.closest('.interactive-credit-row') || t.closest('.credit-condensed-item');
         if (row) {
           const slider = row.querySelector('[data-slider-card-credit]');
           const numInput = row.querySelector('[data-input-card-credit]');
@@ -8992,16 +9528,109 @@
         return;
       }
 
-      // Quick "+ Add / Link Card" or "+ Add Perk" directly from a Loyalty Program card
+      // Inline Mini-Tabs inside Loyalty Program Cards & Credit Cards
+      const progMiniTabBtn = e.target.closest('[data-prog-minitab]');
+      if (progMiniTabBtn) {
+        e.preventDefault();
+        const progId = progMiniTabBtn.getAttribute('data-prog-minitab');
+        const nextTab = progMiniTabBtn.getAttribute('data-tab') || 'overview';
+        activeProgramCardMiniTabs[progId] = nextTab;
+        renderRewardsProgramsTab();
+        return;
+      }
+      const cardMiniTabBtn = e.target.closest('[data-card-minitab]');
+      if (cardMiniTabBtn) {
+        e.preventDefault();
+        const cardId = cardMiniTabBtn.getAttribute('data-card-minitab');
+        const nextTab = cardMiniTabBtn.getAttribute('data-tab') || 'overview';
+        activeCreditCardMiniTabs[cardId] = nextTab;
+        renderRewardsCardsTab();
+        return;
+      }
+
+      // Toggle Condensed Credit Row Slider/Reset Drawer
+      const toggleDrawerBtn = e.target.closest('[data-toggle-credit-drawer]');
+      if (toggleDrawerBtn) {
+        e.preventDefault();
+        const key = toggleDrawerBtn.getAttribute('data-toggle-credit-drawer');
+        if (key) {
+          expandedCreditDrawers[key] = !expandedCreditDrawers[key];
+          const itemEl = toggleDrawerBtn.closest('.credit-condensed-item');
+          if (itemEl) {
+            itemEl.classList.toggle('expanded', Boolean(expandedCreditDrawers[key]));
+            toggleDrawerBtn.textContent = expandedCreditDrawers[key] ? '▴ Hide' : '⚙️ Adjust';
+          }
+        }
+        return;
+      }
+
+      // Open Program / Card Mini-Dashboard Flyout Modal
+      const openProgMdBtn = e.target.closest('[data-open-prog-md]');
+      if (openProgMdBtn) {
+        e.preventDefault();
+        const progId = openProgMdBtn.getAttribute('data-open-prog-md');
+        const mdTab = openProgMdBtn.getAttribute('data-md-tab') || 'overview';
+        openRewardMiniDashboard('program', progId, mdTab);
+        return;
+      }
+      const openCardMdBtn = e.target.closest('[data-open-card-md]');
+      if (openCardMdBtn) {
+        e.preventDefault();
+        const cardId = openCardMdBtn.getAttribute('data-open-card-md');
+        const mdTab = openCardMdBtn.getAttribute('data-md-tab') || 'overview';
+        openRewardMiniDashboard('card', cardId, mdTab);
+        return;
+      }
+      const mdSwitchTabBtn = e.target.closest('[data-md-switch-tab]');
+      if (mdSwitchTabBtn) {
+        e.preventDefault();
+        activeMiniDashboardState.tab = mdSwitchTabBtn.getAttribute('data-md-switch-tab') || 'overview';
+        renderRewardMiniDashboard();
+        return;
+      }
+      const mdEditProgBtn = e.target.closest('[data-md-edit-prog]');
+      if (mdEditProgBtn) {
+        e.preventDefault();
+        const prog = state.rewards.programs.find(p => p.id === mdEditProgBtn.getAttribute('data-md-edit-prog'));
+        if (prog) {
+          closeModal('modal-reward-mini-dashboard');
+          openRewardProgramModal(prog);
+        }
+        return;
+      }
+      const mdEditCardBtn = e.target.closest('[data-md-edit-card]');
+      if (mdEditCardBtn) {
+        e.preventDefault();
+        const card = state.rewards.cards.find(c => c.id === mdEditCardBtn.getAttribute('data-md-edit-card'));
+        if (card) {
+          closeModal('modal-reward-mini-dashboard');
+          openRewardCardModal(card);
+        }
+        return;
+      }
+      const mdEditCertBtn = e.target.closest('[data-md-edit-cert]');
+      if (mdEditCertBtn) {
+        e.preventDefault();
+        const cert = state.rewards.certificates.find(c => c.id === mdEditCertBtn.getAttribute('data-md-edit-cert'));
+        if (cert) {
+          closeModal('modal-reward-mini-dashboard');
+          openRewardCertModal(cert);
+        }
+        return;
+      }
+
+      // Quick "+ Add / Link Card" or "+ Add Perk" directly from a Loyalty Program card or Mini-Dashboard
       const addCardForProgBtn = e.target.closest('[data-add-card-for-prog]');
       if (addCardForProgBtn) {
         e.preventDefault();
+        closeModal('modal-reward-mini-dashboard');
         openRewardCardModal(null, addCardForProgBtn.getAttribute('data-add-card-for-prog'));
         return;
       }
       const addCertForProgBtn = e.target.closest('[data-add-cert-for-prog]');
       if (addCertForProgBtn) {
         e.preventDefault();
+        closeModal('modal-reward-mini-dashboard');
         openRewardCertModal(null, addCertForProgBtn.getAttribute('data-add-cert-for-prog'));
         return;
       }

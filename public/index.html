@@ -2493,6 +2493,34 @@
     </div>
   </div>
 
+  <!-- =========================================================================
+       MODAL: PROGRAM & CREDIT CARD MINI-DASHBOARD FLYOUT
+       ========================================================================= -->
+  <div class="modal-backdrop" id="modal-reward-mini-dashboard">
+    <div class="modal-dialog" style="max-width: 900px;">
+      <div class="modal-header" id="md-modal-header" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(56, 189, 248, 0.08));">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;" id="md-modal-icon">💎</span>
+          <div>
+            <h3 class="modal-title" id="md-modal-title" style="display: flex; align-items: center; gap: 8px;">
+              Reward Mini-Dashboard
+            </h3>
+            <p id="md-modal-subtitle" style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              Full interactive statement credits, reset dates, free night perks, earning multipliers &amp; program rules.
+            </p>
+          </div>
+        </div>
+        <button class="modal-close" data-close-modal="modal-reward-mini-dashboard">&times;</button>
+      </div>
+      <div class="modal-body" id="md-modal-body" style="max-height: 76vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;">
+        <!-- Populated dynamically by renderRewardMiniDashboard() -->
+      </div>
+      <div class="modal-footer" id="md-modal-footer" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
   <!-- GENERIC DELETE CONFIRMATION MODAL -->
   <div class="modal-backdrop" id="modal-confirm-delete" role="alertdialog" aria-modal="true" aria-labelledby="modal-confirm-title" aria-describedby="modal-confirm-desc">
     <div class="modal-dialog" style="max-width: 440px;">
