@@ -6273,190 +6273,49 @@
               </div>
             `}
 
-            <!-- 3 Compact At-A-Glance Stat Boxes -->
+            <!-- 3 Interactive Action Buttons: (1) Details (2) Free Nights (3) Website -->
             <div class="reward-quick-stat-pills">
-              <div class="reward-quick-stat-box" style="${progCredAvail > 0 ? 'border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.06);' : ''}">
-                <span class="reward-quick-stat-label">Reward Available</span>
-                <span class="reward-quick-stat-val mono" style="color: ${progCredAvail > 0 ? 'var(--accent-primary)' : 'var(--text-secondary)'};">
-                  ${progCredTotal > 0 ? (progCredAvail > 0 ? `${fmtUsd(progCredAvail)} Left` : `✓ ${fmtUsdCompact(progCredTotal)} Used`) : 'No Credits'}
+              <button
+                type="button"
+                class="reward-quick-stat-box reward-quick-stat-btn"
+                data-open-prog-md="${escapeHtml(p.id)}"
+                data-md-tab="overview"
+                title="Open Mini-Dashboard with all card &amp; loyalty details"
+                style="${progCredAvail > 0 ? 'border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.06);' : ''}"
+              >
+                <span class="reward-quick-stat-label">Details</span>
+                <span class="reward-quick-stat-val" style="color: var(--accent-primary);">
+                  🔍 View Info
                 </span>
-              </div>
-              <div class="reward-quick-stat-box">
-                <span class="reward-quick-stat-label">Free Nights / Perks</span>
-                <span class="reward-quick-stat-val mono" style="color: ${availCerts.length > 0 ? 'var(--accent-sky)' : 'var(--text-secondary)'};">
-                  ${availCerts.length > 0 ? `${availCerts.length} Avail (${fmtUsdCompact(availCertsVal)})` : '0 Avail'}
-                </span>
-              </div>
-              <div class="reward-quick-stat-box">
-                <span class="reward-quick-stat-label">${qTgt > 0 ? escapeHtml(metricLabel) : 'Annual Card Fee'}</span>
-                <span class="reward-quick-stat-val mono">
-                  ${qTgt > 0 ? `${qCur}/${qTgt} (${qPct}%)` : `${fmtUsdCompact(progAnnualFees)}/yr`}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 3. Segmented Mini-Tabs inside the Card (Keeps Main View Clean & Organized!) -->
-          <div class="reward-card-minitabs">
-            <button type="button" class="reward-minitab-btn ${curMiniTab === 'overview' ? 'active' : ''}" data-prog-minitab="${escapeHtml(p.id)}" data-tab="overview">
-              📊 Summary
-            </button>
-            <button type="button" class="reward-minitab-btn ${curMiniTab === 'credits' ? 'active' : ''}" data-prog-minitab="${escapeHtml(p.id)}" data-tab="credits">
-              💳 Credits (${totalCreditsCount})
-            </button>
-            <button type="button" class="reward-minitab-btn ${curMiniTab === 'perks' ? 'active' : ''}" data-prog-minitab="${escapeHtml(p.id)}" data-tab="perks">
-              🎟️ Perks (${linkedCerts.length})
-            </button>
-            <button type="button" class="reward-minitab-btn ${curMiniTab === 'details' ? 'active' : ''}" data-prog-minitab="${escapeHtml(p.id)}" data-tab="details">
-              ℹ️ Details
-            </button>
-          </div>
-
-          <!-- Pane A: Clean Overview (Default) -->
-          <div class="reward-minitab-pane ${curMiniTab === 'overview' ? 'active' : ''}">
-            ${qTgt > 0 ? `
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; margin-bottom: 4px;">
-                  <span style="color: var(--text-secondary); font-weight: 600;">🎯 ${escapeHtml(metricLabel)}</span>
-                  <div style="display: flex; align-items: center; gap: 5px;">
-                    <span class="mono" style="font-weight: 700;">${qCur} / ${qTgt} (${qPct}%)</span>
-                    ${qTgt <= 365 ? `
-                      <button type="button" class="btn-stepper" data-step-rnights="${escapeHtml(p.id)}" data-delta="-1" title="-1 Night">-</button>
-                      <button type="button" class="btn-stepper" data-step-rnights="${escapeHtml(p.id)}" data-delta="1" title="+1 Night">+1</button>
-                    ` : ''}
-                  </div>
-                </div>
-                <div class="progress-track" style="height: 6px;">
-                  <div class="progress-fill" style="width: ${qPct}%; background-color: ${qPct >= 100 ? 'var(--accent-primary)' : cardColor};"></div>
-                </div>
-              </div>
-            ` : ''}
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; background: var(--bg-elevated); border-radius: 7px; border: 1px solid var(--border-subtle); font-size: 11.5px;">
-              <span style="color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                ${progCredAvail > 0
-                  ? `💚 <strong style="color: var(--accent-primary);">${fmtUsd(progCredAvail)} Reward Available</strong> across ${totalCreditsCount} credit(s)`
-                  : totalCreditsCount > 0
-                  ? `✓ All ${fmtUsd(progCredTotal)} in statement credits captured`
-                  : `⏳ ${escapeHtml(expPolicy)}`}
-              </span>
-              <button type="button" class="btn btn-sm btn-primary" style="padding: 3px 9px; font-size: 11px; flex-shrink: 0;" data-open-prog-md="${escapeHtml(p.id)}" data-md-tab="overview">
-                🔍 Mini-Dashboard
               </button>
-            </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--bg-surface); border-radius: 7px; border: 1px solid var(--border-subtle); font-size: 11.5px; margin-top: 6px;">
-              <span style="color: var(--text-muted);">
-                💵 Est. Valuation (@ ${cpp.toFixed(2)}¢/pt):
-              </span>
-              <span class="mono tabular" style="font-weight: 700; color: var(--accent-primary);">${fmtUsd(valUsd)}</span>
-            </div>
-          </div>
-
-          <!-- Pane B: Condensed Statement Credits Tab -->
-          <div class="reward-minitab-pane ${curMiniTab === 'credits' ? 'active' : ''}">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
-                Linked Card Credits (${fmtUsd(progCredUsed)} / ${fmtUsd(progCredTotal)} Used)
-              </span>
-              <button type="button" class="btn btn-sm" style="padding: 2px 7px; font-size: 10.5px;" data-add-card-for-prog="${escapeHtml(p.name)}">+ Add Card</button>
-            </div>
-            ${linkedCards.length === 0 ? `
-              <div style="font-size: 11.5px; color: var(--text-muted); padding: 6px 0;">No credit card linked yet.</div>
-            ` : linkedCards.map(c => {
-              const cCredits = Array.isArray(c.credits) ? c.credits : [];
-              return `
-                <div style="display: flex; flex-direction: column; gap: 5px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; font-weight: 700; color: var(--text-secondary);">
-                    <span>💳 ${escapeHtml(c.name)} (${fmtUsdCompact(c.annual_fee || 0)}/yr)</span>
-                    <button type="button" class="btn btn-sm" style="padding: 1px 6px; font-size: 10px;" data-edit-rcard="${escapeHtml(c.id)}">✎ Edit Card</button>
-                  </div>
-                  ${cCredits.length === 0
-                    ? `<div style="font-size: 11px; color: var(--text-muted);">No statement credits listed on this card.</div>`
-                    : cCredits.map((cr, idx) => renderInteractiveCreditRowHtml(c, cr, idx, true)).join('')}
-                </div>
-              `;
-            }).join('')}
-          </div>
-
-          <!-- Pane C: Free Nights & Perks Tab -->
-          <div class="reward-minitab-pane ${curMiniTab === 'perks' ? 'active' : ''}">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-              <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
-                Free Nights, Companion &amp; Lounge Perks
-              </span>
-              <button type="button" class="btn btn-sm" style="padding: 2px 7px; font-size: 10.5px;" data-add-cert-for-prog="${escapeHtml(p.name)}">+ Add Perk</button>
-            </div>
-            ${linkedCerts.length === 0 ? `
-              <div style="font-size: 11.5px; color: var(--text-muted); padding: 6px 0;">No free night certificates or perks linked yet.</div>
-            ` : linkedCerts.map(cert => {
-              const isRed = cert.status === 'redeemed';
-              const expD = cert.expires_date || cert.expiration_date || '';
-              const daysLeft = daysUntilDate(expD);
-              const cVal = Number(cert.est_value_usd ?? cert.estimated_value_usd ?? 0);
-              return `
-                <div class="linked-cert-row" style="${isRed ? 'opacity: 0.68;' : ''}">
-                  <div style="min-width: 0; flex: 1;">
-                    <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                      <span style="${isRed ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">🎟️ ${escapeHtml(cert.title)}</span>
-                      <span class="mono" style="font-size: 11px; color: var(--accent-primary);">${fmtUsdCompact(cVal)}</span>
-                    </div>
-                    <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
-                      ${cert.cap_details ? `${escapeHtml(cert.cap_details)} • ` : ''}
-                      ${isRed ? '✅ Redeemed' : (daysLeft <= 60 && daysLeft >= 0 ? `🔴 Expires in ${daysLeft}d (${escapeHtml(expD)})` : `Valid thru ${escapeHtml(expD)}`)}
-                    </div>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 4px;">
-                    <button type="button" class="btn btn-sm ${isRed ? '' : 'btn-primary'}" style="padding: 2px 7px; font-size: 10.5px;" data-toggle-rcert="${escapeHtml(cert.id)}">
-                      ${isRed ? '↺ Undo' : '✓ Use'}
-                    </button>
-                    <button type="button" class="btn btn-sm" style="padding: 2px 6px; font-size: 10.5px;" data-edit-rcert="${escapeHtml(cert.id)}" title="Edit Perk">✎</button>
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-
-          <!-- Pane D: Program Rules, Partners & Notes Tab -->
-          <div class="reward-minitab-pane ${curMiniTab === 'details' ? 'active' : ''}">
-            <div style="font-size: 11.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 5px; padding: 6px 8px; background: var(--bg-elevated); border-radius: 7px; border: 1px solid var(--border-subtle);">
-              <div>💰 <strong>Estimated Value:</strong> <span class="mono" style="color: var(--accent-primary); font-weight: 700;">${fmtUsd(valUsd)}</span> (@ ${cpp.toFixed(2)}¢/pt valuation)</div>
-              ${partners ? `<div>🔄 <strong>Partners:</strong> ${escapeHtml(partners)}</div>` : ''}
-              <div>⏳ <strong>Expiration:</strong> ${escapeHtml(expPolicy)}</div>
-              ${p.notes ? `<div style="color: var(--text-muted);">💡 ${escapeHtml(p.notes)}</div>` : ''}
-            </div>
-            ${Array.isArray(p.custom_fields) && p.custom_fields.length > 0 ? `
-              <div class="custom-fields-wrap">
-                ${p.custom_fields.map(f => `
-                  <span class="custom-field-chip" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
-                    <strong>${escapeHtml(f.label)}:</strong> ${escapeHtml(f.value)}
-                  </span>
-                `).join('')}
-              </div>
-            ` : ''}
-          </div>
-
-          <!-- 4. Clean Action Footer -->
-          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto; flex-wrap: wrap; gap: 6px;">
-            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-              <button type="button" class="btn btn-sm" data-open-prog-md="${escapeHtml(p.id)}" data-md-tab="overview" title="Open full Mini-Dashboard for ${escapeHtml(p.name)}">🔍 Details</button>
-              <button type="button" class="btn btn-sm" data-quick-redeem-prog="${escapeHtml(p.name)}">✈️ Redeem</button>
+              <button
+                type="button"
+                class="reward-quick-stat-box reward-quick-stat-btn"
+                data-open-prog-md="${escapeHtml(p.id)}"
+                data-md-tab="perks"
+                title="Open Free Nights &amp; Perks in Mini-Dashboard"
+              >
+                <span class="reward-quick-stat-label">Free Nights</span>
+                <span class="reward-quick-stat-val mono" style="color: ${availCerts.length > 0 ? 'var(--accent-sky)' : 'var(--text-secondary)'};">
+                  ${availCerts.length} Avail
+                </span>
+              </button>
               <a
                 href="${escapeHtml(resolveRewardWebsiteUrl(p, false))}"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="btn btn-sm"
+                class="reward-quick-stat-box reward-quick-stat-btn"
                 data-open-reward-website="${escapeHtml(resolveRewardWebsiteUrl(p, false))}"
                 data-copy-member-on-open="${escapeHtml(p.member_id || '')}"
                 data-reward-label="${escapeHtml(p.name)}"
                 title="Open ${escapeHtml(p.name)} login website in a new tab${p.member_id ? ` (auto-copies Member ID ${escapeHtml(p.member_id)})` : ''}"
                 style="text-decoration: none;"
               >
-                🌐 Website
+                <span class="reward-quick-stat-label">Website</span>
+                <span class="reward-quick-stat-val" style="color: var(--text-primary);">
+                  🌐 Login ↗
+                </span>
               </a>
-            </div>
-            <div style="display: flex; gap: 5px;">
-              <button type="button" class="btn btn-sm" data-update-rprog="${escapeHtml(p.id)}" title="Check & update latest program perks, valuations and rules">🔄</button>
-              <button type="button" class="btn btn-sm" data-edit-rprog="${escapeHtml(p.id)}">Edit</button>
-              <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rprog="${escapeHtml(p.id)}">✕</button>
             </div>
           </div>
         </div>
@@ -6732,7 +6591,12 @@
       const netOffset = credUsed - fee;
       const linkedProg = (state.rewards.programs || []).find(p => doesCardMatchProgram(c, p));
       const progPts = linkedProg ? Number(linkedProg.points ?? linkedProg.balance ?? 0) : 0;
-      const curCardTab = activeCreditCardMiniTabs[c.id] || 'overview';
+      const cardCerts = linkedProg
+        ? getLinkedCertsForProgram(linkedProg, [c])
+        : (state.rewards.certificates || []).filter(cert =>
+            (cert.source_card || '').toLowerCase() === (cardName || '').toLowerCase()
+          );
+      const availCardCerts = cardCerts.filter(cert => cert.status !== 'redeemed');
 
       return `
         <div class="reward-item-card">
@@ -6763,7 +6627,7 @@
             </div>
           </div>
 
-          <!-- 2. Points / Miles Available (if linked) + 3 Compact At-A-Glance Stat Boxes -->
+          <!-- 2. Points / Miles Available (if linked) + Multipliers + 3 Interactive Action Buttons -->
           <div class="reward-condensed-showcase">
             ${linkedProg ? `
               <div class="reward-condensed-primary-row">
@@ -6774,107 +6638,54 @@
                 </div>
               </div>
             ` : ''}
-            <div class="reward-quick-stat-pills">
-              <div class="reward-quick-stat-box">
-                <span class="reward-quick-stat-label">Annual Fee &amp; Renew</span>
-                <span class="reward-quick-stat-val mono">${fmtUsdCompact(fee)}/yr • ${escapeHtml(c.renewal_date || 'Annual')}</span>
-              </div>
-              <div class="reward-quick-stat-box" style="${credAvail > 0 ? 'border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.06);' : ''}">
-                <span class="reward-quick-stat-label">Reward Available</span>
-                <span class="reward-quick-stat-val mono" style="color: ${credAvail > 0 ? 'var(--accent-primary)' : 'var(--text-secondary)'};">
-                  ${credTotal > 0 ? (credAvail > 0 ? `${fmtUsd(credAvail)} Left` : `✓ $0.00 Left`) : 'No Credits'}
-                </span>
-              </div>
-              <div class="reward-quick-stat-box">
-                <span class="reward-quick-stat-label">Credits Captured</span>
-                <span class="reward-quick-stat-val mono" style="color: var(--accent-sky);">
-                  ${fmtUsdCompact(credUsed)} / ${fmtUsdCompact(credTotal)}
-                </span>
-              </div>
-            </div>
-            <div style="font-size: 11.5px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              ⚡ <strong>Multipliers:</strong> ${escapeHtml(c.multipliers || '1x–5x Travel')}
-            </div>
-          </div>
-
-          <!-- 3. Segmented Mini-Tabs inside Credit Card -->
-          <div class="reward-card-minitabs">
-            <button type="button" class="reward-minitab-btn ${curCardTab === 'overview' ? 'active' : ''}" data-card-minitab="${escapeHtml(c.id)}" data-tab="overview">
-              📊 Summary
-            </button>
-            <button type="button" class="reward-minitab-btn ${curCardTab === 'credits' ? 'active' : ''}" data-card-minitab="${escapeHtml(c.id)}" data-tab="credits">
-              💳 Credits (${credits.length})
-            </button>
-            <button type="button" class="reward-minitab-btn ${curCardTab === 'details' ? 'active' : ''}" data-card-minitab="${escapeHtml(c.id)}" data-tab="details">
-              ℹ️ Perks &amp; Rules
-            </button>
-          </div>
-
-          <!-- Pane A: Clean Summary (Default) -->
-          <div class="reward-minitab-pane ${curCardTab === 'overview' ? 'active' : ''}">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; background: var(--bg-elevated); border-radius: 7px; border: 1px solid var(--border-subtle); font-size: 11.5px;">
-              <span style="color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                ${credAvail > 0
-                  ? `💚 <strong style="color: var(--accent-primary);">${fmtUsd(credAvail)} Reward Available</strong> to use`
-                  : credits.length > 0
-                  ? `✓ All ${fmtUsd(credTotal)} in statement credits captured`
-                  : `🎯 Best for: ${escapeHtml(c.best_for || 'Travel')}`}
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px; color: var(--text-secondary);">
+              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ⚡ <strong>Multipliers:</strong> ${escapeHtml(c.multipliers || '1x–5x Travel')}
               </span>
-              <button type="button" class="btn btn-sm btn-primary" style="padding: 3px 9px; font-size: 11px; flex-shrink: 0;" data-open-card-md="${escapeHtml(c.id)}" data-md-tab="credits">
-                🔍 Mini-Dashboard
+              <span class="mono" style="font-weight: 700; flex-shrink: 0;">Fee: ${fmtUsdCompact(fee)}/yr</span>
+            </div>
+            <!-- 3 Interactive Action Buttons: (1) Details (2) Free Nights (3) Website -->
+            <div class="reward-quick-stat-pills">
+              <button
+                type="button"
+                class="reward-quick-stat-box reward-quick-stat-btn"
+                data-open-card-md="${escapeHtml(c.id)}"
+                data-md-tab="overview"
+                title="Open Mini-Dashboard with all card &amp; loyalty details"
+                style="${credAvail > 0 ? 'border-color: rgba(16, 185, 129, 0.45); background: rgba(16, 185, 129, 0.06);' : ''}"
+              >
+                <span class="reward-quick-stat-label">Details</span>
+                <span class="reward-quick-stat-val" style="color: var(--accent-primary);">
+                  🔍 View Info
+                </span>
               </button>
-            </div>
-          </div>
-
-          <!-- Pane B: Condensed Credits List -->
-          <div class="reward-minitab-pane ${curCardTab === 'credits' ? 'active' : ''}">
-            ${credits.length === 0 ? `
-              <div style="font-size: 11.5px; color: var(--text-muted); padding: 6px 0;">No statement credits listed on this card.</div>
-            ` : `
-              <div style="display: flex; flex-direction: column; gap: 5px;">
-                ${credits.map((cr, idx) => renderInteractiveCreditRowHtml(c, cr, idx, true)).join('')}
-              </div>
-            `}
-          </div>
-
-          <!-- Pane C: Perks & Rules -->
-          <div class="reward-minitab-pane ${curCardTab === 'details' ? 'active' : ''}">
-            <div style="font-size: 11.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 5px; padding: 6px 8px; background: var(--bg-elevated); border-radius: 7px; border: 1px solid var(--border-subtle);">
-              <div>🎯 <strong>Best Swipe For:</strong> ${escapeHtml(c.best_for || c.perks || 'General Travel')}</div>
-              <div>🌍 <strong>FX Fee:</strong> ${escapeHtml(c.ftf || '$0 Foreign Transaction Fee')}</div>
-            </div>
-            ${Array.isArray(c.custom_fields) && c.custom_fields.length > 0 ? `
-              <div class="custom-fields-wrap">
-                ${c.custom_fields.map(f => `
-                  <span class="custom-field-chip" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
-                    <strong>${escapeHtml(f.label)}:</strong> ${escapeHtml(f.value)}
-                  </span>
-                `).join('')}
-              </div>
-            ` : ''}
-          </div>
-
-          <!-- 4. Clean Action Footer -->
-          <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto; flex-wrap: wrap;">
-            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
-              <button type="button" class="btn btn-sm" data-open-card-md="${escapeHtml(c.id)}" data-md-tab="overview">🔍 Details</button>
+              <button
+                type="button"
+                class="reward-quick-stat-box reward-quick-stat-btn"
+                data-open-card-md="${escapeHtml(c.id)}"
+                data-md-tab="perks"
+                title="Open Free Nights &amp; Perks in Mini-Dashboard"
+              >
+                <span class="reward-quick-stat-label">Free Nights</span>
+                <span class="reward-quick-stat-val mono" style="color: ${availCardCerts.length > 0 ? 'var(--accent-sky)' : 'var(--text-secondary)'};">
+                  ${availCardCerts.length} Avail
+                </span>
+              </button>
               <a
                 href="${escapeHtml(resolveRewardWebsiteUrl(c, true))}"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="btn btn-sm"
+                class="reward-quick-stat-box reward-quick-stat-btn"
                 data-open-reward-website="${escapeHtml(resolveRewardWebsiteUrl(c, true))}"
                 data-reward-label="${escapeHtml(cardName)}"
                 title="Open ${escapeHtml(cardName)} login portal in a new tab"
                 style="text-decoration: none;"
               >
-                🌐 Website
+                <span class="reward-quick-stat-label">Website</span>
+                <span class="reward-quick-stat-val" style="color: var(--text-primary);">
+                  🌐 Login ↗
+                </span>
               </a>
-            </div>
-            <div style="display: flex; gap: 5px;">
-              <button type="button" class="btn btn-sm" data-update-rcard="${escapeHtml(c.id)}" title="Check & update latest statement credits, annual fee, and multipliers">🔄</button>
-              <button type="button" class="btn btn-sm" data-edit-rcard="${escapeHtml(c.id)}">Edit Card</button>
-              <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcard="${escapeHtml(c.id)}">✕</button>
             </div>
           </div>
         </div>
@@ -7030,9 +6841,23 @@
           <span class="qr-kpi-sub">${fmtUsd(totalFees)}/yr total annual fee</span>
         </div>
         <div class="qr-kpi-tile">
-          <span class="qr-kpi-label">🎯 ${escapeHtml(metricLabel)}</span>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+            <span class="qr-kpi-label">🎯 ${escapeHtml(metricLabel)}</span>
+            ${prog && qTgt > 0 && qTgt <= 365 ? `
+              <div style="display: inline-flex; align-items: center; gap: 4px;">
+                <button type="button" class="btn-stepper" data-step-rnights="${escapeHtml(prog.id)}" data-delta="-1" title="-1 Night">-</button>
+                <button type="button" class="btn-stepper" data-step-rnights="${escapeHtml(prog.id)}" data-delta="1" title="+1 Night">+1</button>
+              </div>
+            ` : ''}
+          </div>
           <span class="qr-kpi-val mono">${qTgt > 0 ? `${qCur} / ${qTgt} (${qPct}%)` : (prog && prog.status_tier ? escapeHtml(prog.status_tier) : 'Active')}</span>
-          <span class="qr-kpi-sub">${prog ? escapeHtml(prog.expiration_policy || 'Active') : escapeHtml(primaryCard.ftf || '$0 FX Fee')}</span>
+          ${prog && qTgt > 0 ? `
+            <div class="progress-track" style="height: 5px; margin-top: 2px;">
+              <div class="progress-fill" style="width: ${qPct}%; background-color: var(--accent-primary);"></div>
+            </div>
+          ` : `
+            <span class="qr-kpi-sub">${prog ? escapeHtml(prog.expiration_policy || 'Active') : escapeHtml(primaryCard.ftf || '$0 FX Fee')}</span>
+          `}
         </div>
       </div>
     `;
@@ -7132,6 +6957,9 @@
           <h4>ℹ️ Earning Multipliers, Transfer Partners &amp; Strategy Notes</h4>
         </div>
         <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; color: var(--text-secondary);">
+          ${prog ? `
+            <div>💰 <strong>Estimated Value:</strong> <span class="mono" style="color: var(--accent-primary); font-weight: 700;">${fmtUsd(valUsd)}</span> (@ ${cpp.toFixed(2)}¢/pt valuation)</div>
+          ` : ''}
           ${primaryCard ? `
             <div>⚡ <strong>Card Earning Multipliers:</strong> ${escapeHtml(primaryCard.multipliers || 'Travel Rewards')}</div>
             <div>🎯 <strong>Best Card Swipe For:</strong> ${escapeHtml(primaryCard.best_for || 'General Travel')}</div>
@@ -7143,6 +6971,24 @@
             ${prog.notes ? `<div>💡 <strong>Strategy Notes:</strong> ${escapeHtml(prog.notes)}</div>` : ''}
           ` : ''}
         </div>
+        ${prog && Array.isArray(prog.custom_fields) && prog.custom_fields.length > 0 ? `
+          <div class="custom-fields-wrap" style="margin-top: 8px;">
+            ${prog.custom_fields.map(f => `
+              <span class="custom-field-chip" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
+                <strong>${escapeHtml(f.label)}:</strong> ${escapeHtml(f.value)}
+              </span>
+            `).join('')}
+          </div>
+        ` : ''}
+        ${primaryCard && Array.isArray(primaryCard.custom_fields) && primaryCard.custom_fields.length > 0 ? `
+          <div class="custom-fields-wrap" style="margin-top: 8px;">
+            ${primaryCard.custom_fields.map(f => `
+              <span class="custom-field-chip" title="${escapeHtml(f.label)}: ${escapeHtml(f.value)}">
+                <strong>${escapeHtml(f.label)}:</strong> ${escapeHtml(f.value)}
+              </span>
+            `).join('')}
+          </div>
+        ` : ''}
       </div>
     `;
 
@@ -7163,7 +7009,8 @@
       const targetWebItem = prog || primaryCard;
       const webUrl = resolveRewardWebsiteUrl(targetWebItem, !prog);
       footer.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          ${prog ? `<button type="button" class="btn btn-sm" data-quick-redeem-prog="${escapeHtml(prog.name)}">✈️ Redeem</button>` : ''}
           <a
             href="${escapeHtml(webUrl)}"
             target="_blank"
@@ -7174,11 +7021,15 @@
             data-reward-label="${escapeHtml(targetWebItem ? targetWebItem.name : 'Account')}"
             style="text-decoration: none;"
           >
-            🌐 Website Login
+            🌐 Website
           </a>
-          ${prog ? `<button type="button" class="btn btn-sm" data-md-edit-prog="${escapeHtml(prog.id)}">✎ Edit Loyalty Program</button>` : ''}
-          ${primaryCard ? `<button type="button" class="btn btn-sm" data-md-edit-card="${escapeHtml(primaryCard.id)}">💳 Edit Credit Card &amp; Credits</button>` : ''}
-          ${prog ? `<button type="button" class="btn btn-sm" data-add-cert-for-prog="${escapeHtml(prog.name)}">🎟️ + Add Free Night / Perk</button>` : ''}
+          ${prog ? `<button type="button" class="btn btn-sm" data-update-rprog="${escapeHtml(prog.id)}" title="Check & update latest program perks, valuations and rules">🔄 Update</button>` : ''}
+          ${!prog && primaryCard ? `<button type="button" class="btn btn-sm" data-update-rcard="${escapeHtml(primaryCard.id)}" title="Check & update latest statement credits, annual fee, and multipliers">🔄 Update</button>` : ''}
+          ${prog ? `<button type="button" class="btn btn-sm" data-md-edit-prog="${escapeHtml(prog.id)}">✎ Edit Program</button>` : ''}
+          ${primaryCard ? `<button type="button" class="btn btn-sm" data-md-edit-card="${escapeHtml(primaryCard.id)}">💳 Edit Card</button>` : ''}
+          ${prog ? `<button type="button" class="btn btn-sm" data-add-cert-for-prog="${escapeHtml(prog.name)}">🎟️ + Add Perk</button>` : ''}
+          ${prog ? `<button type="button" class="btn btn-sm btn-danger-ghost" data-del-rprog="${escapeHtml(prog.id)}" title="Delete Loyalty Program">🗑️ Delete</button>` : ''}
+          ${!prog && primaryCard ? `<button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcard="${escapeHtml(primaryCard.id)}" title="Delete Credit Card">🗑️ Delete</button>` : ''}
         </div>
         <button type="button" class="btn btn-primary" data-close-modal="modal-reward-mini-dashboard">Done</button>
       `;
@@ -10123,12 +9974,14 @@
       const updateProgBtn = e.target.closest('[data-update-rprog]');
       if (updateProgBtn) {
         e.preventDefault();
+        closeModal('modal-reward-mini-dashboard');
         openUpdateRewardModal(updateProgBtn.getAttribute('data-update-rprog'), 'program');
         return;
       }
       const updateCardBtn = e.target.closest('[data-update-rcard]');
       if (updateCardBtn) {
         e.preventDefault();
+        closeModal('modal-reward-mini-dashboard');
         openUpdateRewardModal(updateCardBtn.getAttribute('data-update-rcard'), 'card');
         return;
       }
@@ -10982,6 +10835,7 @@
       const quickRedeemBtn = e.target.closest('[data-quick-redeem-prog]');
       if (quickRedeemBtn) {
         e.preventDefault();
+        closeModal('modal-reward-mini-dashboard');
         openRewardRedemptionModal(null, quickRedeemBtn.getAttribute('data-quick-redeem-prog'));
         return;
       }
