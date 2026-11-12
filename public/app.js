@@ -5608,51 +5608,35 @@
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
   }
 
-  const revealedCardSecrets = {};
   function renderCardCredentialsStripHtml(card, showAddHint = false) {
     if (!card) return '';
     const num = String(card.card_number || '').trim();
     const exp = String(card.card_expiration || '').trim();
-    const pin = String(card.card_pin || '').trim();
 
-    if (!num && !exp && !pin) {
+    if (!num && !exp) {
       if (!showAddHint) return '';
       return `
         <div class="cc-credentials-bar">
-          <button type="button" class="cc-cred-chip" data-edit-rcard="${escapeHtml(card.id)}" title="Add Credit Card Number, Expiration Date &amp; PIN">
-            ➕ Add Card # / Exp / PIN
+          <button type="button" class="cc-cred-chip" data-edit-rcard="${escapeHtml(card.id)}" title="Add Last 4 Digits &amp; Expiration Date">
+            ➕ Add Last 4 / Exp
           </button>
         </div>
       `;
     }
 
-    const isRevealed = Boolean(revealedCardSecrets[card.id]);
     const digitsOnly = num.replace(/\D/g, '');
-    const maskedNum = isRevealed
-      ? num
-      : (digitsOnly.length >= 4 ? `•••• ${digitsOnly.slice(-4)}` : (num.length > 4 ? `•••• ${num.slice(-4)}` : num));
-    const maskedPin = isRevealed ? pin : '••••';
+    const displayLast4 = digitsOnly.length >= 4 ? digitsOnly.slice(-4) : (num.slice(-4) || num);
 
     return `
       <div class="cc-credentials-bar">
-        ${num ? `
-          <button type="button" class="cc-cred-chip mono" data-copy-secret="${escapeHtml(num)}" data-secret-label="Card Number" title="Click to copy Card Number (${escapeHtml(isRevealed ? num : maskedNum)})">
-            💳 ${escapeHtml(maskedNum)} 📋
+        ${displayLast4 ? `
+          <button type="button" class="cc-cred-chip mono" data-copy-secret="${escapeHtml(displayLast4)}" data-secret-label="Last 4 Digits" title="Click to copy Last 4 Digits">
+            💳 •••• ${escapeHtml(displayLast4)} 📋
           </button>
         ` : ''}
         ${exp ? `
           <button type="button" class="cc-cred-chip mono" data-copy-secret="${escapeHtml(exp)}" data-secret-label="Expiration Date" title="Click to copy Expiration Date">
-            📅 Exp: ${escapeHtml(exp)}
-          </button>
-        ` : ''}
-        ${pin ? `
-          <button type="button" class="cc-cred-chip mono" data-copy-secret="${escapeHtml(pin)}" data-secret-label="Card PIN" title="Click to copy PIN">
-            🔐 PIN: ${escapeHtml(maskedPin)}
-          </button>
-        ` : ''}
-        ${(num || pin) ? `
-          <button type="button" class="cc-cred-chip" data-toggle-card-secret="${escapeHtml(card.id)}" title="${isRevealed ? 'Hide Card # & PIN' : 'Show full Card # & PIN'}">
-            ${isRevealed ? '🙈 Hide' : '👁️ Show'}
+            📅 Exp: ${escapeHtml(exp)} 📋
           </button>
         ` : ''}
       </div>
@@ -9292,10 +9276,8 @@
       if (rcardWebEl) rcardWebEl.value = editCard.website_url || resolveRewardWebsiteUrl(editCard, true);
       const rcardNumEl = document.getElementById('rcard-number');
       const rcardExpEl = document.getElementById('rcard-exp');
-      const rcardPinEl = document.getElementById('rcard-pin');
-      if (rcardNumEl) rcardNumEl.value = editCard.card_number || '';
+      if (rcardNumEl) rcardNumEl.value = editCard.card_number ? String(editCard.card_number).slice(-4) : '';
       if (rcardExpEl) rcardExpEl.value = editCard.card_expiration || '';
-      if (rcardPinEl) rcardPinEl.value = editCard.card_pin || '';
       document.getElementById('rcard-sub-active').checked = Boolean(editCard.sub_active);
       document.getElementById('rcard-sub-bonus').value = editCard.sub_bonus_label || editCard.sub_bonus_text || '';
       document.getElementById('rcard-sub-deadline').value = editCard.sub_deadline || '';
@@ -9322,10 +9304,8 @@
       if (rcardWebEl) rcardWebEl.value = '';
       const rcardNumEl = document.getElementById('rcard-number');
       const rcardExpEl = document.getElementById('rcard-exp');
-      const rcardPinEl = document.getElementById('rcard-pin');
       if (rcardNumEl) rcardNumEl.value = '';
       if (rcardExpEl) rcardExpEl.value = '';
-      if (rcardPinEl) rcardPinEl.value = '';
       document.getElementById('rcard-sub-active').checked = false;
       document.getElementById('rcard-sub-bonus').value = '';
       document.getElementById('rcard-sub-deadline').value = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
@@ -9370,9 +9350,8 @@
       multipliers: document.getElementById('rcard-multipliers').value.trim(),
       best_for: document.getElementById('rcard-best-for').value.trim(),
       website_url: ((document.getElementById('rcard-website') || {}).value || '').trim(),
-      card_number: ((document.getElementById('rcard-number') || {}).value || '').trim(),
+      card_number: (((document.getElementById('rcard-number') || {}).value || '').replace(/\D/g, '')).slice(-4),
       card_expiration: ((document.getElementById('rcard-exp') || {}).value || '').trim(),
-      card_pin: ((document.getElementById('rcard-pin') || {}).value || '').trim(),
       sub_active: document.getElementById('rcard-sub-active').checked,
       sub_bonus_label: document.getElementById('rcard-sub-bonus').value.trim(),
       sub_deadline: document.getElementById('rcard-sub-deadline').value,

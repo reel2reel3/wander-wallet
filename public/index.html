@@ -2110,18 +2110,15 @@
             </div>
           </div>
 
-          <div class="form-grid-3">
+          <div class="form-grid">
             <div class="form-group">
-              <label class="form-label" for="rcard-number">💳 Credit Card Number</label>
-              <input type="text" id="rcard-number" class="form-input mono" placeholder="e.g., 4147 •••• •••• 9042" autocomplete="off" />
+              <label class="form-label" for="rcard-number">💳 Card Number (Last 4 Digits)</label>
+              <input type="text" id="rcard-number" class="form-input mono" placeholder="e.g., 9042" maxlength="4" autocomplete="off" />
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">Safe &amp; recommended: keep full card numbers &amp; PINs in LastPass.</div>
             </div>
             <div class="form-group">
               <label class="form-label" for="rcard-exp">📅 Expiration Date</label>
-              <input type="text" id="rcard-exp" class="form-input mono" placeholder="MM/YY (e.g., 08/29)" maxlength="10" autocomplete="off" />
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="rcard-pin">🔐 PIN</label>
-              <input type="text" id="rcard-pin" class="form-input mono" placeholder="e.g., 1234" maxlength="12" autocomplete="off" />
+              <input type="text" id="rcard-exp" class="form-input mono" placeholder="MM/YY (e.g., 08/29)" maxlength="7" autocomplete="off" />
             </div>
           </div>
 
