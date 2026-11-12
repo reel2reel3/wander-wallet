@@ -446,89 +446,112 @@
 
         <!-- VIEW 6: REWARDS & LOYALTY COMMAND CENTER -->
         <div id="view-rewards" class="view-section" style="display: none;">
-          <!-- Rewards Top Action Banner -->
-          <section class="panel-card rewards-hero-banner" style="margin-bottom: 18px;">
-            <div class="panel-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px;">
-              <div>
-                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-amber); margin-bottom: 4px;">
-                  🏆 UNIFIED TRAVEL REWARDS, CARDS, FREE NIGHTS &amp; PERKS COMMAND CENTER
+          <!-- Compact & Outlined Rewards Command Center Header -->
+          <section class="panel-card rewards-hero-banner">
+            <div class="reward-card-banner" style="background: linear-gradient(90deg, #10b981 0%, #0ea5e9 50%, #f59e0b 100%);"></div>
+
+            <!-- Row 1: Title + Inline Household Owner Filter (Left) & Streamlined Action Buttons (Right) -->
+            <div class="rewards-compact-top-row">
+              <div class="rewards-compact-brand-group">
+                <h2 class="panel-title" style="font-size: 18px; margin: 0; white-space: nowrap;">🏆 Loyalty &amp; Rewards</h2>
+                <div class="owner-filter-bar inline-owner-bar" id="rewards-owner-filter-bar">
+                  <!-- Populated dynamically by renderOwnerFilterBars() -->
                 </div>
-                <h2 class="panel-title" style="font-size: 20px;">Loyalty &amp; Rewards Command Center</h2>
-                <p class="panel-subtitle" style="margin-top: 3px;">
-                  Unified ecosystem hub connecting your loyalty programs, credit card images, live statement credits ($300 Venture X, resort &amp; airline credits), free night certificates, and trip redemptions.
-                </p>
               </div>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                <button type="button" class="btn btn-sm" id="btn-rewards-back-finance">← Back to Finance Ledger</button>
-                <button type="button" class="btn btn-sm btn-primary" id="btn-open-ai-trip-advisor" style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 55%, #0ea5e9 100%); border: none; font-weight: 800; box-shadow: 0 2px 10px rgba(139, 92, 246, 0.4);">
-                  ✨ AI Trip &amp; Rewards Advisor
+
+              <div class="rewards-compact-actions">
+                <button type="button" class="btn btn-sm btn-primary" id="btn-open-rewards-summary" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); border: none; font-weight: 700;">
+                  📊 Summary
                 </button>
-                <button type="button" class="btn btn-sm btn-primary" id="btn-open-reward-templates" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); border: none; font-weight: 700; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.35);">
-                  ⚡ Smart Add from Database
+                <button type="button" class="btn btn-sm btn-primary" id="btn-update-all-rewards" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; font-weight: 700;">
+                  🔄 Update
                 </button>
-                <button type="button" class="btn btn-sm btn-primary" id="btn-update-all-rewards" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; font-weight: 700; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);">
-                  🔄 Update All Rewards
-                </button>
-                <button type="button" class="btn btn-sm" id="btn-open-add-card">+ Credit Card</button>
-                <button type="button" class="btn btn-sm" id="btn-open-add-program">+ Loyalty Program</button>
-                <button type="button" class="btn btn-sm" id="btn-open-add-cert">+ Free Night / Perk</button>
-                <button type="button" class="btn btn-sm" id="btn-open-add-redemption">+ Log Redemption</button>
+
+                <div class="rewards-add-dropdown-wrap">
+                  <button type="button" class="btn btn-sm btn-primary" id="btn-rewards-add-menu-toggle" style="font-weight: 700;">
+                    + Add ▾
+                  </button>
+                  <div class="rewards-add-dropdown-menu" id="rewards-add-dropdown-menu" style="display: none;">
+                    <button type="button" class="rewards-add-menu-item" id="btn-open-reward-templates">
+                      <span>⚡</span>
+                      <div>
+                        <div style="font-weight: 700;">Smart Add from Database</div>
+                        <div style="font-size: 10.5px; color: var(--text-muted);">Pre-loaded cards, perks &amp; programs</div>
+                      </div>
+                    </button>
+                    <button type="button" class="rewards-add-menu-item" id="btn-open-add-card">
+                      <span>💳</span>
+                      <div>
+                        <div style="font-weight: 700;">+ Credit Card</div>
+                        <div style="font-size: 10.5px; color: var(--text-muted);">Annual fee, multipliers &amp; credits</div>
+                      </div>
+                    </button>
+                    <button type="button" class="rewards-add-menu-item" id="btn-open-add-program">
+                      <span>💎</span>
+                      <div>
+                        <div style="font-weight: 700;">+ Loyalty Program</div>
+                        <div style="font-size: 10.5px; color: var(--text-muted);">Hotel, airline or bank points</div>
+                      </div>
+                    </button>
+                    <button type="button" class="rewards-add-menu-item" id="btn-open-add-cert">
+                      <span>🎟️</span>
+                      <div>
+                        <div style="font-weight: 700;">+ Free Night / Perk</div>
+                        <div style="font-size: 10.5px; color: var(--text-muted);">Free night award or companion pass</div>
+                      </div>
+                    </button>
+                    <button type="button" class="rewards-add-menu-item" id="btn-open-add-redemption">
+                      <span>📓</span>
+                      <div>
+                        <div style="font-weight: 700;">+ Log Redemption</div>
+                        <div style="font-size: 10.5px; color: var(--text-muted);">Record points used &amp; cash saved</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <button type="button" class="btn btn-sm" id="btn-rewards-back-finance" title="Return to Finance Ledger">← Ledger</button>
               </div>
             </div>
 
-            <!-- 5 Portfolio Summary KPIs -->
-            <div class="rewards-kpi-grid" id="rewards-kpi-grid">
-              <!-- Populated dynamically by renderRewardsDashboard() -->
-            </div>
-
-            <!-- Sub-Navigation Tabs inside Rewards Command Center -->
-            <div class="rewards-subnav" role="tablist" aria-label="Rewards Sections">
+            <!-- Row 2: All 6 Shortened Navigation Tabs on One Single Line -->
+            <div class="rewards-subnav compact-subnav" role="tablist" aria-label="Rewards Sections">
               <button type="button" class="rewards-tab-btn active" data-rewards-tab="programs">
-                <span>💎 Unified Loyalty, Cards &amp; Perks Hub</span>
+                <span>💎 Loyalty Hub</span>
                 <span class="nav-badge" id="r-badge-programs">0</span>
               </button>
               <button type="button" class="rewards-tab-btn" data-rewards-tab="cards">
-                <span>💳 Credit Card Wallet &amp; SUB Tracker</span>
+                <span>💳 Credit Cards</span>
                 <span class="nav-badge" id="r-badge-cards">0</span>
               </button>
               <button type="button" class="rewards-tab-btn" data-rewards-tab="certs">
-                <span>🎟️ Free Nights, Companion &amp; Perks</span>
+                <span>🎟️ Free Nights &amp; Perks</span>
                 <span class="nav-badge" id="r-badge-certs">0</span>
               </button>
               <button type="button" class="rewards-tab-btn" data-rewards-tab="matrix">
-                <span>🔄 Transfer Partners &amp; CPP Calculator</span>
+                <span>🔄 Transfer &amp; Calculator</span>
               </button>
               <button type="button" class="rewards-tab-btn" data-rewards-tab="redemptions">
-                <span>📓 Redemptions &amp; Trip Savings Log</span>
+                <span>📓 Redemptions</span>
                 <span class="nav-badge" id="r-badge-redemptions">0</span>
               </button>
               <button type="button" class="rewards-tab-btn ai-advisor-tab-btn" data-rewards-tab="advisor">
-                <span>✨ AI Trip &amp; Rewards Advisor</span>
-                <span class="nav-badge" style="background: linear-gradient(135deg, #8b5cf6, #0ea5e9); color: #fff; border: none;">NEW</span>
+                <span>✨ AI Advisor</span>
               </button>
-            </div>
-
-            <!-- Household Owner Filter Bar (Switch between Everyone / Jim's / Karen's) -->
-            <div class="owner-filter-bar" id="rewards-owner-filter-bar">
-              <!-- Populated dynamically by renderOwnerFilterBars() -->
             </div>
           </section>
 
           <!-- REWARDS TAB 1: UNIFIED LOYALTY, LINKED CARDS & PERKS HUB -->
           <div id="rewards-pane-programs" class="rewards-tab-pane">
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;">
               <div class="category-chips" id="rewards-ecosystem-chips">
                 <button type="button" class="chip-btn active" data-eco-filter="all">All Ecosystems</button>
-                <button type="button" class="chip-btn" data-eco-filter="bank">🏦 Transferable Bank Points</button>
+                <button type="button" class="chip-btn" data-eco-filter="bank">🏦 Bank Points</button>
                 <button type="button" class="chip-btn" data-eco-filter="hotel">🏨 Hotel Loyalty</button>
-                <button type="button" class="chip-btn" data-eco-filter="airline">✈️ Airline Frequent Flyer</button>
-                <button type="button" class="chip-btn" data-eco-filter="other">🚢 Rail / Cruise / Other</button>
+                <button type="button" class="chip-btn" data-eco-filter="airline">✈️ Airlines</button>
+                <button type="button" class="chip-btn" data-eco-filter="other">🚢 Other</button>
               </div>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button type="button" class="btn btn-sm" id="btn-open-eco-colors" title="Customize category banner &amp; outline colors">🎨 Category Colors</button>
-                <button type="button" class="btn btn-sm" id="btn-prog-open-templates">⚡ Browse Card &amp; Program Database</button>
-                <button type="button" class="btn btn-sm btn-primary" id="btn-prog-add-custom">+ Add Loyalty Program</button>
-              </div>
+              <button type="button" class="btn btn-sm" id="btn-open-eco-colors" title="Customize category banner &amp; outline colors">🎨 Category Colors</button>
             </div>
 
             <div class="rewards-cards-grid" id="rewards-programs-grid">
@@ -2651,6 +2674,35 @@
       </div>
       <div class="modal-footer" id="md-modal-footer" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
         <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: REWARDS PORTFOLIO SUMMARY (5 KPI TOTALS POPUP)
+       ========================================================================= -->
+  <div class="modal-backdrop" id="modal-rewards-summary">
+    <div class="modal-dialog" style="max-width: 980px;">
+      <div class="modal-header" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(56, 189, 248, 0.08));">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">📊</span>
+          <div>
+            <h3 class="modal-title">Rewards &amp; Loyalty Portfolio Summary</h3>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              Total points &amp; miles valuation, available free nights, statement credits, and cash saved across your accounts.
+            </p>
+          </div>
+        </div>
+        <button class="modal-close" data-close-modal="modal-rewards-summary">&times;</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="owner-filter-bar" id="summary-modal-owner-filter-bar" style="margin-top: 0;"></div>
+        <div class="rewards-kpi-grid" id="rewards-kpi-grid" style="margin: 0;">
+          <!-- Populated dynamically by renderRewardsDashboard() -->
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: flex-end;">
+        <button type="button" class="btn btn-primary" data-close-modal="modal-rewards-summary">Done</button>
       </div>
     </div>
   </div>

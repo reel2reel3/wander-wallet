@@ -10112,6 +10112,30 @@
         return;
       }
 
+      // Close "+ Add ▾" dropdown menu when clicking outside or on a menu item
+      const addDropdownMenu = document.getElementById('rewards-add-dropdown-menu');
+      if (addDropdownMenu && addDropdownMenu.style.display !== 'none') {
+        if (!e.target.closest('#btn-rewards-add-menu-toggle')) {
+          addDropdownMenu.style.display = 'none';
+        }
+      }
+      if (e.target.closest('#btn-rewards-add-menu-toggle')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (addDropdownMenu) {
+          addDropdownMenu.style.display = addDropdownMenu.style.display === 'none' ? 'flex' : 'none';
+        }
+        return;
+      }
+
+      // Open Rewards Portfolio Summary (5 KPIs Popup)
+      if (e.target.closest('#btn-open-rewards-summary')) {
+        e.preventDefault();
+        renderRewardsDashboard();
+        openModal('modal-rewards-summary');
+        return;
+      }
+
       // Topbar Rewards Command Center launcher / toggle & Back button
       if (e.target.closest('#btn-topbar-rewards')) {
         e.preventDefault();
