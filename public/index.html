@@ -1759,12 +1759,13 @@
               <button type="button" class="btn btn-sm" id="btn-toggle-rprog-db-list" style="font-size: 11px;">▼ Browse All Programs</button>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-              <input type="text" id="rprog-db-search" class="form-input" style="flex: 1; min-width: 220px;" placeholder="🔍 Search database (e.g., Capital One Miles, Hyatt, Hilton, Delta, United, Bilt)..." autocomplete="off" />
+              <input type="text" id="rprog-db-search" class="form-input" style="flex: 1; min-width: 220px;" placeholder="🔍 Search database (e.g., NCL, Royal Caribbean, Carnival, Capital One, Hyatt, Hilton, United)..." autocomplete="off" />
               <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="rprog-db-filter-pills">
                 <button type="button" class="chip-btn active" data-rprog-db-cat="all" style="padding: 3px 8px; font-size: 11px;">All</button>
                 <button type="button" class="chip-btn" data-rprog-db-cat="bank" style="padding: 3px 8px; font-size: 11px;">🏦 Bank</button>
                 <button type="button" class="chip-btn" data-rprog-db-cat="hotel" style="padding: 3px 8px; font-size: 11px;">🏨 Hotel</button>
                 <button type="button" class="chip-btn" data-rprog-db-cat="airline" style="padding: 3px 8px; font-size: 11px;">✈️ Airline</button>
+                <button type="button" class="chip-btn" data-rprog-db-cat="other" style="padding: 3px 8px; font-size: 11px;">🚢 Cruise / Rail</button>
               </div>
             </div>
             <div id="rprog-db-results" class="db-lookup-results" style="display: none;"></div>
@@ -2020,10 +2021,10 @@
                   Select any card (e.g., <strong>Capital One Venture X</strong>, <strong>Chase Sapphire Reserve</strong>, <strong>Amex Platinum</strong>, <strong>Hilton Aspire</strong>) to auto-populate its card image, $300+ statement credits, multipliers, and free nights.
                 </div>
               </div>
-              <button type="button" class="btn btn-sm" id="btn-toggle-rcard-db-list" style="font-size: 11px;">▼ Browse 30+ Cards</button>
+              <button type="button" class="btn btn-sm" id="btn-toggle-rcard-db-list" style="font-size: 11px;">▼ Browse 45+ Cards</button>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-              <input type="text" id="rcard-db-search" class="form-input" style="flex: 1; min-width: 220px;" placeholder="🔍 Type card name (e.g., Venture X, Sapphire, Amex Gold, Aspire, Hyatt, Bilt)..." autocomplete="off" />
+              <input type="text" id="rcard-db-search" class="form-input" style="flex: 1; min-width: 220px;" placeholder="🔍 Type card name (e.g., NCL, Norwegian, Royal Caribbean, United Explorer, Venture X, Sapphire, Amex)..." autocomplete="off" />
               <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="rcard-db-filter-pills">
                 <button type="button" class="chip-btn active" data-rcard-db-issuer="all" style="padding: 3px 8px; font-size: 11px;">All</button>
                 <button type="button" class="chip-btn" data-rcard-db-issuer="Capital One" style="padding: 3px 8px; font-size: 11px;">Capital One</button>
@@ -2031,7 +2032,8 @@
                 <button type="button" class="chip-btn" data-rcard-db-issuer="American Express" style="padding: 3px 8px; font-size: 11px;">Amex</button>
                 <button type="button" class="chip-btn" data-rcard-db-issuer="Hotel" style="padding: 3px 8px; font-size: 11px;">🏨 Hotels</button>
                 <button type="button" class="chip-btn" data-rcard-db-issuer="Airline" style="padding: 3px 8px; font-size: 11px;">✈️ Airlines</button>
-                <button type="button" class="chip-btn" data-rcard-db-issuer="Other" style="padding: 3px 8px; font-size: 11px;">Bilt / Citi / US Bank</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Cruise" style="padding: 3px 8px; font-size: 11px;">🚢 Cruises</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Other" style="padding: 3px 8px; font-size: 11px;">Bilt / Citi / Wells</button>
               </div>
             </div>
             <div id="rcard-db-results" class="db-lookup-results" style="display: none;"></div>
@@ -2071,6 +2073,11 @@
                     <option value="airline-united">United MileagePlus (Rhapsody Blue)</option>
                     <option value="airline-delta">Delta SkyMiles Amex (Reserve Burgundy)</option>
                     <option value="airline-alaska">Alaska Airlines Visa (Deep Pacific Teal)</option>
+                    <option value="airline-aa">Citi AAdvantage Mastercard (Silver Eagle)</option>
+                    <option value="airline-southwest">Southwest Rapid Rewards (Heart Blue &amp; Gold)</option>
+                    <option value="cruise-ncl">Norwegian Cruise Line / HAL (Ocean Teal)</option>
+                    <option value="cruise-royal">Royal Caribbean / Celebrity / Princess (Crown Navy &amp; Gold)</option>
+                    <option value="cruise-carnival">Carnival Cruise Line (FunPoints Crimson &amp; Navy)</option>
                   </select>
                 </div>
                 <div>
@@ -2326,7 +2333,7 @@
         </div>
 
         <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0;">
-          <input type="text" id="tpl-modal-search" class="form-input" style="flex: 1; min-width: 240px;" placeholder="🔍 Filter database by card, bank, hotel, or airline (e.g., Venture X, Sapphire, Amex, Hyatt, Hilton, Delta)..." autocomplete="off" />
+          <input type="text" id="tpl-modal-search" class="form-input" style="flex: 1; min-width: 240px;" placeholder="🔍 Filter database by card, cruise, bank, hotel, or airline (e.g., NCL, Royal Caribbean, United Explorer, Venture X)..." autocomplete="off" />
           <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="tpl-modal-filter-pills">
             <button type="button" class="chip-btn active" data-tpl-filter="all" style="font-size: 11px; padding: 4px 10px;">All</button>
             <button type="button" class="chip-btn" data-tpl-filter="Capital One" style="font-size: 11px; padding: 4px 10px;">Capital One</button>
@@ -2334,6 +2341,7 @@
             <button type="button" class="chip-btn" data-tpl-filter="American Express" style="font-size: 11px; padding: 4px 10px;">Amex</button>
             <button type="button" class="chip-btn" data-tpl-filter="Hotel" style="font-size: 11px; padding: 4px 10px;">🏨 Hotels</button>
             <button type="button" class="chip-btn" data-tpl-filter="Airline" style="font-size: 11px; padding: 4px 10px;">✈️ Airlines</button>
+            <button type="button" class="chip-btn" data-tpl-filter="Cruise" style="font-size: 11px; padding: 4px 10px;">🚢 Cruises</button>
           </div>
         </div>
 

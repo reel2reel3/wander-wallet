@@ -3951,18 +3951,18 @@
     },
     {
       kind: 'card',
-      title: 'United℠ Explorer / Quest Card',
-      subtitle: '$95 Fee • Free Checked Bag + Priority Boarding + 2 United Club Passes',
+      title: 'Chase United℠ Explorer Card',
+      subtitle: '$150 Fee • Free Checked Bag + 2 United Club Passes + $100 United Hotels + $100 Rideshare',
       category: 'Airline',
       data: {
-        name: 'United Explorer Card',
+        name: 'Chase United Explorer Card',
         issuer: 'Chase',
         ecosystem: 'United MileagePlus',
         card_style: 'airline-united',
-        annual_fee: 95,
+        annual_fee: 150,
         renewal_date: '2027-04-01',
         ftf: 'None ($0 Foreign Tx Fee)',
-        multipliers: '2x United Flights, Hotels & Dining • Expanded XN Saver Award Space',
+        multipliers: '2x United Purchases, Hotels (Direct) & Dining • Expanded XN Saver Award Space',
         best_for: 'United Priority Boarding (Carry-On Camera Bags), Free Checked Bags & XN Award Space',
         sub_active: false,
         sub_target_usd: 3000,
@@ -3970,8 +3970,82 @@
         sub_bonus_label: '60,000 United MileagePlus Miles',
         sub_deadline: '2026-12-31',
         credits: [
-          { id: 'c_ua_1', name: '2 United Club One-Time Lounge Passes ($118 value)', total_usd: 118, used_usd: 118 },
-          { id: 'c_ua_2', name: '$120 Global Entry / TSA PreCheck Credit', total_usd: 120, used_usd: 120 }
+          { id: 'c_ua_1', name: '2 United Club One-Time Lounge Passes ($118 value)', total_usd: 118, used_usd: 0 },
+          { id: 'c_ua_2', name: '$100 Annual United Hotels Credit ($50 x 2 prepaid stays)', total_usd: 100, used_usd: 0 },
+          { id: 'c_ua_3', name: '$100 Annual Rideshare Credit ($8/mo Jan–Nov, $12 Dec)', total_usd: 100, used_usd: 0 },
+          { id: 'c_ua_4', name: '$100 Annual Instacart Credit ($10/mo x 2 + 3-mo Instacart+)', total_usd: 100, used_usd: 0 },
+          { id: 'c_ua_5', name: '$50 Annual JSX Flight Statement Credit', total_usd: 50, used_usd: 0 },
+          { id: 'c_ua_6', name: '$120 Global Entry / TSA PreCheck / NEXUS Credit', total_usd: 120, used_usd: 120 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Chase United Quest℠ Card',
+      subtitle: '$350 Fee • $200 United TravelBank Cash + 10,000-Mile Award Discount + $150 Rideshare + 2 Bags',
+      category: 'Airline',
+      data: {
+        name: 'Chase United Quest Card',
+        issuer: 'Chase',
+        ecosystem: 'United MileagePlus',
+        card_style: 'airline-united',
+        annual_fee: 350,
+        renewal_date: '2027-04-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x United Purchases • 2x All Other Travel, Dining & Select Streaming',
+        best_for: 'United Flights, 2 Free Checked Bags, $200 TravelBank Cash & PQP Earning',
+        sub_active: false,
+        sub_target_usd: 4000,
+        sub_spent_manual_usd: 4000,
+        sub_bonus_label: '70,000 United Miles + 500 PQP',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_uaq_1', name: '$200 Annual United TravelBank Cash', total_usd: 200, used_usd: 0 },
+          { id: 'c_uaq_2', name: '10,000-Mile Anniversary Award Flight Discount (~$135 value)', total_usd: 135, used_usd: 0 },
+          { id: 'c_uaq_3', name: '$150 Annual United Hotels Credit ($75 x 2 prepaid stays)', total_usd: 150, used_usd: 0 },
+          { id: 'c_uaq_4', name: '$150 Annual Rideshare Credit ($12/mo Jan–Nov, $18 Dec)', total_usd: 150, used_usd: 0 },
+          { id: 'c_uaq_5', name: '$180 Annual Instacart Credit ($15/mo)', total_usd: 180, used_usd: 0 },
+          { id: 'c_uaq_6', name: '$120 Global Entry / TSA PreCheck / NEXUS Credit', total_usd: 120, used_usd: 120 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Chase United Club℠ Infinite Card',
+      subtitle: '$695 Fee • Full United Club Lounge Membership + 4x United + $200 United Hotels + $150 Rideshare',
+      category: 'Airline',
+      data: {
+        name: 'Chase United Club Infinite Card',
+        issuer: 'Chase',
+        ecosystem: 'United MileagePlus',
+        card_style: 'airline-united',
+        annual_fee: 695,
+        renewal_date: '2027-04-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '4x United Purchases • 2x All Other Travel & Dining • 1x All Else',
+        best_for: 'Unlimited United Club + Star Alliance Lounges, 2 Free Checked Bags & Premier PQP',
+        sub_active: false,
+        sub_target_usd: 5000,
+        sub_spent_manual_usd: 5000,
+        sub_bonus_label: '80,000 United MileagePlus Miles',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_uac_1', name: 'Full United Club Membership ($750/yr value)', total_usd: 750, used_usd: 750 },
+          { id: 'c_uac_2', name: '$200 Annual United Hotels Credit ($100 x 2 prepaid stays)', total_usd: 200, used_usd: 0 },
+          { id: 'c_uac_3', name: '$150 Annual Rideshare Credit ($12/mo Jan–Nov, $18 Dec)', total_usd: 150, used_usd: 0 },
+          { id: 'c_uac_4', name: '$240 Annual Instacart Credit ($20/mo)', total_usd: 240, used_usd: 0 },
+          { id: 'c_uac_5', name: '$120 Global Entry / TSA PreCheck / NEXUS Credit', total_usd: 120, used_usd: 120 }
+        ],
+        bundled_certs: [
+          {
+            title: 'United Club Full Lounge Membership (Cardholder + 2 Guests)',
+            type: 'Lounge & Security Perk',
+            program: 'United MileagePlus',
+            source_card: 'Chase United Club Infinite Card',
+            cap_details: 'Unlimited access to 45+ United Clubs & eligible Star Alliance lounges',
+            est_value_usd: 750,
+            notes: 'Included automatically while United Club Infinite card is open.'
+          }
         ]
       }
     },
@@ -4015,6 +4089,71 @@
     },
     {
       kind: 'card',
+      title: 'Delta SkyMiles® Platinum Amex',
+      subtitle: '$350 Fee • Main Cabin Companion Certificate + $150 Delta Stays + $120 Resy + $2,500 MQD Headstart',
+      category: 'Airline',
+      data: {
+        name: 'Delta SkyMiles Platinum Amex',
+        issuer: 'American Express',
+        ecosystem: 'Delta SkyMiles',
+        card_style: 'airline-delta',
+        annual_fee: 350,
+        renewal_date: '2027-05-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x Delta & Direct Hotels • 2x Dining & US Supermarkets • $2,500 MQD Headstart',
+        best_for: 'Annual Companion Certificate, $2,500 MQD Boost & 15% TakeOff 15 Award Discount',
+        sub_active: false,
+        sub_target_usd: 4000,
+        sub_spent_manual_usd: 4000,
+        sub_bonus_label: '85,000 Delta SkyMiles',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_dlp_1', name: '$150 Annual Delta Stays Hotel Credit', total_usd: 150, used_usd: 0 },
+          { id: 'c_dlp_2', name: '$120 Annual Resy Dining Credit ($10/mo)', total_usd: 120, used_usd: 0 },
+          { id: 'c_dlp_3', name: '$120 Annual Rideshare Credit ($10/mo Uber/Lyft)', total_usd: 120, used_usd: 0 },
+          { id: 'c_dlp_4', name: '$120 Global Entry / TSA PreCheck Credit', total_usd: 120, used_usd: 120 }
+        ],
+        bundled_certs: [
+          {
+            title: 'Delta SkyMiles Main Cabin Companion Certificate',
+            type: 'Companion Pass',
+            program: 'Delta SkyMiles',
+            source_card: 'Delta SkyMiles Platinum Amex',
+            cap_details: 'Roundtrip Main Cabin Companion Ticket (US, Hawaii, Alaska, Caribbean, Central America)',
+            est_value_usd: 420,
+            notes: 'Earned every card renewal anniversary.'
+          }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Delta SkyMiles® Gold Amex',
+      subtitle: '$150 Fee • $100 Delta Stays Credit + $200 Delta Flight Credit (after $10k) + Free Checked Bag',
+      category: 'Airline',
+      data: {
+        name: 'Delta SkyMiles Gold Amex',
+        issuer: 'American Express',
+        ecosystem: 'Delta SkyMiles',
+        card_style: 'airline-delta',
+        annual_fee: 150,
+        renewal_date: '2027-05-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '2x Delta Purchases, Restaurants Worldwide & US Supermarkets • 15% TakeOff 15 Discount',
+        best_for: 'Free First Checked Bag on Delta, 15% Off Award Flights & $100 Delta Stays Credit',
+        sub_active: false,
+        sub_target_usd: 3000,
+        sub_spent_manual_usd: 3000,
+        sub_bonus_label: '70,000 Delta SkyMiles',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_dlg_1', name: '$100 Annual Delta Stays Hotel Credit', total_usd: 100, used_usd: 0 },
+          { id: 'c_dlg_2', name: '$200 Delta Flight Credit (after $10k calendar yr spend)', total_usd: 200, used_usd: 0 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
       title: 'Alaska Airlines Visa Signature®',
       subtitle: '$95 Fee • Famous $99 Companion Fare + Free Checked Bags • 3X Alaska',
       category: 'Airline',
@@ -4050,9 +4189,351 @@
         ]
       }
     },
+    {
+      kind: 'card',
+      title: 'Citi® / AAdvantage® Platinum Select® Mastercard',
+      subtitle: '$99 Fee • Free Checked Bag + Preferred Boarding + $125 AA Flight Discount • 2x AA/Dining/Gas',
+      category: 'Airline',
+      data: {
+        name: 'Citi / AAdvantage Platinum Select',
+        issuer: 'Citi',
+        ecosystem: 'American Airlines AAdvantage',
+        card_style: 'airline-aa',
+        annual_fee: 99,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '2x American Airlines, Restaurants & Gas Stations • 1 Loyalty Point per $1',
+        best_for: 'American Airlines Domestic Checked Bags, Group 5 Boarding & Loyalty Points',
+        sub_active: false,
+        sub_target_usd: 3500,
+        sub_spent_manual_usd: 3500,
+        sub_bonus_label: '75,000 American Airlines AAdvantage Miles',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_aa_1', name: '$125 American Airlines Flight Discount (after $20k spend)', total_usd: 125, used_usd: 0 },
+          { id: 'c_aa_2', name: 'Free First Checked Bag on Domestic AA Flights (up to 4 guests)', total_usd: 140, used_usd: 140 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Citi® / AAdvantage® Executive World Elite Mastercard',
+      subtitle: '$595 Fee • Full Admirals Club Membership + 4x AA + $120 Avis/Budget + $120 Grubhub + $120 Lyft',
+      category: 'Airline',
+      data: {
+        name: 'Citi / AAdvantage Executive Mastercard',
+        issuer: 'Citi',
+        ecosystem: 'American Airlines AAdvantage',
+        card_style: 'airline-aa',
+        annual_fee: 595,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '4x American Airlines • 10x Portal Hotels & Rental Cars • 10k Loyalty Point Bonuses',
+        best_for: 'Admirals Club Lounge Membership, 4x AA Flights & 20,000 Loyalty Point Boosts',
+        sub_active: false,
+        sub_target_usd: 7000,
+        sub_spent_manual_usd: 7000,
+        sub_bonus_label: '70,000 AAdvantage Miles',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_aae_1', name: 'Full Admirals Club® Airport Lounge Membership ($850 value)', total_usd: 850, used_usd: 850 },
+          { id: 'c_aae_2', name: '$120 Annual Avis / Budget Car Rental Statement Credit', total_usd: 120, used_usd: 0 },
+          { id: 'c_aae_3', name: '$120 Annual Grubhub Dining Statement Credit ($10/mo)', total_usd: 120, used_usd: 0 },
+          { id: 'c_aae_4', name: '$120 Annual Lyft Rideshare Credit ($10/mo after 3 rides)', total_usd: 120, used_usd: 0 },
+          { id: 'c_aae_5', name: '$120 Global Entry / TSA PreCheck Credit', total_usd: 120, used_usd: 120 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Southwest Rapid Rewards® Priority Card',
+      subtitle: '$149 Fee • $75 Annual Southwest Credit + 7,500 Anniversary Points + 4 Upgraded Boardings',
+      category: 'Airline',
+      data: {
+        name: 'Southwest Rapid Rewards Priority Card',
+        issuer: 'Chase',
+        ecosystem: 'Southwest Rapid Rewards',
+        card_style: 'airline-southwest',
+        annual_fee: 149,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x Southwest Airlines • 2x Local Transit, Rideshare, Internet, Cable & Streaming',
+        best_for: 'Southwest Flights, $75 Travel Credit, 7,500 Anniversary Pts & Companion Pass Boost',
+        sub_active: false,
+        sub_target_usd: 3000,
+        sub_spent_manual_usd: 3000,
+        sub_bonus_label: '50,000 Southwest Rapid Rewards Points',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_wn_1', name: '$75 Annual Southwest Travel Statement Credit', total_usd: 75, used_usd: 0 },
+          { id: 'c_wn_2', name: '7,500 Anniversary Bonus Points (~$105 value)', total_usd: 105, used_usd: 105 },
+          { id: 'c_wn_3', name: '4 Upgraded Boardings (A1–A15) per Year', total_usd: 160, used_usd: 0 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Chase Aeroplan® Card',
+      subtitle: '$95 Fee • Automatic Aeroplan 25K Elite Status + 3x Grocery, Dining & Air Canada + Pay Yourself Back',
+      category: 'Airline',
+      data: {
+        name: 'Chase Aeroplan Card',
+        issuer: 'Chase',
+        ecosystem: 'Air Canada Aeroplan',
+        card_style: 'sapphire-preferred',
+        annual_fee: 95,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x Grocery Stores, Dining & Air Canada • 500 Bonus Pts per $2,000 Spent',
+        best_for: 'Automatic Aeroplan 25K Status, 10% Transfer Bonus from Chase UR & 3x Groceries/Dining',
+        sub_active: false,
+        sub_target_usd: 4000,
+        sub_spent_manual_usd: 4000,
+        sub_bonus_label: '75,000 Aeroplan Points',
+        sub_deadline: '2026-12-31',
+        auto_status: '25K Elite',
+        credits: [
+          { id: 'c_ac_1', name: '$120 Global Entry / TSA PreCheck / NEXUS Credit', total_usd: 120, used_usd: 120 },
+          { id: 'c_ac_2', name: 'Automatic Aeroplan 25K Elite Status + Free Checked Bag', total_usd: 200, used_usd: 200 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Amex Hilton Honors Surpass® Card',
+      subtitle: '$150 Fee • $200 Annual Hilton Credit ($50/Quarter) + Automatic Gold Status + 12x Hilton',
+      category: 'Hotel',
+      data: {
+        name: 'Amex Hilton Honors Surpass',
+        issuer: 'American Express',
+        ecosystem: 'Hilton Honors',
+        card_style: 'hilton-aspire',
+        annual_fee: 150,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '12x Hilton Hotels • 6x US Restaurants, US Supermarkets & US Gas • 4x US Online Retail',
+        best_for: '$50/Quarter Hilton Property Credit, Automatic Hilton Gold Breakfast & $15k Free Night',
+        sub_active: false,
+        sub_target_usd: 3000,
+        sub_spent_manual_usd: 3000,
+        sub_bonus_label: '150,000 Hilton Honors Points',
+        sub_deadline: '2026-12-31',
+        auto_status: 'Gold',
+        credits: [
+          { id: 'c_hs_1', name: '$200 Annual Hilton Credit ($50/quarter at any Hilton property)', total_usd: 200, used_usd: 0 },
+          { id: 'c_hs_2', name: 'Complimentary Hilton Honors Gold Status (Daily Breakfast / F&B Credit)', total_usd: 250, used_usd: 250 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Wells Fargo Autograph Journey℠',
+      subtitle: '$95 Fee • 5X Hotels + 4X Airlines + 3X Travel & Dining + $50 Annual Airfare Credit',
+      category: 'Other',
+      data: {
+        name: 'Wells Fargo Autograph Journey',
+        issuer: 'Wells Fargo',
+        ecosystem: 'Choice Privileges',
+        card_style: 'citi-strata',
+        annual_fee: 95,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '5x Hotels (Direct) • 4x Airlines (Direct) • 3x Other Travel & Restaurants',
+        best_for: '5x Direct Boutique/Chain Hotels & 4x Direct Flights with $50 Airfare Credit',
+        sub_active: false,
+        sub_target_usd: 4000,
+        sub_spent_manual_usd: 4000,
+        sub_bonus_label: '60,000 Autograph Rewards Points',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_wf_1', name: '$50 Annual Airfare Purchase Statement Credit', total_usd: 50, used_usd: 0 }
+        ]
+      }
+    },
 
     // =========================================================================
-    // LOYALTY PROGRAMS DATABASE (BANK, HOTEL, AIRLINE)
+    // CRUISE LINE CREDIT CARDS (NCL, ROYAL CARIBBEAN, CELEBRITY, CARNIVAL, PRINCESS, HAL, DISNEY)
+    // =========================================================================
+    {
+      kind: 'card',
+      title: 'Norwegian Cruise Line® World Mastercard® (NCL)',
+      subtitle: '$0 Fee • 3X NCL Cruises & Onboard Spend • 2X Air & Hotel • WorldPoints Stateroom Credits & Upgrades',
+      category: 'Cruise',
+      data: {
+        name: 'Norwegian Cruise Line World Mastercard',
+        issuer: 'Bank of America',
+        ecosystem: 'Norwegian Cruise Line (NCL) Latitudes Rewards',
+        card_style: 'cruise-ncl',
+        annual_fee: 0,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x Norwegian Cruise Line Purchases • 2x Airfare & Hotels • 1x All Other Purchases',
+        best_for: '3x NCL Cruise Fares, Free At Sea Upgrades, Shore Excursions & Onboard Spend',
+        sub_active: false,
+        sub_target_usd: 1000,
+        sub_spent_manual_usd: 1000,
+        sub_bonus_label: '20,000 WorldPoints ($200 NCL Onboard Credit / Discount)',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_ncl_1', name: '$100–$300 NCL Onboard Stateroom Credit (WorldPoints Redemption)', total_usd: 200, used_usd: 0 },
+          { id: 'c_ncl_2', name: 'NCL Stateroom Upgrade & Specialty Dining Perks', total_usd: 100, used_usd: 0 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Royal Caribbean® Visa Signature® Card',
+      subtitle: '$0 Fee • 2X Royal Caribbean, Celebrity & Silversea • MyCruise Points Onboard Credits & Upgrades',
+      category: 'Cruise',
+      data: {
+        name: 'Royal Caribbean Visa Signature',
+        issuer: 'Bank of America',
+        ecosystem: 'Royal Caribbean Crown & Anchor Society',
+        card_style: 'cruise-royal',
+        annual_fee: 0,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '2x Royal Caribbean, Celebrity Cruises & Silversea • 1x All Other Purchases',
+        best_for: '2x Royal Caribbean Cruise Fares, CocoCay Excursions & Onboard SeaPass Spend',
+        sub_active: false,
+        sub_target_usd: 1000,
+        sub_spent_manual_usd: 1000,
+        sub_bonus_label: '10,000–25,000 MyCruise Points ($100–$250 Onboard Credit)',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_rccl_1', name: '$50–$250 Royal Caribbean Onboard Stateroom Credit (MyCruise Points)', total_usd: 150, used_usd: 0 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Celebrity Cruises® Visa Signature® Card',
+      subtitle: '$0 Fee • 2X Celebrity Cruises, Royal Caribbean & Silversea • MyCruise Onboard Credits',
+      category: 'Cruise',
+      data: {
+        name: 'Celebrity Cruises Visa Signature',
+        issuer: 'Bank of America',
+        ecosystem: "Celebrity Cruises Captain's Club",
+        card_style: 'cruise-royal',
+        annual_fee: 0,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '2x Celebrity Cruises, Royal Caribbean & Silversea • 1x All Other Purchases',
+        best_for: '2x Celebrity Cruises, Retreat/AquaClass Bookings & Onboard Spend',
+        sub_active: false,
+        sub_target_usd: 1000,
+        sub_spent_manual_usd: 1000,
+        sub_bonus_label: '10,000–25,000 MyCruise Points ($100–$250 Onboard Credit)',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_cel_1', name: '$50–$250 Celebrity Onboard Stateroom Credit (MyCruise Points)', total_usd: 150, used_usd: 0 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Carnival® World Mastercard®',
+      subtitle: '$0 Fee • 2X Carnival & World’s Leading Cruise Lines • 10% Off Shore Excursions',
+      category: 'Cruise',
+      data: {
+        name: 'Carnival World Mastercard',
+        issuer: 'Barclays',
+        ecosystem: 'Carnival VIFP Club',
+        card_style: 'cruise-carnival',
+        annual_fee: 0,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: "2x Carnival, Princess, Holland America, Seabourn & Cunard • 1x All Other Purchases",
+        best_for: '2x Carnival Cruise Line Spend + 10% Statement Credit on Pre-Booked Shore Excursions',
+        sub_active: false,
+        sub_target_usd: 1000,
+        sub_spent_manual_usd: 1000,
+        sub_bonus_label: '20,000 FunPoints ($200 Cruise Statement Credit)',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_ccl_1', name: '10% Off Pre-Booked Carnival Shore Excursions Statement Credit', total_usd: 75, used_usd: 0 },
+          { id: 'c_ccl_2', name: '$100–$200 Onboard Cruise Statement Credit (FunPoints)', total_usd: 150, used_usd: 0 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Princess Cruises® Rewards Visa® Card',
+      subtitle: '$0 Fee • 2X Princess Cruises & World’s Leading Cruise Lines • Onboard Credits & Excursions',
+      category: 'Cruise',
+      data: {
+        name: 'Princess Cruises Rewards Visa',
+        issuer: 'Barclays',
+        ecosystem: "Princess Captain's Circle",
+        card_style: 'cruise-royal',
+        annual_fee: 0,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: "2x Princess Cruises & World's Leading Cruise Lines • 1x All Other Purchases",
+        best_for: '2x Princess Cruises, MedallionPay Onboard Purchases & Alaska/World Cruises',
+        sub_active: false,
+        sub_target_usd: 1000,
+        sub_spent_manual_usd: 1000,
+        sub_bonus_label: '10,000–20,000 Princess Rewards Points ($100–$200 Value)',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_prn_1', name: '$100–$200 Princess Onboard Stateroom Credit / Cruise Statement Credit', total_usd: 150, used_usd: 0 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Holland America Line® Rewards Visa® Card',
+      subtitle: '$0 Fee • 2X Holland America & World’s Leading Cruise Lines • Onboard Credits',
+      category: 'Cruise',
+      data: {
+        name: 'Holland America Line Rewards Visa',
+        issuer: 'Barclays',
+        ecosystem: 'Holland America Mariner Society',
+        card_style: 'cruise-ncl',
+        annual_fee: 0,
+        renewal_date: '2027-06-01',
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: "2x Holland America Line & World's Leading Cruise Lines • 1x All Other Purchases",
+        best_for: '2x Holland America Cruises, Alaska Glacier Sailings & Onboard Spend',
+        sub_active: false,
+        sub_target_usd: 1000,
+        sub_spent_manual_usd: 1000,
+        sub_bonus_label: '10,000–20,000 Holland America Rewards Points',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_hal_1', name: '$50–$200 Holland America Onboard Stateroom Credit', total_usd: 100, used_usd: 0 }
+        ]
+      }
+    },
+    {
+      kind: 'card',
+      title: 'Disney® Premier Visa® Card',
+      subtitle: '$49 Fee • 5X Disney+/Hulu/ESPN+ • 2X Disney Cruise/Parks, Gas, Grocery & Dining • 10% Onboard Perks',
+      category: 'Cruise',
+      data: {
+        name: 'Disney Premier Visa Card',
+        issuer: 'Chase',
+        ecosystem: 'Disney Cruise Line Castaway Club',
+        card_style: 'sapphire-preferred',
+        annual_fee: 49,
+        renewal_date: '2027-06-01',
+        ftf: '3% Foreign Tx Fee',
+        multipliers: '5x Disney+/Hulu/ESPN+ • 2x US Gas, Grocery, Restaurants & Disney Locations • 1x All Else',
+        best_for: 'Disney Cruise Line 10% Onboard Merchandise/Castaway Perks & 0% APR 6-Mo Disney Vacation Promo',
+        sub_active: false,
+        sub_target_usd: 1000,
+        sub_spent_manual_usd: 1000,
+        sub_bonus_label: '$300 Statement Credit + Disney Rewards Dollars',
+        sub_deadline: '2026-12-31',
+        credits: [
+          { id: 'c_dis_1', name: '10% Off Disney Cruise Line Onboard Merchandise & Select Castaway Cay Packages', total_usd: 75, used_usd: 0 }
+        ]
+      }
+    },
+
+    // =========================================================================
+    // LOYALTY PROGRAMS DATABASE (BANK, HOTEL, AIRLINE, CRUISE & RAIL)
     // =========================================================================
     {
       kind: 'program',
@@ -4413,6 +4894,330 @@
         transfer_partners: 'Star Alliance • 1:1 from Amex MR (~48 hrs)',
         notes: 'Sweet spot: US to Tokyo roundtrip in "The Room" Business Class for 105k–110k miles.'
       }
+    },
+    {
+      kind: 'program',
+      title: 'Southwest Rapid Rewards',
+      subtitle: 'Airline Loyalty • Companion Pass (135k pts) + 2 Free Checked Bags • 1:1 from Chase UR & Bilt',
+      category: 'Airline',
+      data: {
+        name: 'Southwest Rapid Rewards',
+        ecosystem: 'airline',
+        status_tier: 'A-List / Companion Pass',
+        member_id: '',
+        points: 85000,
+        cpp: 1.4,
+        qualifying_nights: 75000,
+        target_nights: 135000,
+        metric_label: 'Companion Pass Qualifying Points',
+        expiration_policy: 'Points never expire',
+        transfer_partners: '1:1 Instant from Chase Ultimate Rewards & Bilt Rewards',
+        notes: 'Earn 135,000 qualifying points in a calendar year to unlock the Southwest Companion Pass for up to 2 years!'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'JetBlue TrueBlue',
+      subtitle: 'Airline Loyalty • Mint Business Class Suites + Mosaic Perks • 1:1 from Chase UR',
+      category: 'Airline',
+      data: {
+        name: 'JetBlue TrueBlue',
+        ecosystem: 'airline',
+        status_tier: 'Mosaic 1',
+        member_id: '',
+        points: 60000,
+        cpp: 1.35,
+        qualifying_nights: 25,
+        target_nights: 50,
+        metric_label: 'Mosaic Tiles',
+        expiration_policy: 'Points never expire',
+        transfer_partners: '1:1 from Chase Ultimate Rewards • 2.5:2 from Amex MR & Citi',
+        notes: 'Points pooling with family + Mint lie-flat suites to Europe and cross-country.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Singapore Airlines KrisFlyer',
+      subtitle: 'Star Alliance • Suites & Long-Haul Business Class • 1:1 from Chase, Amex, CapOne & Citi',
+      category: 'Airline',
+      data: {
+        name: 'Singapore Airlines KrisFlyer',
+        ecosystem: 'airline',
+        status_tier: 'KrisFlyer Elite Gold',
+        member_id: '',
+        points: 110000,
+        cpp: 1.65,
+        qualifying_nights: 0,
+        target_nights: 50000,
+        metric_label: 'Elite Miles',
+        expiration_policy: 'Hard 36-month expiration from earning/transfer',
+        transfer_partners: 'Star Alliance • 1:1 from Chase UR, Amex MR, Capital One Miles & Citi ThankYou',
+        notes: 'Best access to Singapore Airlines Business Class & First Suites + monthly Spontaneous Escapes 30% off.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Virgin Atlantic Flying Club',
+      subtitle: 'SkyTeam • ANA First/Business Sweet Spots + 30%–40% Bank Transfer Bonuses',
+      category: 'Airline',
+      data: {
+        name: 'Virgin Atlantic Flying Club',
+        ecosystem: 'airline',
+        status_tier: 'Red / Silver',
+        member_id: '',
+        points: 90000,
+        cpp: 1.75,
+        qualifying_nights: 0,
+        target_nights: 400,
+        metric_label: 'Tier Points',
+        expiration_policy: 'Points never expire',
+        transfer_partners: 'SkyTeam + ANA • 1:1 from Chase UR, Amex MR, Capital One, Bilt & Citi',
+        notes: 'Frequent 30%–40% transfer bonuses from Chase, Amex, Capital One & Citi.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Wyndham Rewards',
+      subtitle: 'Hotel & Vacation Rental Loyalty • 9,000+ Hotels + Vacasa Rentals • 1:1 from Capital One & Citi',
+      category: 'Hotel',
+      data: {
+        name: 'Wyndham Rewards',
+        ecosystem: 'hotel',
+        status_tier: 'Diamond',
+        member_id: '',
+        points: 75000,
+        cpp: 1.1,
+        qualifying_nights: 20,
+        target_nights: 40,
+        metric_label: 'Qualifying Nights',
+        expiration_policy: '18 months inactivity (4-yr hard expiry)',
+        transfer_partners: '1:1 from Capital One Miles & Citi ThankYou Rewards',
+        notes: '7,500 / 15,000 / 30,000 flat award chart + 10% Go Free discount with Wyndham Earner card.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Choice Privileges',
+      subtitle: 'Hotel Loyalty • 1:2 Transfer Ratio from Citi ThankYou • Preferred Hotels & Nordic Sweet Spots',
+      category: 'Hotel',
+      data: {
+        name: 'Choice Privileges',
+        ecosystem: 'hotel',
+        status_tier: 'Diamond',
+        member_id: '',
+        points: 80000,
+        cpp: 0.85,
+        qualifying_nights: 20,
+        target_nights: 40,
+        metric_label: 'Qualifying Nights',
+        expiration_policy: '18 months inactivity',
+        transfer_partners: '1:2 from Citi ThankYou & Wells Fargo • 1:1 from Amex MR & Capital One',
+        notes: 'Huge value in Scandinavia (Clarion/Nordic Choice), Japan, and Preferred Hotels & Resorts.'
+      }
+    },
+
+    // =========================================================================
+    // CRUISE LINE & RAIL LOYALTY PROGRAMS (NCL, ROYAL, CELEBRITY, CARNIVAL, PRINCESS, HAL, DISNEY, VIRGIN, MSC, AMTRAK)
+    // =========================================================================
+    {
+      kind: 'program',
+      title: 'Norwegian Cruise Line (NCL) Latitudes Rewards',
+      subtitle: 'Cruise Loyalty • 7 Tiers (Bronze → Platinum → Sapphire → Diamond → Ambassador) • Specialty Dining & Laundry',
+      category: 'Cruise',
+      data: {
+        name: 'Norwegian Cruise Line (NCL) Latitudes Rewards',
+        ecosystem: 'other',
+        status_tier: 'Platinum',
+        member_id: '',
+        points: 75,
+        cpp: 1.0,
+        qualifying_nights: 75,
+        target_nights: 150,
+        metric_label: 'Latitudes Points (1 pt/night + bonus suite/insider pts)',
+        expiration_policy: 'Latitudes Points never expire',
+        transfer_partners: 'Pairs with NCL Norwegian Cruise Line World Mastercard (3x NCL)',
+        notes: 'Platinum (75+ pts): 2 Free Specialty Dinners for 2 (with bottle of wine), Free Bag of Laundry, Priority Embarkation & 10% Shore Excursion Discount.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Royal Caribbean Crown & Anchor Society',
+      subtitle: 'Cruise Loyalty • Gold → Platinum → Emerald → Diamond → Diamond Plus → Pinnacle • 4–6 Free Daily Drinks',
+      category: 'Cruise',
+      data: {
+        name: 'Royal Caribbean Crown & Anchor Society',
+        ecosystem: 'other',
+        status_tier: 'Diamond',
+        member_id: '',
+        points: 80,
+        cpp: 1.0,
+        qualifying_nights: 80,
+        target_nights: 175,
+        metric_label: 'Cruise Points (1 pt/night, 2 pts/suite or solo)',
+        expiration_policy: 'Cruise Points never expire',
+        transfer_partners: 'Status Match 1:1 across Royal Caribbean, Celebrity Cruises & Silversea!',
+        notes: 'Diamond (80+ pts): 4 Free Daily Alcoholic/Specialty Drink Vouchers ($60/day value), Crown Lounge Access, Free Photo & Wi-Fi Discount.'
+      }
+    },
+    {
+      kind: 'program',
+      title: "Celebrity Cruises Captain's Club",
+      subtitle: 'Cruise Loyalty • Classic → Select → Elite → Elite Plus → Zenith • Reciprocal Status Match w/ Royal Caribbean',
+      category: 'Cruise',
+      data: {
+        name: "Celebrity Cruises Captain's Club",
+        ecosystem: 'other',
+        status_tier: 'Elite',
+        member_id: '',
+        points: 300,
+        cpp: 1.0,
+        qualifying_nights: 300,
+        target_nights: 750,
+        metric_label: 'Club Points (2–18 pts/night by stateroom)',
+        expiration_policy: 'Club Points never expire',
+        transfer_partners: 'Reciprocal tier status match with Royal Caribbean Crown & Anchor & Silversea Venetian Society',
+        notes: 'Elite (300+ pts): Daily Elite Happy Hour (5–7pm complimentary cocktails), Free Laundry Bag, Priority Tender & Wi-Fi/Spa Discounts.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Carnival VIFP Club (Very Important Fun Person)',
+      subtitle: 'Cruise Loyalty • Red → Gold → Platinum (75 days) → Diamond (200 days) • Priority Boarding & Laundry',
+      category: 'Cruise',
+      data: {
+        name: 'Carnival VIFP Club',
+        ecosystem: 'other',
+        status_tier: 'Platinum',
+        member_id: '',
+        points: 75,
+        cpp: 1.0,
+        qualifying_nights: 75,
+        target_nights: 200,
+        metric_label: 'VIFP Points (1 pt per cruise day sailed)',
+        expiration_policy: 'VIFP Points never expire',
+        transfer_partners: 'Pairs with Carnival World Mastercard (2x Carnival + 10% off Shore Excursions)',
+        notes: 'Platinum (75+ days): Priority Check-In & Boarding, Complimentary Wash & Fold Laundry, Priority Main Dining & VIFP Party.'
+      }
+    },
+    {
+      kind: 'program',
+      title: "Princess Captain's Circle",
+      subtitle: 'Cruise Loyalty • Gold → Ruby → Platinum (5 cruises/50 days) → Elite (15 cruises/150 days)',
+      category: 'Cruise',
+      data: {
+        name: "Princess Captain's Circle",
+        ecosystem: 'other',
+        status_tier: 'Platinum',
+        member_id: '',
+        points: 50,
+        cpp: 1.0,
+        qualifying_nights: 50,
+        target_nights: 150,
+        metric_label: 'Cruise Days (or 15 Cruise Credits toward Elite)',
+        expiration_policy: 'Cruise Days never expire',
+        transfer_partners: 'Pairs with Princess Cruises Rewards Visa Card (2x Princess)',
+        notes: 'Platinum: 50% off MedallionNet Wi-Fi packages. Elite: Complimentary Mini-Bar setup, Free Laundry & 10% off Shore Excursions.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Holland America Mariner Society',
+      subtitle: 'Cruise Loyalty • 1-Star → 2-Star → 3-Star → 4-Star → 5-Star Mariner • Specialty Dining & Wine Discounts',
+      category: 'Cruise',
+      data: {
+        name: 'Holland America Mariner Society',
+        ecosystem: 'other',
+        status_tier: '4-Star Mariner',
+        member_id: '',
+        points: 200,
+        cpp: 1.0,
+        qualifying_nights: 200,
+        target_nights: 500,
+        metric_label: 'Cruise Day Credits (1 per day + onboard spend bonus)',
+        expiration_policy: 'Credits never expire',
+        transfer_partners: 'Pairs with Holland America Line Rewards Visa Card',
+        notes: '4-Star Mariner: Complimentary Laundry & Pressing, Priority Boarding/Tendering, 50% off Specialty Restaurants & Wine Packages.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Disney Cruise Line Castaway Club',
+      subtitle: 'Cruise Loyalty • Silver (1+) → Gold (5+) → Platinum (10+) → Pearl (25+ Sailings) • Palo Dinner & Early Booking',
+      category: 'Cruise',
+      data: {
+        name: 'Disney Cruise Line Castaway Club',
+        ecosystem: 'other',
+        status_tier: 'Gold Castaway',
+        member_id: '',
+        points: 5,
+        cpp: 1.0,
+        qualifying_nights: 5,
+        target_nights: 10,
+        metric_label: 'Completed Disney Cruises (10 for Platinum)',
+        expiration_policy: 'Status valid for 5 years from last sailing',
+        transfer_partners: 'Pairs with Chase Disney Premier Visa Card (10% onboard perks)',
+        notes: 'Early itinerary & excursion booking window, Welcome Back stateroom gift, 10% merchandise discount, and complimentary Palo dining at Platinum/Pearl.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Virgin Voyages Sailing Club',
+      subtitle: 'Cruise Loyalty • Sailor → Sea-Blazer → Sea-Rover (Blue Extras / Deep Blue Extras: $100 Bar Tab & Premium Wi-Fi)',
+      category: 'Cruise',
+      data: {
+        name: 'Virgin Voyages Sailing Club',
+        ecosystem: 'other',
+        status_tier: 'Sea-Rover (Deep Blue Extras)',
+        member_id: '',
+        points: 4,
+        cpp: 1.0,
+        qualifying_nights: 4,
+        target_nights: 5,
+        metric_label: 'Qualifying Voyages',
+        expiration_policy: 'Valid for 2–3 years from qualifying voyage',
+        transfer_partners: 'Bookable with Virgin Red / Virgin Atlantic Points during cruise promos',
+        notes: 'Deep Blue Extras: $100 Bonus Bar Tab, Unlimited Premium Wi-Fi, $10/day Specialty Coffee Credit, Free Laundry & Expedited Boarding.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'MSC Voyagers Club',
+      subtitle: 'Cruise Loyalty • Silver → Gold → Diamond → Blue Diamond • Famous Hotel/Cruise Status Match!',
+      category: 'Cruise',
+      data: {
+        name: 'MSC Voyagers Club',
+        ecosystem: 'other',
+        status_tier: 'Diamond',
+        member_id: '',
+        points: 10000,
+        cpp: 1.0,
+        qualifying_nights: 10000,
+        target_nights: 25000,
+        metric_label: 'Voyagers Club Points',
+        expiration_policy: '5 years inactivity',
+        transfer_partners: 'Status Match from Hilton Diamond, Hyatt Globalist, Marriott Platinum, NCL & Royal Caribbean',
+        notes: '5% + 5% Voyagers Exclusives cruise fare discount, Priority Embarkation, Specialty Restaurant Tasting Menu & Thermal Area Spa session.'
+      }
+    },
+    {
+      kind: 'program',
+      title: 'Amtrak Guest Rewards',
+      subtitle: 'Rail Loyalty • Select → Select Plus → Select Executive • High-Value ~2.5¢/pt Acela & Sleeper Roomettes',
+      category: 'Other',
+      data: {
+        name: 'Amtrak Guest Rewards',
+        ecosystem: 'other',
+        status_tier: 'Select Plus',
+        member_id: '',
+        points: 35000,
+        cpp: 2.5,
+        qualifying_nights: 5000,
+        target_nights: 10000,
+        metric_label: 'Tier Qualifying Points (TQPs)',
+        expiration_policy: '24 months inactivity',
+        transfer_partners: 'Amtrak Guest Rewards Preferred Mastercard',
+        notes: 'Fixed-value ~2.5¢–2.67¢/pt redemptions on Northeast Corridor Acela, First Class Upgrades, and Cross-Country Sleeper Roomettes + Metropolitan Lounge access.'
+      }
     }
   ];
 
@@ -4502,6 +5307,42 @@
       notes: 'Pay only taxes & fees ($80 max) for second passenger.'
     },
     {
+      title: 'Southwest Companion Pass (Unlimited BOGO Flights)',
+      type: 'Companion Pass',
+      program: 'Southwest Rapid Rewards',
+      source_card: '135,000 Companion Pass Qualifying Points',
+      cap_details: 'Companion flies free (+ $5.60 tax) on unlimited cash or point flights',
+      est_value_usd: 1500,
+      notes: 'Valid for the remainder of the year earned + the entire following calendar year!'
+    },
+    {
+      title: '2 United Club One-Time Lounge Passes',
+      type: 'Lounge & Security Perk',
+      program: 'United MileagePlus',
+      source_card: 'Chase United Explorer Card',
+      cap_details: '2 One-Time United Club Passes deposited each card anniversary year',
+      est_value_usd: 118,
+      notes: 'Valid at United Club locations when flying United or Star Alliance.'
+    },
+    {
+      title: 'NCL Latitudes Platinum — 2 Complimentary Specialty Dinners for 2 + Free Laundry',
+      type: 'Suite / Flight Upgrade',
+      program: 'Norwegian Cruise Line (NCL) Latitudes Rewards',
+      source_card: 'NCL Latitudes Platinum / Sapphire / Diamond Status',
+      cap_details: '2 Specialty Dinners for 2 (1 w/ Bottle of Wine) + 1 Free Laundry Bag per 7-day sailing',
+      est_value_usd: 280,
+      notes: 'Automatically loaded to your NCL keycard on every 5+ night sailing.'
+    },
+    {
+      title: 'Royal Caribbean Diamond — 4 Free Daily Drink Vouchers per Person',
+      type: 'Suite / Flight Upgrade',
+      program: 'Royal Caribbean Crown & Anchor Society',
+      source_card: 'Crown & Anchor Diamond / Diamond Plus Status',
+      cap_details: '4 complimentary drinks (up to $14 each) every single day of the cruise',
+      est_value_usd: 420,
+      notes: 'Worth ~$56/day ($392 on a 7-night cruise) per Diamond member.'
+    },
+    {
       title: 'Capital One Lounge & Priority Pass Select Membership',
       type: 'Lounge & Security Perk',
       program: 'Capital One Miles',
@@ -4528,6 +5369,11 @@
     if (!card) return 'venture-x';
     if (card.card_style) return card.card_style;
     const raw = `${card.name || ''} ${card.issuer || ''} ${card.ecosystem || ''}`.toLowerCase();
+    if (raw.includes('norwegian') || raw.includes('ncl') || raw.includes('holland america')) return 'cruise-ncl';
+    if (raw.includes('royal caribbean') || raw.includes('celebrity') || raw.includes('princess')) return 'cruise-royal';
+    if (raw.includes('carnival') || raw.includes('virgin voyages') || raw.includes('msc')) return 'cruise-carnival';
+    if (raw.includes('aadvantage') || raw.includes('american airlines')) return 'airline-aa';
+    if (raw.includes('southwest') || raw.includes('rapid rewards')) return 'airline-southwest';
     if (raw.includes('venture')) return 'venture-x';
     if (raw.includes('sapphire reserve')) return 'sapphire-reserve';
     if (raw.includes('sapphire preferred')) return 'sapphire-preferred';
@@ -4632,6 +5478,36 @@
       accent: '#4ade80', accent2: '#38bdf8',
       textColor: '#f8fafc', subColor: '#a7f3d0', chipColor: '#fbbf24',
       issuerText: 'ALASKA AIRLINES', brandLine: 'MILEAGE PLAN', network: 'VISA SIGNATURE'
+    },
+    'airline-aa': {
+      bg1: '#1e293b', bg2: '#334155', bg3: '#0f172a',
+      accent: '#ef4444', accent2: '#38bdf8',
+      textColor: '#f8fafc', subColor: '#cbd5e1', chipColor: '#e2e8f0',
+      issuerText: 'CITI AADVANTAGE', brandLine: 'AADVANTAGE®', network: 'WORLD ELITE'
+    },
+    'airline-southwest': {
+      bg1: '#172554', bg2: '#1d4ed8', bg3: '#1e3a8a',
+      accent: '#f59e0b', accent2: '#ef4444',
+      textColor: '#f8fafc', subColor: '#bfdbfe', chipColor: '#fbbf24',
+      issuerText: 'SOUTHWEST RAPID REWARDS', brandLine: 'PRIORITY', network: 'VISA'
+    },
+    'cruise-ncl': {
+      bg1: '#042f4b', bg2: '#0284c7', bg3: '#0c4a6e',
+      accent: '#2dd4bf', accent2: '#38bdf8',
+      textColor: '#f8fafc', subColor: '#bae6fd', chipColor: '#fbbf24',
+      issuerText: 'NORWEGIAN CRUISE LINE', brandLine: 'NCL WORLD', network: 'WORLD MASTERCARD'
+    },
+    'cruise-royal': {
+      bg1: '#09193a', bg2: '#1e3a8a', bg3: '#0f2557',
+      accent: '#f59e0b', accent2: '#60a5fa',
+      textColor: '#f8fafc', subColor: '#fde68a', chipColor: '#facc15',
+      issuerText: 'ROYAL CARIBBEAN', brandLine: 'CROWN & ANCHOR', network: 'VISA SIGNATURE'
+    },
+    'cruise-carnival': {
+      bg1: '#172554', bg2: '#991b1b', bg3: '#1e1b4b',
+      accent: '#ef4444', accent2: '#38bdf8',
+      textColor: '#f8fafc', subColor: '#fecaca', chipColor: '#e2e8f0',
+      issuerText: 'CARNIVAL CRUISE LINE', brandLine: 'FUNPOINTS®', network: 'WORLD MASTERCARD'
     }
   };
 
@@ -4647,12 +5523,29 @@
     let displayMain = theme.brandLine;
     if (rawName) {
       const upper = rawName.toUpperCase();
-      if (upper.includes('VENTURE X')) displayMain = 'VENTURE X';
+      if (upper.includes('NORWEGIAN') || upper.includes('NCL')) displayMain = 'NCL MASTERCARD';
+      else if (upper.includes('ROYAL CARIBBEAN')) displayMain = 'ROYAL CARIBBEAN';
+      else if (upper.includes('CELEBRITY')) displayMain = 'CELEBRITY CRUISES';
+      else if (upper.includes('CARNIVAL')) displayMain = 'CARNIVAL WORLD';
+      else if (upper.includes('PRINCESS')) displayMain = 'PRINCESS CRUISES';
+      else if (upper.includes('HOLLAND AMERICA')) displayMain = 'HOLLAND AMERICA';
+      else if (upper.includes('DISNEY')) displayMain = 'DISNEY PREMIER';
+      else if (upper.includes('UNITED QUEST')) displayMain = 'UNITED QUEST';
+      else if (upper.includes('UNITED CLUB')) displayMain = 'UNITED CLUB';
+      else if (upper.includes('UNITED') && upper.includes('EXPLORER')) displayMain = 'UNITED EXPLORER';
+      else if (upper.includes('AADVANTAGE') && upper.includes('EXECUTIVE')) displayMain = 'AA EXECUTIVE';
+      else if (upper.includes('AADVANTAGE')) displayMain = 'AADVANTAGE PLATINUM';
+      else if (upper.includes('SOUTHWEST')) displayMain = 'SOUTHWEST PRIORITY';
+      else if (upper.includes('AEROPLAN')) displayMain = 'CHASE AEROPLAN';
+      else if (upper.includes('VENTURE X')) displayMain = 'VENTURE X';
       else if (upper.includes('VENTURE')) displayMain = 'VENTURE';
       else if (upper.includes('SAPPHIRE RESERVE')) displayMain = 'SAPPHIRE RESERVE';
       else if (upper.includes('SAPPHIRE PREFERRED')) displayMain = 'SAPPHIRE PREFERRED';
       else if (upper.includes('INK')) displayMain = 'INK PREFERRED';
       else if (upper.includes('BUSINESS PLATINUM')) displayMain = 'BUSINESS PLATINUM';
+      else if (upper.includes('DELTA') && upper.includes('PLATINUM')) displayMain = 'DELTA PLATINUM';
+      else if (upper.includes('DELTA') && upper.includes('GOLD')) displayMain = 'DELTA GOLD';
+      else if (upper.includes('DELTA') && upper.includes('RESERVE')) displayMain = 'DELTA RESERVE';
       else if (upper.includes('PLATINUM')) displayMain = 'PLATINUM';
       else if (upper.includes('BUSINESS GOLD')) displayMain = 'BUSINESS GOLD';
       else if (upper.includes('GOLD')) displayMain = 'GOLD CARD';
@@ -4846,8 +5739,14 @@
     const cName = normalizeEcoStr(card.name);
     if (!pName) return false;
     if (cEco && (cEco === pName || cEco.includes(pName) || pName.includes(cEco))) return true;
-    // Brand token matching (e.g. "Capital One", "Hyatt", "Hilton", "Marriott", "Bilt", "United", "Delta", "Alaska")
-    const brandTokens = ['capital one', 'chase ultimate', 'amex membership', 'hilton', 'hyatt', 'marriott', 'ihg', 'bilt', 'citi thankyou', 'united', 'delta', 'alaska', 'aeroplan', 'american airlines', 'avios', 'flying blue', 'ana'];
+    // Brand token matching (e.g. "Capital One", "Hyatt", "Hilton", "Marriott", "Bilt", "United", "Delta", "Alaska", "Norwegian", "Royal Caribbean", "Carnival")
+    const brandTokens = [
+      'capital one', 'chase ultimate', 'amex membership', 'hilton', 'hyatt', 'marriott', 'ihg', 'wyndham', 'choice',
+      'bilt', 'citi thankyou', 'united', 'delta', 'alaska', 'aeroplan', 'american airlines', 'aadvantage', 'southwest',
+      'jetblue', 'singapore', 'virgin', 'avios', 'flying blue', 'ana',
+      'norwegian', 'ncl', 'latitudes', 'royal caribbean', 'crown anchor', 'celebrity', 'carnival', 'vifp',
+      'princess', 'holland america', 'disney', 'msc', 'amtrak'
+    ];
     for (const token of brandTokens) {
       if (pName.includes(token) && (cEco.includes(token) || cName.includes(token))) return true;
     }
@@ -4875,7 +5774,11 @@
         }
       }
       // Check brand tokens
-      const brandTokens = ['capital one', 'venture x', 'hyatt', 'hilton', 'marriott', 'ihg', 'bilt', 'united', 'delta', 'alaska', 'aeroplan'];
+      const brandTokens = [
+        'capital one', 'venture x', 'hyatt', 'hilton', 'marriott', 'ihg', 'wyndham', 'choice',
+        'bilt', 'united', 'delta', 'alaska', 'aeroplan', 'american airlines', 'aadvantage', 'southwest',
+        'norwegian', 'ncl', 'royal caribbean', 'celebrity', 'carnival', 'princess', 'holland america', 'disney', 'virgin', 'msc'
+      ];
       for (const token of brandTokens) {
         if (pName.includes(token) && (cProg.includes(token) || cSource.includes(token))) return true;
       }
@@ -4907,9 +5810,11 @@
         const ecoRaw = normalizeEcoStr(cardItem.ecosystem + ' ' + cardItem.name);
         const inferredEco = progTplEntry
           ? progTplEntry.data.ecosystem
-          : (ecoRaw.includes('hilton') || ecoRaw.includes('hyatt') || ecoRaw.includes('marriott') || ecoRaw.includes('ihg'))
+          : (ecoRaw.includes('cruise') || ecoRaw.includes('norwegian') || ecoRaw.includes('ncl') || ecoRaw.includes('latitudes') || ecoRaw.includes('royal caribbean') || ecoRaw.includes('celebrity') || ecoRaw.includes('carnival') || ecoRaw.includes('princess') || ecoRaw.includes('holland america') || ecoRaw.includes('disney') || ecoRaw.includes('amtrak'))
+          ? 'other'
+          : (ecoRaw.includes('hilton') || ecoRaw.includes('hyatt') || ecoRaw.includes('marriott') || ecoRaw.includes('ihg') || ecoRaw.includes('wyndham') || ecoRaw.includes('choice'))
           ? 'hotel'
-          : (ecoRaw.includes('united') || ecoRaw.includes('delta') || ecoRaw.includes('alaska') || ecoRaw.includes('air') || ecoRaw.includes('miles') && !ecoRaw.includes('capital one'))
+          : (ecoRaw.includes('united') || ecoRaw.includes('delta') || ecoRaw.includes('alaska') || ecoRaw.includes('southwest') || ecoRaw.includes('aadvantage') || ecoRaw.includes('jetblue') || ecoRaw.includes('air') || ecoRaw.includes('miles') && !ecoRaw.includes('capital one'))
           ? 'airline'
           : 'bank';
 
@@ -4979,6 +5884,7 @@
     return addedItems;
   }
 
+  let hasAutoMigratedCardFees = false;
   function ensureRewardsStructure() {
     if (!state.rewards || typeof state.rewards !== 'object') {
       state.rewards = getDefaultRewardsData();
@@ -4987,6 +5893,38 @@
     if (!Array.isArray(state.rewards.certificates)) state.rewards.certificates = [];
     if (!Array.isArray(state.rewards.cards)) state.rewards.cards = [];
     if (!Array.isArray(state.rewards.redemptions)) state.rewards.redemptions = [];
+
+    // Auto-migrate existing Chase United Explorer cards from legacy $95/$99 fee to current $150 fee
+    if (!state.rewards.__scoped && Array.isArray(state.rewards.cards)) {
+      let migrated = false;
+      const uaExplorerTpl = POPULAR_REWARD_TEMPLATES.find(
+        t => t.kind === 'card' && String(t.data.name || '').toLowerCase().includes('united explorer')
+      );
+      for (const card of state.rewards.cards) {
+        const cName = String(card.name || '').toLowerCase();
+        if (cName.includes('united') && cName.includes('explorer')) {
+          if (Number(card.annual_fee) === 95 || Number(card.annual_fee) === 99) {
+            card.annual_fee = 150;
+            migrated = true;
+          }
+          // If this United Explorer card previously got mismatched IHG/Hyatt credits or outdated credits, sync its authentic United Explorer credits
+          const hasWrongCredits = Array.isArray(card.credits) && card.credits.some(cr => /ihg|hyatt|40,000-pt/i.test(cr.name || ''));
+          if (uaExplorerTpl && (hasWrongCredits || !Array.isArray(card.credits) || card.credits.length <= 2)) {
+            card.credits = JSON.parse(JSON.stringify(uaExplorerTpl.data.credits));
+            card.multipliers = uaExplorerTpl.data.multipliers;
+            card.best_for = uaExplorerTpl.data.best_for;
+            card.ecosystem = uaExplorerTpl.data.ecosystem;
+            migrated = true;
+          }
+        }
+      }
+      if (migrated && !hasAutoMigratedCardFees) {
+        hasAutoMigratedCardFees = true;
+        setTimeout(() => {
+          apiRequest('/api/rewards', { method: 'PUT', body: JSON.stringify(state.rewards) }).catch(() => {});
+        }, 300);
+      }
+    }
   }
 
   function daysUntilDate(dateStr) {
@@ -5907,10 +6845,22 @@
     if (hay.includes('aeroplan') || hay.includes('air canada')) return 'https://www.aircanada.com/aeroplan';
     if (hay.includes('flying blue') || hay.includes('air france') || hay.includes('klm')) return 'https://www.flyingblue.us';
     if (hay.includes('british airways') || hay.includes('avios')) return 'https://www.britishairways.com/travel/echome/public/en_us';
+    if (hay.includes('virgin voyages')) return 'https://www.virginvoyages.com/sailing-club';
     if (hay.includes('virgin')) return 'https://www.virginatlantic.com/flying-club';
     if (hay.includes('jetblue') || hay.includes('trueblue')) return 'https://www.jetblue.com/trueblue';
     if (hay.includes('ana') || hay.includes('all nippon')) return 'https://www.ana.co.jp/en/us/amc/';
     if (hay.includes('singapore') || hay.includes('krisflyer')) return 'https://www.singaporeair.com/en_UK/us/ppsclub-krisflyer/';
+
+    // Cruise Line & Rail Loyalty Programs
+    if (hay.includes('norwegian') || hay.includes('ncl') || hay.includes('latitudes')) return 'https://www.ncl.com/latitudes-rewards-program';
+    if (hay.includes('royal caribbean') || hay.includes('crown & anchor') || hay.includes('crown and anchor')) return 'https://www.royalcaribbean.com/account';
+    if (hay.includes('celebrity') || hay.includes("captain's club")) return 'https://www.celebritycruises.com/account';
+    if (hay.includes('carnival') || hay.includes('vifp')) return 'https://www.carnival.com/profilemanagement';
+    if (hay.includes('princess') || hay.includes("captain's circle")) return 'https://www.princess.com/myprincess';
+    if (hay.includes('holland america') || hay.includes('mariner society')) return 'https://www.hollandamerica.com/en/us/my-account';
+    if (hay.includes('disney cruise') || hay.includes('castaway club')) return 'https://disneycruise.disney.go.com/why-cruise-disney/castaway-club/';
+    if (hay.includes('msc')) return 'https://www.msccruisesusa.com/manage-booking';
+    if (hay.includes('amtrak')) return 'https://www.amtrak.com/guestrewards';
 
     // Transferable Bank Currencies
     if (hay.includes('chase') || hay.includes('ultimate rewards') || hay.includes('sapphire')) return 'https://secure.chase.com';
@@ -7866,7 +8816,7 @@
       .map((tpl, idx) => ({ tpl, idx }))
       .filter(x => x.tpl.kind === 'card')
       .filter(({ tpl }) => {
-        const hay = normalizeEcoStr(`${tpl.title} ${tpl.subtitle} ${tpl.data.issuer} ${tpl.data.ecosystem} ${tpl.data.best_for}`);
+        const hay = normalizeEcoStr(`${tpl.title} ${tpl.subtitle} ${tpl.category} ${tpl.data.issuer} ${tpl.data.ecosystem} ${tpl.data.best_for}`);
         if (iss !== 'all' && !hay.includes(iss)) return false;
         if (q && !hay.includes(q)) return false;
         return true;
@@ -8450,6 +9400,7 @@
     const cardsList = document.getElementById('template-cards-list');
     const progsList = document.getElementById('template-programs-list');
     const q = normalizeEcoStr(searchQuery);
+    const fNorm = normalizeEcoStr(activeTplModalFilter);
 
     if (cardsList) {
       const cardMatches = POPULAR_REWARD_TEMPLATES
@@ -8457,7 +9408,8 @@
         .filter(x => x.tpl.kind === 'card')
         .filter(({ tpl }) => {
           if (activeTplModalFilter === 'program') return false;
-          const hay = normalizeEcoStr(`${tpl.title} ${tpl.subtitle} ${tpl.data.issuer} ${tpl.data.ecosystem} ${tpl.data.best_for}`);
+          const hay = normalizeEcoStr(`${tpl.title} ${tpl.subtitle} ${tpl.category} ${tpl.data.issuer} ${tpl.data.ecosystem} ${tpl.data.best_for}`);
+          if (fNorm && fNorm !== 'all' && fNorm !== 'card' && !hay.includes(fNorm)) return false;
           return !q || hay.includes(q);
         });
 
@@ -8474,7 +9426,7 @@
             <button type="button" class="btn btn-sm btn-primary" style="white-space: nowrap;" data-add-reward-tpl="${idx}">⚡ + Add Card &amp; Perks</button>
           </div>
         `).join('')
-        : `<div style="padding: 12px; color: var(--text-muted); font-size: 12px;">No matching cards for "${escapeHtml(searchQuery)}".</div>`;
+        : `<div style="padding: 12px; color: var(--text-muted); font-size: 12px;">No matching cards for "${escapeHtml(searchQuery || activeTplModalFilter)}".</div>`;
     }
 
     if (progsList) {
@@ -8484,7 +9436,8 @@
         .filter(({ tpl }) => {
           if (activeTplModalFilter === 'card') return false;
           if (['hotel', 'airline', 'bank'].includes(activeTplModalFilter) && tpl.data.ecosystem !== activeTplModalFilter) return false;
-          const hay = normalizeEcoStr(`${tpl.title} ${tpl.subtitle} ${tpl.data.name} ${tpl.data.transfer_partners}`);
+          const hay = normalizeEcoStr(`${tpl.title} ${tpl.subtitle} ${tpl.category} ${tpl.data.name} ${tpl.data.transfer_partners}`);
+          if (fNorm && fNorm !== 'all' && fNorm !== 'program' && !['hotel', 'airline', 'bank'].includes(activeTplModalFilter) && !hay.includes(fNorm)) return false;
           return !q || hay.includes(q);
         });
 
@@ -8504,7 +9457,7 @@
             </div>
           `;
         }).join('')
-        : `<div style="padding: 12px; color: var(--text-muted); font-size: 12px;">No matching programs for "${escapeHtml(searchQuery)}".</div>`;
+        : `<div style="padding: 12px; color: var(--text-muted); font-size: 12px;">No matching programs for "${escapeHtml(searchQuery || activeTplModalFilter)}".</div>`;
     }
   }
 
@@ -8598,30 +9551,66 @@
 
   function findCatalogMatch(name, kind = 'card') {
     if (!name) return null;
-    const clean = String(name).toLowerCase().replace(/[^a-z0-9]/g, ' ');
+    const clean = normalizeEcoStr(name);
+    if (!clean) return null;
 
-    // 1. Check POPULAR_REWARD_TEMPLATES
+    const STOP_WORDS = new Set([
+      'card', 'credit', 'chase', 'amex', 'american', 'express', 'citi', 'capital', 'bank', 'wells', 'fargo', 'barclays',
+      'visa', 'mastercard', 'signature', 'infinite', 'world', 'elite', 'rewards', 'reward', 'loyalty', 'program',
+      'club', 'miles', 'points', 'plus', 'one', 'the', 'for', 'and', 'with'
+    ]);
+
+    const candidates = [];
     for (const t of POPULAR_REWARD_TEMPLATES) {
       if (t.kind !== kind) continue;
-      const tName = (t.title || t.data.name || '').toLowerCase().replace(/[^a-z0-9]/g, ' ');
-      if (clean.includes(tName) || tName.includes(clean)) return t.data;
-      const keyWords = tName.split(' ').filter(w => w.length > 3);
-      const matchCount = keyWords.filter(w => clean.includes(w)).length;
-      if (keyWords.length > 0 && matchCount >= Math.min(2, keyWords.length)) return t.data;
+      candidates.push({
+        data: t.data,
+        dName: normalizeEcoStr(t.data.name || ''),
+        tTitle: normalizeEcoStr(t.title || '')
+      });
     }
-
-    // 2. Check initial seed defaults
     const seed = getDefaultRewardsData();
-    const list = kind === 'card' ? seed.cards : seed.programs;
-    for (const s of list) {
-      const sName = (s.name || '').toLowerCase().replace(/[^a-z0-9]/g, ' ');
-      if (clean.includes(sName) || sName.includes(clean)) return s;
-      const keyWords = sName.split(' ').filter(w => w.length > 3);
-      const matchCount = keyWords.filter(w => clean.includes(w)).length;
-      if (keyWords.length > 0 && matchCount >= Math.min(2, keyWords.length)) return s;
+    const seedList = kind === 'card' ? seed.cards : seed.programs;
+    for (const s of seedList) {
+      candidates.push({
+        data: s,
+        dName: normalizeEcoStr(s.name || ''),
+        tTitle: normalizeEcoStr(s.name || '')
+      });
     }
 
-    return null;
+    // 1. Exact or full substring match on data.name
+    for (const c of candidates) {
+      if (c.dName && (clean === c.dName || clean.includes(c.dName) || c.dName.includes(clean))) {
+        return c.data;
+      }
+    }
+
+    // 2. Score by distinctive non-stopword tokens
+    const cleanTokens = clean.split(' ').filter(w => w.length >= 3 && !STOP_WORDS.has(w));
+    let bestData = null;
+    let bestScore = 0;
+
+    for (const c of candidates) {
+      const targetStr = `${c.dName} ${c.tTitle}`;
+      const targetTokens = Array.from(new Set(targetStr.split(' ').filter(w => w.length >= 3 && !STOP_WORDS.has(w))));
+      if (targetTokens.length === 0) continue;
+
+      let matched = 0;
+      for (const w of cleanTokens) {
+        if (targetTokens.includes(w)) matched += 2;
+        else if (targetStr.includes(w)) matched += 1;
+      }
+      // Require at least 1 distinctive brand/card word match, and penalize unmatched target tokens
+      const coverage = matched / Math.max(1, targetTokens.length);
+      const score = matched * 10 + coverage;
+      if (matched >= 2 && score > bestScore) {
+        bestScore = score;
+        bestData = c.data;
+      }
+    }
+
+    return bestData;
   }
 
   function openUpdateRewardModal(id, kind = 'card') {
