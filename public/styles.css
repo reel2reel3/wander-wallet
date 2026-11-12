@@ -1606,25 +1606,30 @@ body {
 .rewards-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 
 .reward-item-card {
   position: relative;
   overflow: hidden;
   background-color: var(--bg-surface);
-  border: 1.5px solid var(--border-subtle);
+  border: 2px solid #0f172a;
   border-radius: var(--radius-md);
   padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: var(--shadow-sm);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.55), 0 4px 10px -2px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(148, 163, 184, 0.22);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+[data-theme="light"] .reward-item-card {
+  border: 2px solid #1e293b;
+  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.22), 0 4px 10px -2px rgba(15, 23, 42, 0.14);
 }
 
 .reward-item-card.color-coded {
-  padding-top: 22px;
+  padding-top: 26px;
 }
 
 .reward-card-banner {
@@ -1632,12 +1637,19 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 6px;
+  height: 12px;
+  border-bottom: 1.5px solid rgba(15, 23, 42, 0.25);
   pointer-events: none;
 }
 
 .reward-item-card:hover {
-  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px -4px rgba(0, 0, 0, 0.65), 0 6px 14px -2px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(148, 163, 184, 0.35);
+}
+
+[data-theme="light"] .reward-item-card:hover {
+  border-color: #0f172a;
+  box-shadow: 0 12px 26px -4px rgba(15, 23, 42, 0.3), 0 6px 12px -2px rgba(15, 23, 42, 0.18);
 }
 
 .btn-color-edit-inline {

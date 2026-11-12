@@ -6209,7 +6209,7 @@
       const curMiniTab = activeProgramCardMiniTabs[p.id] || 'overview';
 
       return `
-        <div class="reward-item-card color-coded" style="border-color: ${hexToRgba(cardColor, 0.65)}; background-image: linear-gradient(180deg, ${hexToRgba(cardColor, 0.09)} 0%, transparent 90px);">
+        <div class="reward-item-card color-coded" style="background-image: linear-gradient(180deg, ${hexToRgba(cardColor, 0.16)} 0%, transparent 105px);">
           <div class="reward-card-banner" style="background: ${cardColor};"></div>
 
           <!-- 1. Clean Header: Category + Program Name + Status Tier -->
@@ -6427,7 +6427,7 @@
       const certColor = getEcosystemColor(certEcoKey);
 
       return `
-        <div class="reward-item-card color-coded" style="${isRedeemed ? 'opacity: 0.72;' : ''} border-color: ${hexToRgba(certColor, 0.65)}; background-image: linear-gradient(180deg, ${hexToRgba(certColor, 0.09)} 0%, transparent 90px);">
+        <div class="reward-item-card color-coded" style="${isRedeemed ? 'opacity: 0.72;' : ''} background-image: linear-gradient(180deg, ${hexToRgba(certColor, 0.16)} 0%, transparent 105px);">
           <div class="reward-card-banner" style="background: ${certColor};"></div>
           <div class="reward-card-top">
             <div>
@@ -6597,9 +6597,13 @@
             (cert.source_card || '').toLowerCase() === (cardName || '').toLowerCase()
           );
       const availCardCerts = cardCerts.filter(cert => cert.status !== 'redeemed');
+      const cardBannerColor = linkedProg
+        ? (linkedProg.custom_color || getEcosystemColor(linkedProg.ecosystem))
+        : getEcosystemColor('bank');
 
       return `
-        <div class="reward-item-card">
+        <div class="reward-item-card color-coded" style="background-image: linear-gradient(180deg, ${hexToRgba(cardBannerColor, 0.16)} 0%, transparent 105px);">
+          <div class="reward-card-banner" style="background: ${cardBannerColor};"></div>
           <!-- 1. Clean Header: Card Image + Card Name + Net Keeper Badge -->
           <div class="reward-card-top" style="align-items: center;">
             <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; cursor: pointer;" data-open-card-md="${escapeHtml(c.id)}" data-md-tab="overview" title="Click to open Card Mini-Dashboard">
