@@ -50,7 +50,7 @@
   };
 
   const ECOSYSTEM_META = {
-    bank: { icon: '🏦', label: 'Transferable Bank Points', tag: 'positive' },
+    bank: { icon: '🏦', label: 'Bank Points', tag: 'positive' },
     hotel: { icon: '🏨', label: 'Hotel Loyalty', tag: 'amber' },
     airline: { icon: '✈️', label: 'Airline Frequent Flyer', tag: 'sky' },
     other: { icon: '🚢', label: 'Travel Rewards & Other', tag: 'sky' }
