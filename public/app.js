@@ -5562,6 +5562,13 @@
     const safeIssuer = rawIssuer.replace(/[&<>'"]/g, '').slice(0, 22);
     const safeMain = displayMain.replace(/[&<>'"]/g, '');
     const safeNet = theme.network.replace(/[&<>'"]/g, '');
+    const rawDigits = card && card.card_number ? String(card.card_number).replace(/\D/g, '') : '';
+    const last4 = rawDigits.length >= 4
+      ? rawDigits.slice(-4)
+      : (card && card.card_number && String(card.card_number).trim().slice(-4).replace(/[&<>'"]/g, '')) || '9042';
+    const expTxt = card && card.card_expiration
+      ? `EXP ${String(card.card_expiration).trim().replace(/[&<>'"]/g, '').slice(0, 8)}`
+      : 'WORLD TRAVEL CARD';
 
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 202" width="320" height="202">
       <defs>
@@ -5593,12 +5600,63 @@
       <!-- Center / Hero Card Name -->
       <text x="22" y="134" font-family="Inter, system-ui, sans-serif" font-size="18.5" font-weight="900" letter-spacing="1.5" fill="${theme.textColor}">${safeMain}</text>
       <!-- Masked Card Digits -->
-      <text x="22" y="156" font-family="JetBrains Mono, monospace" font-size="10.5" font-weight="600" letter-spacing="2" fill="${theme.subColor}" opacity="0.85">•••• •••• •••• 9042</text>
+      <text x="22" y="156" font-family="JetBrains Mono, monospace" font-size="10.5" font-weight="600" letter-spacing="2" fill="${theme.subColor}" opacity="0.85">•••• •••• •••• ${last4}</text>
       <!-- Bottom Left Ecosystem & Bottom Right Network -->
-      <text x="22" y="180" font-family="Inter, system-ui, sans-serif" font-size="9.5" font-weight="700" letter-spacing="0.8" fill="${theme.subColor}" opacity="0.9">WORLD TRAVEL CARD</text>
+      <text x="22" y="180" font-family="Inter, system-ui, sans-serif" font-size="9.5" font-weight="700" letter-spacing="0.8" fill="${theme.subColor}" opacity="0.9">${expTxt}</text>
       <text x="296" y="180" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="10.5" font-weight="900" letter-spacing="1.2" fill="${theme.textColor}">${safeNet}</text>
     </svg>`;
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  }
+
+  const revealedCardSecrets = {};
+  function renderCardCredentialsStripHtml(card, showAddHint = false) {
+    if (!card) return '';
+    const num = String(card.card_number || '').trim();
+    const exp = String(card.card_expiration || '').trim();
+    const pin = String(card.card_pin || '').trim();
+
+    if (!num && !exp && !pin) {
+      if (!showAddHint) return '';
+      return `
+        <div class="cc-credentials-bar">
+          <button type="button" class="cc-cred-chip" data-edit-rcard="${escapeHtml(card.id)}" title="Add Credit Card Number, Expiration Date &amp; PIN">
+            ➕ Add Card # / Exp / PIN
+          </button>
+        </div>
+      `;
+    }
+
+    const isRevealed = Boolean(revealedCardSecrets[card.id]);
+    const digitsOnly = num.replace(/\D/g, '');
+    const maskedNum = isRevealed
+      ? num
+      : (digitsOnly.length >= 4 ? `•••• ${digitsOnly.slice(-4)}` : (num.length > 4 ? `•••• ${num.slice(-4)}` : num));
+    const maskedPin = isRevealed ? pin : '••••';
+
+    return `
+      <div class="cc-credentials-bar">
+        ${num ? `
+          <button type="button" class="cc-cred-chip mono" data-copy-secret="${escapeHtml(num)}" data-secret-label="Card Number" title="Click to copy Card Number (${escapeHtml(isRevealed ? num : maskedNum)})">
+            💳 ${escapeHtml(maskedNum)} 📋
+          </button>
+        ` : ''}
+        ${exp ? `
+          <button type="button" class="cc-cred-chip mono" data-copy-secret="${escapeHtml(exp)}" data-secret-label="Expiration Date" title="Click to copy Expiration Date">
+            📅 Exp: ${escapeHtml(exp)}
+          </button>
+        ` : ''}
+        ${pin ? `
+          <button type="button" class="cc-cred-chip mono" data-copy-secret="${escapeHtml(pin)}" data-secret-label="Card PIN" title="Click to copy PIN">
+            🔐 PIN: ${escapeHtml(maskedPin)}
+          </button>
+        ` : ''}
+        ${(num || pin) ? `
+          <button type="button" class="cc-cred-chip" data-toggle-card-secret="${escapeHtml(card.id)}" title="${isRevealed ? 'Hide Card # & PIN' : 'Show full Card # & PIN'}">
+            ${isRevealed ? '🙈 Hide' : '👁️ Show'}
+          </button>
+        ` : ''}
+      </div>
+    `;
   }
 
   function renderCreditCardArtHtml(card, sizeClass = 'cc-art-sm') {
@@ -7159,13 +7217,14 @@
       const curMiniTab = activeProgramCardMiniTabs[p.id] || 'overview';
 
       return `
-        <div class="reward-item-card color-coded" style="background-image: linear-gradient(180deg, ${hexToRgba(cardColor, 0.16)} 0%, transparent 105px);">
+        <div class="reward-item-card color-coded" draggable="true" data-drag-reward-kind="program" data-drag-reward-id="${escapeHtml(p.id)}" style="background-image: linear-gradient(180deg, ${hexToRgba(cardColor, 0.16)} 0%, transparent 105px);">
           <div class="reward-card-banner" style="background: ${cardColor};"></div>
 
-          <!-- 1. Clean Header: Category + Program Name + Status Tier -->
+          <!-- 1. Clean Header: Grab Handle + Category + Program Name + Status Tier -->
           <div class="reward-card-top">
             <div style="min-width: 0; flex: 1;">
               <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span class="reward-drag-handle" data-move-reward-top="program" data-move-reward-id="${escapeHtml(p.id)}" title="Drag to reorder program (or double-click to move to top)">⠿</span>
                 <span class="reward-ecosystem-pill" style="background-color: ${hexToRgba(cardColor, 0.15)}; border-color: ${hexToRgba(cardColor, 0.65)}; color: var(--text-primary);">
                   <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${cardColor};"></span>
                   ${meta.icon} ${escapeHtml(meta.label)}
@@ -7197,7 +7256,7 @@
               ${renderQuickPointsBlockHtml(p, false)}
             </div>
 
-            <!-- Primary Linked Card Image, Name & Annual Fee Strip -->
+            <!-- Primary Linked Card Image, Name, Credentials & Annual Fee Strip -->
             ${primaryCard ? `
               <div class="reward-condensed-card-strip" data-open-prog-md="${escapeHtml(p.id)}" data-md-tab="credits" title="Click to open full Card & Perks Mini-Dashboard">
                 ${renderCreditCardArtHtml(primaryCard, 'cc-art-sm')}
@@ -7211,6 +7270,7 @@
                       Fee: ${fmtUsdCompact(progAnnualFees)}/yr
                     </span>
                   </div>
+                  ${renderCardCredentialsStripHtml(primaryCard, false)}
                   <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     ⚡ ${escapeHtml(primaryCard.multipliers || primaryCard.best_for || 'Linked Travel Card')}
                   </div>
@@ -7377,11 +7437,12 @@
       const certColor = getEcosystemColor(certEcoKey);
 
       return `
-        <div class="reward-item-card color-coded" style="${isRedeemed ? 'opacity: 0.72;' : ''} background-image: linear-gradient(180deg, ${hexToRgba(certColor, 0.16)} 0%, transparent 105px);">
+        <div class="reward-item-card color-coded" draggable="true" data-drag-reward-kind="cert" data-drag-reward-id="${escapeHtml(c.id)}" style="${isRedeemed ? 'opacity: 0.72;' : ''} background-image: linear-gradient(180deg, ${hexToRgba(certColor, 0.16)} 0%, transparent 105px);">
           <div class="reward-card-banner" style="background: ${certColor};"></div>
           <div class="reward-card-top">
             <div>
               <div style="display: inline-flex; align-items: center; gap: 6px;">
+                <span class="reward-drag-handle" data-move-reward-top="cert" data-move-reward-id="${escapeHtml(c.id)}" title="Drag to reorder certificate/perk (or double-click to move to top)">⠿</span>
                 <span class="reward-ecosystem-pill" style="background-color: ${hexToRgba(certColor, 0.15)}; border-color: ${hexToRgba(certColor, 0.65)}; color: var(--text-primary);">
                   <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${certColor};"></span>
                   🎟️ ${escapeHtml(c.type || 'Free Night Certificate')}
@@ -7552,52 +7613,67 @@
         : getEcosystemColor('bank');
 
       return `
-        <div class="reward-item-card color-coded" style="background-image: linear-gradient(180deg, ${hexToRgba(cardBannerColor, 0.16)} 0%, transparent 105px);">
+        <div class="reward-item-card color-coded" draggable="true" data-drag-reward-kind="card" data-drag-reward-id="${escapeHtml(c.id)}" style="background-image: linear-gradient(180deg, ${hexToRgba(cardBannerColor, 0.16)} 0%, transparent 105px);">
           <div class="reward-card-banner" style="background: ${cardBannerColor};"></div>
-          <!-- 1. Clean Header: Card Image + Card Name + Net Keeper Badge -->
-          <div class="reward-card-top" style="align-items: center;">
-            <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; cursor: pointer;" data-open-card-md="${escapeHtml(c.id)}" data-md-tab="overview" title="Click to open Card Mini-Dashboard">
-              ${renderCreditCardArtHtml(c, 'cc-art-md')}
-              <div style="min-width: 0; flex: 1;">
-                <span class="reward-ecosystem-pill">💳 ${escapeHtml(c.issuer || 'Bank')} • ${escapeHtml(c.ecosystem || c.points_program || 'Rewards')}</span>
-                <h4 style="font-size: 16px; font-weight: 800; margin-top: 5px; color: var(--text-primary); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <span>${escapeHtml(cardName)}</span>
-                  ${ownerBadgeHtml(c)}
-                </h4>
-                <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 2px;">
-                  ${linkedProg ? `<span style="color: var(--accent-primary); font-weight: 600;">🔗 ${escapeHtml(linkedProg.name)} (${progPts.toLocaleString('en-US')} pts)</span>` : `<span>Standalone Travel Card</span>`}
-                </div>
+
+          <!-- 1. Clean Full-Width Header: Grab Handle + Issuer Pill + Full-Width Card Name + Keeper/Fee Badge -->
+          <div class="reward-card-top">
+            <div style="min-width: 0; flex: 1;">
+              <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span class="reward-drag-handle" data-move-reward-top="card" data-move-reward-id="${escapeHtml(c.id)}" title="Drag to reorder credit card (or double-click to move to top)">⠿</span>
+                <span class="reward-ecosystem-pill" style="background-color: ${hexToRgba(cardBannerColor, 0.15)}; border-color: ${hexToRgba(cardBannerColor, 0.65)}; color: var(--text-primary);">
+                  <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${cardBannerColor};"></span>
+                  💳 ${escapeHtml(c.issuer || 'Bank')} • ${escapeHtml(c.ecosystem || c.points_program || 'Rewards')}
+                </span>
               </div>
+              <h4 style="font-size: 16.5px; font-weight: 800; margin-top: 5px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span>${escapeHtml(cardName)}</span>
+                ${ownerBadgeHtml(c)}
+              </h4>
             </div>
-            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0;">
               <span class="kpi-tag ${netOffset >= 0 ? 'positive' : 'sky'}">
                 ${netOffset >= 0 ? `✓ +${fmtUsdCompact(netOffset)} Net Keeper` : `${fmtUsdCompact(fee)}/yr Fee`}
               </span>
-              ${!linkedProg ? `
-                <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 10.5px;" data-auto-integrate-card="${escapeHtml(c.id)}">
-                  🔗 Link Program
+              <div style="display: inline-flex; align-items: center; gap: 4px;">
+                <button type="button" class="btn btn-sm" style="padding: 1px 8px; font-size: 10.5px;" data-edit-rcard="${escapeHtml(c.id)}" title="Edit card details, card #, expiration, PIN &amp; credits">
+                  ✎ Edit
                 </button>
-              ` : ''}
+                ${!linkedProg ? `
+                  <button type="button" class="btn btn-sm" style="padding: 1px 7px; font-size: 10.5px;" data-auto-integrate-card="${escapeHtml(c.id)}" title="Link Loyalty Program">
+                    🔗 Link
+                  </button>
+                ` : ''}
+              </div>
             </div>
           </div>
 
-          <!-- 2. Points / Miles Available (if linked) + Multipliers + 3 Interactive Action Buttons -->
+          <!-- 2. Condensed Showcase: Points Available + Sleek Horizontal Card Art & Credentials Strip + 3 Action Buttons -->
           <div class="reward-condensed-showcase">
             ${linkedProg ? `
               <div class="reward-condensed-primary-row">
                 ${renderQuickPointsBlockHtml(linkedProg, false)}
-                <div style="text-align: right;">
-                  <div style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">Program</div>
-                  <div style="font-size: 12.5px; color: var(--accent-primary); font-weight: 700;">${escapeHtml(linkedProg.name)}</div>
-                </div>
               </div>
             ` : ''}
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px; color: var(--text-secondary);">
-              <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                ⚡ <strong>Multipliers:</strong> ${escapeHtml(c.multipliers || '1x–5x Travel')}
-              </span>
-              <span class="mono" style="font-weight: 700; flex-shrink: 0;">Fee: ${fmtUsdCompact(fee)}/yr</span>
+
+            <div class="reward-condensed-card-strip" data-open-card-md="${escapeHtml(c.id)}" data-md-tab="overview" title="Click to open Card Mini-Dashboard">
+              ${renderCreditCardArtHtml(c, 'cc-art-sm')}
+              <div style="min-width: 0; flex: 1;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;">
+                  <span style="font-size: 12.5px; font-weight: 700; color: ${linkedProg ? 'var(--accent-primary)' : 'var(--text-primary)'};">
+                    ${linkedProg ? `🔗 ${escapeHtml(linkedProg.name)}` : `💳 ${escapeHtml(c.issuer || 'Travel Card')}`}
+                  </span>
+                  <span class="mono" style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">
+                    Fee: ${fmtUsdCompact(fee)}/yr
+                  </span>
+                </div>
+                ${renderCardCredentialsStripHtml(c, true)}
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  ⚡ ${escapeHtml(c.multipliers || c.best_for || '1x–5x Travel Rewards')}
+                </div>
+              </div>
             </div>
+
             <!-- 3 Interactive Action Buttons: (1) Details (2) Free Nights (3) Website -->
             <div class="reward-quick-stat-pills">
               <button
@@ -7760,6 +7836,7 @@
               <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
                 💳 <strong>${escapeHtml(primaryCard.name)}</strong> • Fee: <strong>${fmtUsd(totalFees)}/yr</strong> • ⚡ ${escapeHtml(primaryCard.multipliers || 'Travel Rewards')}
               </div>
+              ${renderCardCredentialsStripHtml(primaryCard, true)}
             ` : ''}
           </div>
         </div>
@@ -7853,6 +7930,7 @@
                   <div>
                     <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${escapeHtml(c.name)} ${ownerBadgeHtml(c, 'xs')}</div>
                     <div style="font-size: 11px; color: var(--text-muted);">Annual Fee: ${fmtUsd(c.annual_fee || 0)}/yr • Renews: ${escapeHtml(c.renewal_date || 'Annual')}</div>
+                    ${renderCardCredentialsStripHtml(c, true)}
                   </div>
                 </div>
                 <button type="button" class="btn btn-sm" data-md-edit-card="${escapeHtml(c.id)}">✎ Edit Card &amp; Credits</button>
@@ -8796,7 +8874,9 @@
       name: (document.getElementById('rcard-name') || {}).value || 'Travel Rewards Card',
       issuer: (document.getElementById('rcard-issuer') || {}).value || 'Bank',
       card_style: (document.getElementById('rcard-style-preset') || {}).value || 'auto',
-      image_url: (document.getElementById('rcard-image-url') || {}).value || ''
+      image_url: (document.getElementById('rcard-image-url') || {}).value || '',
+      card_number: (document.getElementById('rcard-number') || {}).value || '',
+      card_expiration: (document.getElementById('rcard-exp') || {}).value || ''
     };
     previewBox.innerHTML = renderCreditCardArtHtml(tempCard, 'cc-art-lg');
   }
@@ -9210,6 +9290,12 @@
       document.getElementById('rcard-best-for').value = editCard.best_for || editCard.perks || '';
       const rcardWebEl = document.getElementById('rcard-website');
       if (rcardWebEl) rcardWebEl.value = editCard.website_url || resolveRewardWebsiteUrl(editCard, true);
+      const rcardNumEl = document.getElementById('rcard-number');
+      const rcardExpEl = document.getElementById('rcard-exp');
+      const rcardPinEl = document.getElementById('rcard-pin');
+      if (rcardNumEl) rcardNumEl.value = editCard.card_number || '';
+      if (rcardExpEl) rcardExpEl.value = editCard.card_expiration || '';
+      if (rcardPinEl) rcardPinEl.value = editCard.card_pin || '';
       document.getElementById('rcard-sub-active').checked = Boolean(editCard.sub_active);
       document.getElementById('rcard-sub-bonus').value = editCard.sub_bonus_label || editCard.sub_bonus_text || '';
       document.getElementById('rcard-sub-deadline').value = editCard.sub_deadline || '';
@@ -9234,6 +9320,12 @@
       document.getElementById('rcard-best-for').value = '';
       const rcardWebEl = document.getElementById('rcard-website');
       if (rcardWebEl) rcardWebEl.value = '';
+      const rcardNumEl = document.getElementById('rcard-number');
+      const rcardExpEl = document.getElementById('rcard-exp');
+      const rcardPinEl = document.getElementById('rcard-pin');
+      if (rcardNumEl) rcardNumEl.value = '';
+      if (rcardExpEl) rcardExpEl.value = '';
+      if (rcardPinEl) rcardPinEl.value = '';
       document.getElementById('rcard-sub-active').checked = false;
       document.getElementById('rcard-sub-bonus').value = '';
       document.getElementById('rcard-sub-deadline').value = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
@@ -9278,6 +9370,9 @@
       multipliers: document.getElementById('rcard-multipliers').value.trim(),
       best_for: document.getElementById('rcard-best-for').value.trim(),
       website_url: ((document.getElementById('rcard-website') || {}).value || '').trim(),
+      card_number: ((document.getElementById('rcard-number') || {}).value || '').trim(),
+      card_expiration: ((document.getElementById('rcard-exp') || {}).value || '').trim(),
+      card_pin: ((document.getElementById('rcard-pin') || {}).value || '').trim(),
       sub_active: document.getElementById('rcard-sub-active').checked,
       sub_bonus_label: document.getElementById('rcard-sub-bonus').value.trim(),
       sub_deadline: document.getElementById('rcard-sub-deadline').value,
@@ -10769,7 +10864,7 @@
         renderRcertDbResults(t.value);
       } else if (t.id === 'tpl-modal-search') {
         renderRewardTemplatesModalContent(t.value, activeTplModalFilter);
-      } else if (t.id === 'rcard-name' || t.id === 'rcard-issuer' || t.id === 'rcard-image-url') {
+      } else if (t.id === 'rcard-name' || t.id === 'rcard-issuer' || t.id === 'rcard-image-url' || t.id === 'rcard-number' || t.id === 'rcard-exp') {
         updateRcardArtPreview();
       } else if (t.hasAttribute && (t.hasAttribute('data-slider-card-credit') || t.hasAttribute('data-input-card-credit'))) {
         // Live sync accompanying number input / slider and auto-calculate "Reward Available: $XX.XX"
@@ -11182,6 +11277,35 @@
           await navigator.clipboard.writeText(memId);
         } catch (err) {}
         showToast(`Copied Member ID: ${memId}`);
+        return;
+      }
+
+      // Toggle Card Number / PIN reveal
+      const toggleSecretBtn = e.target.closest('[data-toggle-card-secret]');
+      if (toggleSecretBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const cardId = toggleSecretBtn.getAttribute('data-toggle-card-secret');
+        if (cardId) {
+          revealedCardSecrets[cardId] = !revealedCardSecrets[cardId];
+          renderRewardsDashboard();
+        }
+        return;
+      }
+
+      // Copy Card Number, Expiration Date, or PIN to clipboard
+      const copySecretBtn = e.target.closest('[data-copy-secret]');
+      if (copySecretBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const secretVal = copySecretBtn.getAttribute('data-copy-secret') || '';
+        const secretLabel = copySecretBtn.getAttribute('data-copy-label') || 'Card Info';
+        if (secretVal) {
+          try {
+            await navigator.clipboard.writeText(secretVal);
+          } catch (err) {}
+          showToast(`📋 Copied ${secretLabel} to clipboard!`);
+        }
         return;
       }
 
@@ -12456,6 +12580,110 @@
           closeModal('modal-confirm-delete');
         }
       }
+    });
+
+    // Double-click grab handle (⠿) to instantly pin any card/loyalty/perk to the top
+    document.addEventListener('dblclick', async e => {
+      const handle = e.target.closest('[data-move-reward-top]');
+      if (!handle) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const kind = handle.getAttribute('data-move-reward-top');
+      const id = handle.getAttribute('data-move-reward-id');
+      if (!kind || !id) return;
+      const listKey = kind === 'program' ? 'programs' : (kind === 'card' ? 'cards' : 'certificates');
+      const arr = Array.isArray(state.rewards[listKey]) ? state.rewards[listKey] : [];
+      const idx = arr.findIndex(x => x.id === id);
+      if (idx > 0) {
+        const [moved] = arr.splice(idx, 1);
+        arr.unshift(moved);
+        const label = moved.name || moved.title || 'Card';
+        await saveRewardsState(`⬆ Pinned "${label}" to the top!`);
+      } else if (idx === 0) {
+        showToast('Already at the top of the list!');
+      }
+    });
+
+    // Drag-and-Drop Reordering for Credit Cards, Loyalty Programs & Certificates/Perks
+    let activeDraggedReward = null;
+
+    document.addEventListener('dragstart', e => {
+      // Do not start card drag if user is dragging a slider or input inside the card
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
+        e.preventDefault();
+        return;
+      }
+      const cardEl = e.target.closest('.reward-item-card[data-drag-reward-kind]');
+      if (!cardEl) return;
+      const kind = cardEl.getAttribute('data-drag-reward-kind');
+      const id = cardEl.getAttribute('data-drag-reward-id');
+      if (!kind || !id) return;
+      activeDraggedReward = { kind, id };
+      cardEl.classList.add('dragging');
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        try {
+          e.dataTransfer.setData('text/plain', `${kind}:${id}`);
+        } catch (err) {}
+      }
+    });
+
+    document.addEventListener('dragover', e => {
+      if (!activeDraggedReward) return;
+      const overCard = e.target.closest('.reward-item-card[data-drag-reward-kind]');
+      if (!overCard) return;
+      const overKind = overCard.getAttribute('data-drag-reward-kind');
+      const overId = overCard.getAttribute('data-drag-reward-id');
+      if (overKind !== activeDraggedReward.kind || overId === activeDraggedReward.id) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('.reward-item-card.drag-over').forEach(el => {
+        if (el !== overCard) el.classList.remove('drag-over');
+      });
+      overCard.classList.add('drag-over');
+    });
+
+    document.addEventListener('dragleave', e => {
+      const overCard = e.target.closest('.reward-item-card[data-drag-reward-kind]');
+      if (overCard && !overCard.contains(e.relatedTarget)) {
+        overCard.classList.remove('drag-over');
+      }
+    });
+
+    document.addEventListener('drop', async e => {
+      if (!activeDraggedReward) return;
+      const targetCard = e.target.closest('.reward-item-card[data-drag-reward-kind]');
+      document.querySelectorAll('.reward-item-card.drag-over, .reward-item-card.dragging').forEach(el => {
+        el.classList.remove('drag-over', 'dragging');
+      });
+      if (!targetCard) {
+        activeDraggedReward = null;
+        return;
+      }
+      const targetKind = targetCard.getAttribute('data-drag-reward-kind');
+      const targetId = targetCard.getAttribute('data-drag-reward-id');
+      const { kind, id } = activeDraggedReward;
+      activeDraggedReward = null;
+      if (targetKind !== kind || targetId === id) return;
+      e.preventDefault();
+
+      const listKey = kind === 'program' ? 'programs' : (kind === 'card' ? 'cards' : 'certificates');
+      const arr = Array.isArray(state.rewards[listKey]) ? state.rewards[listKey] : [];
+      const fromIdx = arr.findIndex(x => x.id === id);
+      const toIdx = arr.findIndex(x => x.id === targetId);
+      if (fromIdx === -1 || toIdx === -1) return;
+
+      const [moved] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, moved);
+      const label = moved.name || moved.title || 'Card';
+      await saveRewardsState(`✓ Moved "${label}" to position #${toIdx + 1}`);
+    });
+
+    document.addEventListener('dragend', () => {
+      activeDraggedReward = null;
+      document.querySelectorAll('.reward-item-card.drag-over, .reward-item-card.dragging').forEach(el => {
+        el.classList.remove('drag-over', 'dragging');
+      });
     });
   }
 

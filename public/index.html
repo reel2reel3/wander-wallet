@@ -2112,6 +2112,21 @@
 
           <div class="form-grid-3">
             <div class="form-group">
+              <label class="form-label" for="rcard-number">💳 Credit Card Number</label>
+              <input type="text" id="rcard-number" class="form-input mono" placeholder="e.g., 4147 •••• •••• 9042" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcard-exp">📅 Expiration Date</label>
+              <input type="text" id="rcard-exp" class="form-input mono" placeholder="MM/YY (e.g., 08/29)" maxlength="10" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcard-pin">🔐 PIN</label>
+              <input type="text" id="rcard-pin" class="form-input mono" placeholder="e.g., 1234" maxlength="12" autocomplete="off" />
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
               <label class="form-label" for="rcard-fee">Annual Fee (USD)</label>
               <input type="number" step="1" min="0" id="rcard-fee" class="form-input mono" value="95" required />
             </div>
