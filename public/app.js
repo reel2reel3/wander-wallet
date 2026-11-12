@@ -5959,6 +5959,59 @@
             migrated = true;
           }
         }
+
+        // Ensure every credit card with a known loyalty ecosystem is connected both ways to a Loyalty Program in the Loyalty Hub
+        if (card.ecosystem && Array.isArray(state.rewards.programs)) {
+          const hasMatchingProg = state.rewards.programs.some(
+            p => sameOwner(card, p) && doesCardMatchProgram(card, p)
+          );
+          if (!hasMatchingProg) {
+            const progTplEntry = POPULAR_REWARD_TEMPLATES.find(
+              t => t.kind === 'program' && (
+                normalizeEcoStr(t.data.name) === normalizeEcoStr(card.ecosystem) ||
+                normalizeEcoStr(t.data.name).includes(normalizeEcoStr(card.ecosystem)) ||
+                normalizeEcoStr(card.ecosystem).includes(normalizeEcoStr(t.data.name))
+              )
+            );
+            const ecoRaw = normalizeEcoStr(card.ecosystem + ' ' + card.name);
+            const inferredEco = progTplEntry
+              ? progTplEntry.data.ecosystem
+              : (ecoRaw.includes('cruise') || ecoRaw.includes('norwegian') || ecoRaw.includes('ncl') || ecoRaw.includes('latitudes') || ecoRaw.includes('royal caribbean') || ecoRaw.includes('celebrity') || ecoRaw.includes('carnival') || ecoRaw.includes('princess') || ecoRaw.includes('holland america') || ecoRaw.includes('disney') || ecoRaw.includes('amtrak'))
+              ? 'other'
+              : (ecoRaw.includes('hilton') || ecoRaw.includes('hyatt') || ecoRaw.includes('marriott') || ecoRaw.includes('ihg') || ecoRaw.includes('wyndham') || ecoRaw.includes('choice'))
+              ? 'hotel'
+              : (ecoRaw.includes('united') || ecoRaw.includes('delta') || ecoRaw.includes('alaska') || ecoRaw.includes('southwest') || ecoRaw.includes('aadvantage') || ecoRaw.includes('jetblue') || ecoRaw.includes('air') || (ecoRaw.includes('miles') && !ecoRaw.includes('capital one')))
+              ? 'airline'
+              : 'bank';
+
+            const newProg = progTplEntry
+              ? {
+                  ...JSON.parse(JSON.stringify(progTplEntry.data)),
+                  id: 'prog-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)
+                }
+              : {
+                  id: 'prog-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+                  name: card.ecosystem,
+                  ecosystem: inferredEco,
+                  status_tier: card.name || 'Member',
+                  member_id: '',
+                  points: 0,
+                  cpp: inferredEco === 'hotel' ? 1.2 : 1.5,
+                  qualifying_nights: 0,
+                  target_nights: 0,
+                  metric_label: '',
+                  expiration_policy: 'Never expires while card open',
+                  transfer_partners: '',
+                  notes: `Linked to ${card.name}`
+                };
+            newProg.owner = card.owner || '';
+            newProg.member_id = '';
+            newProg.points = 0;
+            state.rewards.programs.push(newProg);
+            card.linked_program_id = newProg.id;
+            migrated = true;
+          }
+        }
       }
       if (migrated && !hasAutoMigratedCardFees) {
         hasAutoMigratedCardFees = true;
@@ -6778,10 +6831,160 @@
   const activeProgramCardMiniTabs = {};
   const activeCreditCardMiniTabs = {};
   const expandedCreditDrawers = {};
+  const activeCustomFieldsDrawers = {};
   let activeMiniDashboardState = { kind: 'program', id: '', tab: 'overview' };
   let activeQuickBalanceProgId = null;
 
-  function renderQuickPointsBlockHtml(prog, alignRight = false) {
+  function getSyncedCustomFields(prog, card) {
+    const pFields = prog && Array.isArray(prog.custom_fields) ? prog.custom_fields : [];
+    const cFields = card && Array.isArray(card.custom_fields) ? card.custom_fields : [];
+    const raw = pFields.length > 0 ? pFields : cFields;
+    return raw.map((f, idx) => ({
+      id: f.id || `cf-${idx}`,
+      label: String(f.label || f.key || 'Custom Field').trim(),
+      value: String(f.value || '').trim(),
+      checked: Boolean(f.checked)
+    }));
+  }
+
+  function syncCustomFieldsToItems(prog, card, nextFields) {
+    const cleaned = (Array.isArray(nextFields) ? nextFields : []).map((f, idx) => ({
+      id: f.id || `cf-${Date.now()}-${idx}`,
+      label: String(f.label || 'Custom Field').trim(),
+      value: String(f.value || '').trim(),
+      checked: Boolean(f.checked)
+    }));
+    if (prog) prog.custom_fields = JSON.parse(JSON.stringify(cleaned));
+    if (card) card.custom_fields = JSON.parse(JSON.stringify(cleaned));
+  }
+
+  function resolveCustomFieldsTarget(ownerKey) {
+    const raw = String(ownerKey || '');
+    const colonIdx = raw.indexOf(':');
+    if (colonIdx === -1) return { kind: 'program', id: raw, prog: null, card: null, fields: [] };
+    const kind = raw.slice(0, colonIdx);
+    const id = raw.slice(colonIdx + 1);
+    const fullRewards = (state.rewards && state.rewards.__full) || state.rewards || {};
+    let prog = null;
+    let card = null;
+    if (kind === 'program') {
+      prog = (fullRewards.programs || []).find(p => p.id === id) || null;
+      if (prog) {
+        const linked = (fullRewards.cards || []).filter(c => doesCardMatchProgram(c, prog));
+        card = linked[0] || null;
+      }
+    } else {
+      card = (fullRewards.cards || []).find(c => c.id === id) || null;
+      if (card) {
+        prog = (fullRewards.programs || []).find(p => doesCardMatchProgram(card, p)) || null;
+      }
+    }
+    const fields = getSyncedCustomFields(prog, card);
+    return { kind, id, prog, card, fields };
+  }
+
+  function renderCardCustomChecklistHtml(kind, id, prog, card) {
+    const ownerKey = `${kind}:${id}`;
+    const fields = getSyncedCustomFields(prog, card);
+    const isDrawerOpen = Boolean(activeCustomFieldsDrawers[ownerKey]);
+    if (fields.length === 0 && !isDrawerOpen) return '';
+
+    const cardCredits = card && Array.isArray(card.credits) ? card.credits : [];
+
+    return `
+      <div class="reward-custom-checklist" data-cf-list-owner="${escapeHtml(ownerKey)}">
+        ${fields.map((f, idx) => `
+          <div
+            class="reward-custom-check-row ${f.checked ? 'is-checked' : ''}"
+            draggable="true"
+            data-drag-cf-owner="${escapeHtml(ownerKey)}"
+            data-drag-cf-idx="${idx}"
+          >
+            <span
+              class="reward-cf-drag-handle"
+              data-move-cf-top="${escapeHtml(ownerKey)}"
+              data-move-cf-idx="${idx}"
+              title="Drag to reorder custom field (or double-click to move to top/bottom)"
+            >⠿</span>
+            <label class="reward-cf-check-label">
+              <input
+                type="checkbox"
+                class="reward-cf-checkbox"
+                data-toggle-cf-check="${escapeHtml(ownerKey)}"
+                data-cf-idx="${idx}"
+                ${f.checked ? 'checked' : ''}
+              />
+              <span class="reward-cf-text">${escapeHtml(f.label)}</span>
+            </label>
+            ${f.value ? `<span class="reward-cf-val mono">${escapeHtml(f.value)}</span>` : ''}
+            <button
+              type="button"
+              class="reward-cf-del-btn"
+              data-del-cf-item="${escapeHtml(ownerKey)}"
+              data-cf-idx="${idx}"
+              title="Remove custom field"
+            >✕</button>
+          </div>
+        `).join('')}
+
+        ${isDrawerOpen ? `
+          <div class="reward-cf-inline-adder" data-cf-adder-box="${escapeHtml(ownerKey)}">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;">
+              <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--accent-primary);">
+                ☑️ Add Custom Checkbox Field
+              </span>
+              <div style="display: inline-flex; align-items: center; gap: 4px;">
+                ${cardCredits.length > 0 ? `
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    style="padding: 1px 6px; font-size: 10px;"
+                    data-import-credits-to-cf="${escapeHtml(ownerKey)}"
+                    title="Auto-import this card's statement credits as custom checkboxes"
+                  >
+                    ⚡ Import Card Credits
+                  </button>
+                ` : ''}
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  style="padding: 0 5px; font-size: 10px;"
+                  data-toggle-cf-drawer="${escapeHtml(ownerKey)}"
+                  title="Close"
+                >✕</button>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+              <input
+                type="text"
+                class="form-input form-input-sm"
+                style="flex: 1; min-width: 135px; font-size: 11.5px; padding: 4px 7px;"
+                placeholder="e.g., $150 Delta Stays Credit or Companion Pass"
+                data-cf-new-label="${escapeHtml(ownerKey)}"
+              />
+              <input
+                type="text"
+                class="form-input form-input-sm mono"
+                style="width: 76px; font-size: 11.5px; padding: 4px 7px;"
+                placeholder="$ / Note"
+                data-cf-new-val="${escapeHtml(ownerKey)}"
+              />
+              <button
+                type="button"
+                class="btn btn-sm btn-primary"
+                style="padding: 4px 9px; font-size: 11px;"
+                data-add-cf-submit="${escapeHtml(ownerKey)}"
+              >
+                + Add
+              </button>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function renderQuickPointsBlockHtml(prog, alignRight = false, cfTarget = null) {
     if (!prog) return '';
     const pts = Number(prog.points ?? prog.balance ?? 0);
     const isEditing = activeQuickBalanceProgId === prog.id;
@@ -6828,21 +7031,40 @@
       `;
     }
 
+    let cfBtnHtml = '';
+    if (cfTarget && !alignRight) {
+      const ownerKey = `${cfTarget.kind}:${cfTarget.id}`;
+      const fields = getSyncedCustomFields(cfTarget.prog || prog, cfTarget.card || null);
+      const checkedCount = fields.filter(f => f.checked).length;
+      const isDrawerOpen = Boolean(activeCustomFieldsDrawers[ownerKey]);
+      cfBtnHtml = `
+        <button
+          type="button"
+          class="qp-custom-fields-btn ${isDrawerOpen ? 'active' : ''}"
+          data-toggle-cf-drawer="${escapeHtml(ownerKey)}"
+          title="Add or manage custom checkbox fields above the Details area"
+        >
+          ☑️ Custom Fields${fields.length > 0 ? ` (${checkedCount}/${fields.length})` : ''}
+        </button>
+      `;
+    }
+
     return `
       <div
         class="quick-points-trigger"
         style="${alignRight ? 'align-items: flex-end; text-align: right;' : 'width: 100%;'}"
-        data-quick-points-open="${escapeHtml(prog.id)}"
-        title="Click to quickly update or add points/miles without opening Edit"
       >
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;" data-quick-points-open="${escapeHtml(prog.id)}" title="Click to quickly update or add points/miles without opening Edit">
           <span style="font-size: 10.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;">
             Points / Miles Available
           </span>
           <span class="qp-edit-hint">⚡ Quick Edit</span>
         </div>
-        <div class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2; margin-top: 1px;">
-          ${pts.toLocaleString('en-US')} <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">pts</span>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-top: 2px;">
+          <div class="mono tabular" style="font-size: 22px; font-weight: 800; color: var(--text-primary); line-height: 1.2;" data-quick-points-open="${escapeHtml(prog.id)}" title="Click to quickly update points/miles">
+            ${pts.toLocaleString('en-US')} <span style="font-size: 12px; font-weight: 500; color: var(--text-muted);">pts</span>
+          </div>
+          ${cfBtnHtml}
         </div>
       </div>
     `;
@@ -7237,7 +7459,7 @@
           <!-- 2. Condensed Hero Showcase: Points Available + Primary Credit Card Art & Annual Fee -->
           <div class="reward-condensed-showcase">
             <div class="reward-condensed-primary-row">
-              ${renderQuickPointsBlockHtml(p, false)}
+              ${renderQuickPointsBlockHtml(p, false, { kind: 'program', id: p.id, prog: p, card: primaryCard })}
             </div>
 
             <!-- Primary Linked Card Image, Name, Credentials & Annual Fee Strip -->
@@ -7266,6 +7488,9 @@
                 <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 10.5px;" data-add-card-for-prog="${escapeHtml(p.name)}">+ Link Card</button>
               </div>
             `}
+
+            <!-- Custom Checkbox Fields (Annual Fee Basics Tracker) above Details / Free Nights / Website -->
+            ${renderCardCustomChecklistHtml('program', p.id, p, primaryCard)}
 
             <!-- 3 Interactive Action Buttons: (1) Details (2) Free Nights (3) Website -->
             <div class="reward-quick-stat-pills">
@@ -7636,9 +7861,20 @@
           <div class="reward-condensed-showcase">
             ${linkedProg ? `
               <div class="reward-condensed-primary-row">
-                ${renderQuickPointsBlockHtml(linkedProg, false)}
+                ${renderQuickPointsBlockHtml(linkedProg, false, { kind: 'card', id: c.id, prog: linkedProg, card: c })}
               </div>
-            ` : ''}
+            ` : `
+              <div style="display: flex; justify-content: flex-end;">
+                <button
+                  type="button"
+                  class="qp-custom-fields-btn ${activeCustomFieldsDrawers['card:' + c.id] ? 'active' : ''}"
+                  data-toggle-cf-drawer="card:${escapeHtml(c.id)}"
+                  title="Add or manage custom checkbox fields above the Details area"
+                >
+                  ☑️ Custom Fields${getSyncedCustomFields(null, c).length > 0 ? ` (${getSyncedCustomFields(null, c).filter(f => f.checked).length}/${getSyncedCustomFields(null, c).length})` : ''}
+                </button>
+              </div>
+            `}
 
             <div class="reward-condensed-card-strip" data-open-card-md="${escapeHtml(c.id)}" data-md-tab="overview" title="Click to open Card Mini-Dashboard">
               ${renderCreditCardArtHtml(c, 'cc-art-sm')}
@@ -7657,6 +7893,9 @@
                 </div>
               </div>
             </div>
+
+            <!-- Custom Checkbox Fields (Annual Fee Basics Tracker) above Details / Free Nights / Website -->
+            ${renderCardCustomChecklistHtml('card', c.id, linkedProg, c)}
 
             <!-- 3 Interactive Action Buttons: (1) Details (2) Free Nights (3) Website -->
             <div class="reward-quick-stat-pills">
@@ -8741,18 +8980,19 @@
     container.innerHTML = '';
     const arr = Array.isArray(fields) ? fields : [];
     arr.forEach(f => {
-      addCustomFieldRow(containerId, f.label || f.key || '', f.value || '');
+      addCustomFieldRow(containerId, f.label || f.key || '', f.value || '', Boolean(f.checked));
     });
   }
 
-  function addCustomFieldRow(containerId, label = '', value = '') {
+  function addCustomFieldRow(containerId, label = '', value = '', checked = false) {
     const container = document.getElementById(containerId);
     if (!container) return;
     const row = document.createElement('div');
     row.className = 'custom-field-row';
     row.innerHTML = `
-      <input type="text" class="form-input form-input-sm cfield-label" placeholder="Field name (e.g. Phone PIN)" value="${escapeHtml(label)}" />
-      <input type="text" class="form-input form-input-sm cfield-value" placeholder="Value (e.g. 4821)" value="${escapeHtml(value)}" />
+      <input type="checkbox" class="cfield-checked" style="width: 15px; height: 15px; accent-color: var(--accent-primary); cursor: pointer;" title="Checked / Used" ${checked ? 'checked' : ''} />
+      <input type="text" class="form-input form-input-sm cfield-label" placeholder="Field / Perk name (e.g. $150 Delta Stays Credit)" value="${escapeHtml(label)}" />
+      <input type="text" class="form-input form-input-sm cfield-value" placeholder="Value / Note (e.g. $150)" value="${escapeHtml(value)}" />
       <button type="button" class="btn btn-sm btn-danger-ghost cfield-del-btn" title="Remove custom field">✕</button>
     `;
     container.appendChild(row);
@@ -8763,13 +9003,14 @@
     if (!container) return [];
     const rows = container.querySelectorAll('.custom-field-row');
     const fields = [];
-    rows.forEach(r => {
+    rows.forEach((r, idx) => {
       const lbl = (r.querySelector('.cfield-label') || {}).value || '';
       const val = (r.querySelector('.cfield-value') || {}).value || '';
+      const checked = Boolean((r.querySelector('.cfield-checked') || {}).checked);
       const trimmedLbl = lbl.trim();
       const trimmedVal = val.trim();
       if (trimmedLbl || trimmedVal) {
-        fields.push({ label: trimmedLbl || 'Detail', value: trimmedVal });
+        fields.push({ id: `cf-${Date.now()}-${idx}`, label: trimmedLbl || 'Detail', value: trimmedVal, checked });
       }
     });
     return fields;
@@ -10727,6 +10968,24 @@
         return;
       }
 
+      const cfCheck = e.target.closest('[data-toggle-cf-check]');
+      if (cfCheck) {
+        const ownerKey = cfCheck.getAttribute('data-toggle-cf-check');
+        const idx = Number(cfCheck.getAttribute('data-cf-idx'));
+        const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
+        if (fields[idx]) {
+          fields[idx].checked = Boolean(cfCheck.checked);
+          syncCustomFieldsToItems(prog, card, fields);
+          const lbl = fields[idx].label || 'Custom Field';
+          await saveRewardsState(
+            cfCheck.checked
+              ? `✓ Checked "${lbl}"`
+              : `Unchecked "${lbl}"`
+          );
+        }
+        return;
+      }
+
       const credSlider = e.target.closest('[data-slider-card-credit]');
       if (credSlider) {
         const cardId = credSlider.getAttribute('data-slider-card-credit');
@@ -11305,6 +11564,103 @@
       }
 
       // Click-to-Update Points / Miles Available ("Quick Add / Set Balance")
+      const toggleCfDrawerBtn = e.target.closest('[data-toggle-cf-drawer]');
+      if (toggleCfDrawerBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ownerKey = toggleCfDrawerBtn.getAttribute('data-toggle-cf-drawer');
+        if (ownerKey) {
+          activeCustomFieldsDrawers[ownerKey] = !activeCustomFieldsDrawers[ownerKey];
+          renderRewardsDashboard();
+          if (activeCustomFieldsDrawers[ownerKey]) {
+            setTimeout(() => {
+              const inp = document.querySelector(`[data-cf-new-label="${ownerKey}"]`);
+              if (inp) inp.focus();
+            }, 25);
+          }
+        }
+        return;
+      }
+
+      const addCfSubmitBtn = e.target.closest('[data-add-cf-submit]');
+      if (addCfSubmitBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ownerKey = addCfSubmitBtn.getAttribute('data-add-cf-submit');
+        const box = addCfSubmitBtn.closest('[data-cf-adder-box]');
+        const lblEl = box ? box.querySelector('[data-cf-new-label]') : document.querySelector(`[data-cf-new-label="${ownerKey}"]`);
+        const valEl = box ? box.querySelector('[data-cf-new-val]') : document.querySelector(`[data-cf-new-val="${ownerKey}"]`);
+        const lbl = ((lblEl && lblEl.value) || '').trim();
+        const val = ((valEl && valEl.value) || '').trim();
+        if (!lbl) {
+          showToast('Please enter a custom field label (e.g. $150 Delta Stays Credit)');
+          if (lblEl) lblEl.focus();
+          return;
+        }
+        const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
+        fields.push({
+          id: `cf-${Date.now()}`,
+          label: lbl,
+          value: val,
+          checked: false
+        });
+        syncCustomFieldsToItems(prog, card, fields);
+        await saveRewardsState(`✓ Added custom checkbox "${lbl}"!`);
+        setTimeout(() => {
+          const nextInp = document.querySelector(`[data-cf-new-label="${ownerKey}"]`);
+          if (nextInp) nextInp.focus();
+        }, 25);
+        return;
+      }
+
+      const importCreditsCfBtn = e.target.closest('[data-import-credits-to-cf]');
+      if (importCreditsCfBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ownerKey = importCreditsCfBtn.getAttribute('data-import-credits-to-cf');
+        const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
+        const crs = card && Array.isArray(card.credits) ? card.credits : [];
+        let addedCount = 0;
+        for (const cr of crs) {
+          const nm = String(cr.name || cr.label || '').trim();
+          if (!nm) continue;
+          const exists = fields.some(f => f.label.toLowerCase() === nm.toLowerCase());
+          if (!exists) {
+            const tot = Number(cr.total_usd ?? cr.amount ?? 0);
+            const used = cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? tot : 0);
+            fields.push({
+              id: `cf-${Date.now()}-${addedCount}`,
+              label: nm,
+              value: tot > 0 ? fmtUsdCompact(tot) : '',
+              checked: tot > 0 && used >= tot
+            });
+            addedCount++;
+          }
+        }
+        if (addedCount > 0) {
+          syncCustomFieldsToItems(prog, card, fields);
+          await saveRewardsState(`⚡ Imported ${addedCount} statement credit(s) as custom checkboxes!`);
+        } else {
+          showToast('All statement credits for this card are already in your custom fields!');
+        }
+        return;
+      }
+
+      const delCfItemBtn = e.target.closest('[data-del-cf-item]');
+      if (delCfItemBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ownerKey = delCfItemBtn.getAttribute('data-del-cf-item');
+        const idx = Number(delCfItemBtn.getAttribute('data-cf-idx'));
+        const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
+        if (fields[idx]) {
+          const [removed] = fields.splice(idx, 1);
+          syncCustomFieldsToItems(prog, card, fields);
+          await saveRewardsState(`Removed "${removed.label}"`);
+        }
+        return;
+      }
+
       const qpOpenBtn = e.target.closest('[data-quick-points-open]');
       if (qpOpenBtn) {
         e.preventDefault();
@@ -12548,6 +12904,23 @@
         }
       }
 
+      if (t && t.hasAttribute && (t.hasAttribute('data-cf-new-label') || t.hasAttribute('data-cf-new-val'))) {
+        const ownerKey = t.getAttribute('data-cf-new-label') || t.getAttribute('data-cf-new-val');
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const box = t.closest('[data-cf-adder-box]');
+          const submitBtn = box ? box.querySelector('[data-add-cf-submit]') : document.querySelector(`[data-add-cf-submit="${ownerKey}"]`);
+          if (submitBtn) submitBtn.click();
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          if (ownerKey) activeCustomFieldsDrawers[ownerKey] = false;
+          renderRewardsDashboard();
+          return;
+        }
+      }
+
       if (e.key === 'Escape') {
         const confirmModal = document.getElementById('modal-confirm-delete');
         if (confirmModal && confirmModal.classList.contains('open')) {
@@ -12561,8 +12934,30 @@
       }
     });
 
-    // Double-click grab handle (⠿) to instantly pin any card/loyalty/perk to the top
+    // Double-click grab handle (⠿) to instantly pin any card/loyalty/perk or custom field to the top
     document.addEventListener('dblclick', async e => {
+      const cfHandle = e.target.closest('[data-move-cf-top]');
+      if (cfHandle) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ownerKey = cfHandle.getAttribute('data-move-cf-top');
+        const idx = Number(cfHandle.getAttribute('data-move-cf-idx'));
+        const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
+        if (fields.length > 1 && fields[idx]) {
+          const [moved] = fields.splice(idx, 1);
+          if (idx === 0) {
+            fields.push(moved);
+            syncCustomFieldsToItems(prog, card, fields);
+            await saveRewardsState(`⬇ Moved "${moved.label}" to bottom`);
+          } else {
+            fields.unshift(moved);
+            syncCustomFieldsToItems(prog, card, fields);
+            await saveRewardsState(`⬆ Moved "${moved.label}" to top`);
+          }
+        }
+        return;
+      }
+
       const handle = e.target.closest('[data-move-reward-top]');
       if (!handle) return;
       e.preventDefault();
@@ -12583,21 +12978,42 @@
       }
     });
 
-    // Drag-and-Drop Reordering for Credit Cards, Loyalty Programs & Certificates/Perks
+    // Drag-and-Drop Reordering for Custom Checkbox Fields & Credit Cards, Loyalty Programs, Certificates/Perks
     let activeDraggedReward = null;
+    let activeDraggedCustomField = null;
 
     document.addEventListener('dragstart', e => {
-      // Do not start card drag if user is dragging a slider or input inside the card
+      // Do not start drag if user is dragging a slider or text input
       if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
         e.preventDefault();
         return;
       }
+      // 1. Check if dragging an individual Custom Checkbox Field row inside a card
+      const cfRow = e.target.closest('.reward-custom-check-row[data-drag-cf-owner]');
+      if (cfRow) {
+        e.stopPropagation();
+        const ownerKey = cfRow.getAttribute('data-drag-cf-owner');
+        const idx = Number(cfRow.getAttribute('data-drag-cf-idx'));
+        activeDraggedCustomField = { ownerKey, idx };
+        activeDraggedReward = null;
+        cfRow.classList.add('dragging');
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          try {
+            e.dataTransfer.setData('text/plain', `cf:${ownerKey}:${idx}`);
+          } catch (err) {}
+        }
+        return;
+      }
+
+      // 2. Otherwise check if dragging an entire Loyalty / Credit Card / Certificate tile
       const cardEl = e.target.closest('.reward-item-card[data-drag-reward-kind]');
       if (!cardEl) return;
       const kind = cardEl.getAttribute('data-drag-reward-kind');
       const id = cardEl.getAttribute('data-drag-reward-id');
       if (!kind || !id) return;
       activeDraggedReward = { kind, id };
+      activeDraggedCustomField = null;
       cardEl.classList.add('dragging');
       if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = 'move';
@@ -12608,6 +13024,22 @@
     });
 
     document.addEventListener('dragover', e => {
+      if (activeDraggedCustomField) {
+        const overCf = e.target.closest('.reward-custom-check-row[data-drag-cf-owner]');
+        if (!overCf) return;
+        const overOwner = overCf.getAttribute('data-drag-cf-owner');
+        const overIdx = Number(overCf.getAttribute('data-drag-cf-idx'));
+        if (overOwner !== activeDraggedCustomField.ownerKey || overIdx === activeDraggedCustomField.idx) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        document.querySelectorAll('.reward-custom-check-row.drag-over').forEach(el => {
+          if (el !== overCf) el.classList.remove('drag-over');
+        });
+        overCf.classList.add('drag-over');
+        return;
+      }
+
       if (!activeDraggedReward) return;
       const overCard = e.target.closest('.reward-item-card[data-drag-reward-kind]');
       if (!overCard) return;
@@ -12623,6 +13055,13 @@
     });
 
     document.addEventListener('dragleave', e => {
+      if (activeDraggedCustomField) {
+        const overCf = e.target.closest('.reward-custom-check-row[data-drag-cf-owner]');
+        if (overCf && !overCf.contains(e.relatedTarget)) {
+          overCf.classList.remove('drag-over');
+        }
+        return;
+      }
       const overCard = e.target.closest('.reward-item-card[data-drag-reward-kind]');
       if (overCard && !overCard.contains(e.relatedTarget)) {
         overCard.classList.remove('drag-over');
@@ -12630,6 +13069,29 @@
     });
 
     document.addEventListener('drop', async e => {
+      if (activeDraggedCustomField) {
+        const targetCf = e.target.closest('.reward-custom-check-row[data-drag-cf-owner]');
+        document.querySelectorAll('.reward-custom-check-row.drag-over, .reward-custom-check-row.dragging').forEach(el => {
+          el.classList.remove('drag-over', 'dragging');
+        });
+        const { ownerKey, idx } = activeDraggedCustomField;
+        activeDraggedCustomField = null;
+        if (!targetCf) return;
+        const targetOwner = targetCf.getAttribute('data-drag-cf-owner');
+        const targetIdx = Number(targetCf.getAttribute('data-drag-cf-idx'));
+        if (targetOwner !== ownerKey || targetIdx === idx) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
+        if (!fields[idx] || !fields[targetIdx]) return;
+        const [moved] = fields.splice(idx, 1);
+        fields.splice(targetIdx, 0, moved);
+        syncCustomFieldsToItems(prog, card, fields);
+        await saveRewardsState(`✓ Moved "${moved.label}" to row #${targetIdx + 1}`);
+        return;
+      }
+
       if (!activeDraggedReward) return;
       const targetCard = e.target.closest('.reward-item-card[data-drag-reward-kind]');
       document.querySelectorAll('.reward-item-card.drag-over, .reward-item-card.dragging').forEach(el => {
@@ -12660,7 +13122,8 @@
 
     document.addEventListener('dragend', () => {
       activeDraggedReward = null;
-      document.querySelectorAll('.reward-item-card.drag-over, .reward-item-card.dragging').forEach(el => {
+      activeDraggedCustomField = null;
+      document.querySelectorAll('.reward-item-card.drag-over, .reward-item-card.dragging, .reward-custom-check-row.drag-over, .reward-custom-check-row.dragging').forEach(el => {
         el.classList.remove('drag-over', 'dragging');
       });
     });
