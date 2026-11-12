@@ -6832,6 +6832,7 @@
   const activeCreditCardMiniTabs = {};
   const expandedCreditDrawers = {};
   const activeCustomFieldsDrawers = {};
+  let activeEditingCustomFieldKey = null;
   let activeMiniDashboardState = { kind: 'program', id: '', tab: 'overview' };
   let activeQuickBalanceProgId = null;
 
@@ -6893,39 +6894,91 @@
 
     return `
       <div class="reward-custom-checklist" data-cf-list-owner="${escapeHtml(ownerKey)}">
-        ${fields.map((f, idx) => `
-          <div
-            class="reward-custom-check-row ${f.checked ? 'is-checked' : ''}"
-            draggable="true"
-            data-drag-cf-owner="${escapeHtml(ownerKey)}"
-            data-drag-cf-idx="${idx}"
-          >
-            <span
-              class="reward-cf-drag-handle"
-              data-move-cf-top="${escapeHtml(ownerKey)}"
-              data-move-cf-idx="${idx}"
-              title="Drag to reorder custom field (or double-click to move to top/bottom)"
-            >⠿</span>
-            <label class="reward-cf-check-label">
-              <input
-                type="checkbox"
-                class="reward-cf-checkbox"
-                data-toggle-cf-check="${escapeHtml(ownerKey)}"
+        ${fields.map((f, idx) => {
+          const editKey = `${ownerKey}:${idx}`;
+          const isEditingRow = activeEditingCustomFieldKey === editKey;
+          if (isEditingRow) {
+            return `
+              <div
+                class="reward-custom-check-row is-editing"
+                data-cf-edit-row="${escapeHtml(editKey)}"
+                style="flex-wrap: wrap; gap: 5px;"
+              >
+                <input
+                  type="text"
+                  class="form-input form-input-sm"
+                  style="flex: 1 1 130px; min-width: 110px; height: 24px; font-size: 11px; padding: 0 7px;"
+                  placeholder="Benefit / Field name"
+                  value="${escapeHtml(f.label)}"
+                  data-cf-edit-label="${escapeHtml(editKey)}"
+                />
+                <input
+                  type="text"
+                  class="form-input form-input-sm"
+                  style="flex: 0 1 85px; min-width: 70px; height: 24px; font-size: 11px; padding: 0 7px;"
+                  placeholder="Val / Note"
+                  value="${escapeHtml(f.value)}"
+                  data-cf-edit-val="${escapeHtml(editKey)}"
+                />
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  style="height: 24px; padding: 0 8px; font-size: 11px;"
+                  data-save-cf-edit="${escapeHtml(ownerKey)}"
+                  data-cf-idx="${idx}"
+                  title="Save changes"
+                >✓</button>
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  style="height: 24px; padding: 0 6px; font-size: 11px;"
+                  data-cancel-cf-edit="1"
+                  title="Cancel"
+                >✕</button>
+              </div>
+            `;
+          }
+          return `
+            <div
+              class="reward-custom-check-row ${f.checked ? 'is-checked' : ''}"
+              draggable="true"
+              data-drag-cf-owner="${escapeHtml(ownerKey)}"
+              data-drag-cf-idx="${idx}"
+            >
+              <span
+                class="reward-cf-drag-handle"
+                data-move-cf-top="${escapeHtml(ownerKey)}"
+                data-move-cf-idx="${idx}"
+                title="Drag to reorder custom field (or double-click to move to top/bottom)"
+              >⠿</span>
+              <label class="reward-cf-check-label">
+                <input
+                  type="checkbox"
+                  class="reward-cf-checkbox"
+                  data-toggle-cf-check="${escapeHtml(ownerKey)}"
+                  data-cf-idx="${idx}"
+                  ${f.checked ? 'checked' : ''}
+                />
+                <span class="reward-cf-text">${escapeHtml(f.label)}</span>
+              </label>
+              ${f.value ? `<span class="reward-cf-val mono">${escapeHtml(f.value)}</span>` : ''}
+              <button
+                type="button"
+                class="reward-cf-edit-btn"
+                data-edit-cf-item="${escapeHtml(ownerKey)}"
                 data-cf-idx="${idx}"
-                ${f.checked ? 'checked' : ''}
-              />
-              <span class="reward-cf-text">${escapeHtml(f.label)}</span>
-            </label>
-            ${f.value ? `<span class="reward-cf-val mono">${escapeHtml(f.value)}</span>` : ''}
-            <button
-              type="button"
-              class="reward-cf-del-btn"
-              data-del-cf-item="${escapeHtml(ownerKey)}"
-              data-cf-idx="${idx}"
-              title="Remove custom field"
-            >✕</button>
-          </div>
-        `).join('')}
+                title="Edit custom field"
+              >✏️</button>
+              <button
+                type="button"
+                class="reward-cf-del-btn"
+                data-del-cf-item="${escapeHtml(ownerKey)}"
+                data-cf-idx="${idx}"
+                title="Remove custom field"
+              >✕</button>
+            </div>
+          `;
+        }).join('')}
 
         ${isDrawerOpen ? `
           <div class="reward-cf-inline-adder" data-cf-adder-box="${escapeHtml(ownerKey)}">
@@ -11646,6 +11699,60 @@
         return;
       }
 
+      const editCfItemBtn = e.target.closest('[data-edit-cf-item]');
+      if (editCfItemBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ownerKey = editCfItemBtn.getAttribute('data-edit-cf-item');
+        const idx = Number(editCfItemBtn.getAttribute('data-cf-idx'));
+        activeEditingCustomFieldKey = `${ownerKey}:${idx}`;
+        renderRewardsDashboard();
+        setTimeout(() => {
+          const inp = document.querySelector(`[data-cf-edit-label="${activeEditingCustomFieldKey}"]`);
+          if (inp) {
+            inp.focus();
+            inp.select();
+          }
+        }, 20);
+        return;
+      }
+
+      if (e.target.closest('[data-cancel-cf-edit]')) {
+        e.preventDefault();
+        e.stopPropagation();
+        activeEditingCustomFieldKey = null;
+        renderRewardsDashboard();
+        return;
+      }
+
+      const saveCfEditBtn = e.target.closest('[data-save-cf-edit]');
+      if (saveCfEditBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ownerKey = saveCfEditBtn.getAttribute('data-save-cf-edit');
+        const idx = Number(saveCfEditBtn.getAttribute('data-cf-idx'));
+        const editKey = `${ownerKey}:${idx}`;
+        const row = saveCfEditBtn.closest('[data-cf-edit-row]');
+        const labelInp = row ? row.querySelector('[data-cf-edit-label]') : document.querySelector(`[data-cf-edit-label="${editKey}"]`);
+        const valInp = row ? row.querySelector('[data-cf-edit-val]') : document.querySelector(`[data-cf-edit-val="${editKey}"]`);
+        const nextLabel = labelInp ? labelInp.value.trim() : '';
+        const nextVal = valInp ? valInp.value.trim() : '';
+        if (!nextLabel) {
+          showToast('Please enter a label for this custom field');
+          if (labelInp) labelInp.focus();
+          return;
+        }
+        const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
+        if (fields[idx]) {
+          fields[idx].label = nextLabel;
+          fields[idx].value = nextVal;
+          syncCustomFieldsToItems(prog, card, fields);
+          activeEditingCustomFieldKey = null;
+          await saveRewardsState(`✓ Updated "${nextLabel}"!`);
+        }
+        return;
+      }
+
       const delCfItemBtn = e.target.closest('[data-del-cf-item]');
       if (delCfItemBtn) {
         e.preventDefault();
@@ -12899,6 +13006,22 @@
         if (e.key === 'Escape') {
           e.preventDefault();
           activeQuickBalanceProgId = null;
+          renderRewardsDashboard();
+          return;
+        }
+      }
+
+      if (t && t.hasAttribute && (t.hasAttribute('data-cf-edit-label') || t.hasAttribute('data-cf-edit-val'))) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const row = t.closest('[data-cf-edit-row]');
+          const saveBtn = row ? row.querySelector('[data-save-cf-edit]') : null;
+          if (saveBtn) saveBtn.click();
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          activeEditingCustomFieldKey = null;
           renderRewardsDashboard();
           return;
         }

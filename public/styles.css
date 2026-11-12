@@ -3034,6 +3034,7 @@ body {
   color: var(--text-muted);
 }
 
+.reward-cf-edit-btn,
 .reward-cf-del-btn {
   border: none;
   background: transparent;
@@ -3047,10 +3048,21 @@ body {
   transition: opacity 0.14s ease, color 0.14s ease, background-color 0.14s ease;
 }
 
+.reward-cf-edit-btn:hover {
+  opacity: 1;
+  color: var(--accent-primary);
+  background-color: rgba(16, 185, 129, 0.12);
+}
+
 .reward-cf-del-btn:hover {
   opacity: 1;
   color: #ef4444;
   background-color: rgba(239, 68, 68, 0.12);
+}
+
+.reward-custom-check-row.is-editing {
+  border-color: var(--accent-primary);
+  background-color: var(--bg-surface);
 }
 
 .reward-cf-inline-adder {
