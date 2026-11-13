@@ -7668,63 +7668,107 @@
 
           if (isEditingRow) {
             const editMode = f.mode === 'slider' ? 'slider' : 'checkbox';
+            const editTot = totUsd > 0 ? totUsd : 100;
+            const editUsed = Math.min(editTot, Math.max(0, usedUsd));
+            const editRem = Math.max(0, Number((editTot - editUsed).toFixed(2)));
             return `
               <div
                 class="reward-custom-check-row is-editing"
                 data-cf-edit-row="${escapeHtml(editKey)}"
-                style="flex-wrap: wrap; gap: 5px;"
+                data-cf-slider-row="${escapeHtml(editKey)}"
+                style="flex-direction: column; align-items: stretch; gap: 6px;"
               >
-                <select
-                  class="form-select form-input-sm"
-                  style="flex: 0 0 auto; height: 24px; font-size: 11px; padding: 0 6px;"
-                  data-cf-edit-mode="${escapeHtml(editKey)}"
-                  title="Field Type"
-                >
-                  <option value="checkbox" ${editMode === 'checkbox' ? 'selected' : ''}>☑️ Checkbox</option>
-                  <option value="slider" ${editMode === 'slider' ? 'selected' : ''}>🎚️ $ Slider</option>
-                </select>
-                <input
-                  type="text"
-                  class="form-input form-input-sm"
-                  style="flex: 1 1 130px; min-width: 110px; height: 24px; font-size: 11px; padding: 0 7px;"
-                  placeholder="Benefit / Field name"
-                  value="${escapeHtml(f.label)}"
-                  data-cf-edit-label="${escapeHtml(editKey)}"
-                />
-                <input
-                  type="number"
-                  step="1"
-                  min="1"
-                  class="form-input form-input-sm mono"
-                  style="flex: 0 1 82px; min-width: 72px; height: 24px; font-size: 11px; padding: 0 7px; ${editMode === 'slider' ? '' : 'display: none;'}"
-                  placeholder="Beg $"
-                  value="${totUsd > 0 ? totUsd : ''}"
-                  data-cf-edit-total="${escapeHtml(editKey)}"
-                  title="Beginning Dollar Value ($)"
-                />
-                <input
-                  type="text"
-                  class="form-input form-input-sm"
-                  style="flex: 0 1 85px; min-width: 70px; height: 24px; font-size: 11px; padding: 0 7px;"
-                  placeholder="Note / Exp"
-                  value="${escapeHtml(f.value)}"
-                  data-cf-edit-val="${escapeHtml(editKey)}"
-                />
-                <button
-                  type="button"
-                  class="btn btn-primary btn-sm"
-                  style="height: 24px; padding: 0 8px; font-size: 11px;"
-                  data-save-cf-edit="${escapeHtml(ownerKey)}"
-                  data-cf-idx="${idx}"
-                  title="Save changes"
-                >✓</button>
-                <button
-                  type="button"
-                  class="btn btn-sm"
-                  style="height: 24px; padding: 0 6px; font-size: 11px;"
-                  data-cancel-cf-edit="1"
-                  title="Cancel"
-                >✕</button>
+                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px;">
+                  <select
+                    class="form-select form-input-sm"
+                    style="flex: 0 0 auto; height: 24px; font-size: 11px; padding: 0 6px;"
+                    data-cf-edit-mode="${escapeHtml(editKey)}"
+                    title="Field Type"
+                  >
+                    <option value="checkbox" ${editMode === 'checkbox' ? 'selected' : ''}>☑️ Checkbox</option>
+                    <option value="slider" ${editMode === 'slider' ? 'selected' : ''}>🎚️ $ Slider</option>
+                  </select>
+                  <input
+                    type="text"
+                    class="form-input form-input-sm"
+                    style="flex: 1 1 130px; min-width: 110px; height: 24px; font-size: 11px; padding: 0 7px;"
+                    placeholder="Benefit / Field name"
+                    value="${escapeHtml(f.label)}"
+                    data-cf-edit-label="${escapeHtml(editKey)}"
+                  />
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    class="form-input form-input-sm mono"
+                    style="flex: 0 1 76px; min-width: 68px; height: 24px; font-size: 11px; padding: 0 7px; ${editMode === 'slider' ? '' : 'display: none;'}"
+                    placeholder="Beg $"
+                    value="${totUsd > 0 ? totUsd : ''}"
+                    data-cf-edit-total="${escapeHtml(editKey)}"
+                    title="Beginning Dollar Value ($)"
+                  />
+                  <input
+                    type="text"
+                    class="form-input form-input-sm"
+                    style="flex: 0 1 80px; min-width: 65px; height: 24px; font-size: 11px; padding: 0 7px;"
+                    placeholder="Note / Exp"
+                    value="${escapeHtml(f.value)}"
+                    data-cf-edit-val="${escapeHtml(editKey)}"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    style="height: 24px; padding: 0 8px; font-size: 11px;"
+                    data-save-cf-edit="${escapeHtml(ownerKey)}"
+                    data-cf-idx="${idx}"
+                    title="Save changes"
+                  >✓</button>
+                  <button
+                    type="button"
+                    class="btn btn-sm"
+                    style="height: 24px; padding: 0 6px; font-size: 11px;"
+                    data-cancel-cf-edit="1"
+                    title="Cancel"
+                  >✕</button>
+                </div>
+                <div data-cf-edit-slider-wrap="${escapeHtml(editKey)}" style="display: ${editMode === 'slider' ? 'flex' : 'none'}; align-items: center; gap: 8px; padding-top: 2px;">
+                  <input
+                    type="range"
+                    class="credit-range-slider"
+                    style="flex: 1;"
+                    min="0"
+                    max="${editTot}"
+                    step="1"
+                    value="${editUsed}"
+                    data-slider-cf-item="${escapeHtml(ownerKey)}"
+                    data-cf-idx="${idx}"
+                    data-cf-total="${editTot}"
+                    data-cf-edit-key="${escapeHtml(editKey)}"
+                  />
+                  <div style="display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;">
+                    <span style="font-size: 10.5px; color: var(--text-muted);">Used $</span>
+                    <input
+                      type="number"
+                      class="form-input form-input-sm mono"
+                      style="width: 62px; height: 22px; font-size: 11px; padding: 0 5px; text-align: right;"
+                      min="0"
+                      max="${editTot}"
+                      step="1"
+                      value="${editUsed}"
+                      data-input-cf-used="${escapeHtml(ownerKey)}"
+                      data-cf-idx="${idx}"
+                      data-cf-total="${editTot}"
+                      data-cf-edit-key="${escapeHtml(editKey)}"
+                    />
+                  </div>
+                  <span
+                    class="credit-avail-pill ${editRem === 0 ? 'zero' : ''}"
+                    data-cf-live-rem="${escapeHtml(editKey)}"
+                    style="font-size: 10px; padding: 1px 6px; flex-shrink: 0;"
+                  >
+                    ${editRem > 0 ? `${fmtUsd(editRem)} left of ${fmtUsdCompact(editTot)}` : `✓ $0 left`}
+                  </span>
+                </div>
               </div>
             `;
           }
@@ -7736,71 +7780,42 @@
                 draggable="true"
                 data-drag-cf-owner="${escapeHtml(ownerKey)}"
                 data-drag-cf-idx="${idx}"
-                data-cf-slider-row="${escapeHtml(editKey)}"
-                style="flex-direction: column; align-items: stretch; gap: 5px; padding: 7px 9px;"
               >
-                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <span
-                    class="reward-cf-drag-handle"
-                    data-move-cf-top="${escapeHtml(ownerKey)}"
-                    data-move-cf-idx="${idx}"
-                    title="Drag to reorder custom field"
-                  >⠿</span>
-                  <span class="reward-cf-text" style="flex: 1; min-width: 110px; font-weight: 600; ${isDone ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">${escapeHtml(f.label)}</span>
-                  ${f.value ? `<span class="reward-cf-val mono">${escapeHtml(f.value)}</span>` : ''}
-                  <span
-                    class="credit-avail-pill ${remUsd === 0 ? 'zero' : ''}"
-                    data-cf-live-rem="${escapeHtml(editKey)}"
-                    style="font-size: 10.5px; padding: 1px 7px;"
-                  >
-                    ${remUsd > 0 ? `${fmtUsd(remUsd)} left of ${fmtUsdCompact(totUsd)}` : `✓ $0 left (${fmtUsdCompact(totUsd)} used)`}
-                  </span>
-                  <button
-                    type="button"
-                    class="reward-cf-edit-btn"
-                    data-edit-cf-item="${escapeHtml(ownerKey)}"
-                    data-cf-idx="${idx}"
-                    title="Edit custom field"
-                  >✏️</button>
-                  <button
-                    type="button"
-                    class="reward-cf-del-btn"
-                    data-del-cf-item="${escapeHtml(ownerKey)}"
-                    data-cf-idx="${idx}"
-                    title="Remove custom field"
-                  >✕</button>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px; padding-left: 16px;">
-                  <input
-                    type="range"
-                    class="credit-range-slider"
-                    style="flex: 1;"
-                    min="0"
-                    max="${totUsd}"
-                    step="1"
-                    value="${usedUsd}"
-                    data-slider-cf-item="${escapeHtml(ownerKey)}"
-                    data-cf-idx="${idx}"
-                    data-cf-total="${totUsd}"
-                    data-cf-edit-key="${escapeHtml(editKey)}"
-                  />
-                  <div style="display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;">
-                    <span style="font-size: 10.5px; color: var(--text-muted);">Used $</span>
-                    <input
-                      type="number"
-                      class="form-input form-input-sm mono"
-                      style="width: 64px; height: 22px; font-size: 11px; padding: 0 5px; text-align: right;"
-                      min="0"
-                      max="${totUsd}"
-                      step="1"
-                      value="${usedUsd}"
-                      data-input-cf-used="${escapeHtml(ownerKey)}"
-                      data-cf-idx="${idx}"
-                      data-cf-total="${totUsd}"
-                      data-cf-edit-key="${escapeHtml(editKey)}"
-                    />
-                  </div>
-                </div>
+                <span
+                  class="reward-cf-drag-handle"
+                  data-move-cf-top="${escapeHtml(ownerKey)}"
+                  data-move-cf-idx="${idx}"
+                  title="Drag to reorder custom field (or double-click to move to top/bottom)"
+                >⠿</span>
+                <span
+                  class="reward-cf-check-label"
+                  data-edit-cf-item="${escapeHtml(ownerKey)}"
+                  data-cf-idx="${idx}"
+                  title="Click ✏️ to adjust slider"
+                >
+                  <span class="reward-cf-text">${escapeHtml(f.label)}</span>
+                </span>
+                ${f.value ? `<span class="reward-cf-val mono">${escapeHtml(f.value)}</span>` : ''}
+                <span
+                  class="credit-avail-pill ${remUsd === 0 ? 'zero' : ''}"
+                  style="font-size: 10px; padding: 1px 6px; flex-shrink: 0;"
+                >
+                  ${remUsd > 0 ? `${fmtUsd(remUsd)} left of ${fmtUsdCompact(totUsd)}` : `✓ $0 left`}
+                </span>
+                <button
+                  type="button"
+                  class="reward-cf-edit-btn"
+                  data-edit-cf-item="${escapeHtml(ownerKey)}"
+                  data-cf-idx="${idx}"
+                  title="Adjust slider &amp; edit"
+                >✏️</button>
+                <button
+                  type="button"
+                  class="reward-cf-del-btn"
+                  data-del-cf-item="${escapeHtml(ownerKey)}"
+                  data-cf-idx="${idx}"
+                  title="Remove custom field"
+                >✕</button>
               </div>
             `;
           }
@@ -11905,22 +11920,63 @@
     document.addEventListener('input', e => {
       const cfSlider = e.target.closest('[data-slider-cf-item]');
       if (cfSlider) {
-        const editKey = cfSlider.getAttribute('data-cf-edit-key');
-        const tot = Math.max(0, Number(cfSlider.getAttribute('data-cf-total')) || 0);
+        const row = cfSlider.closest('[data-cf-slider-row]');
+        const totInp = row ? row.querySelector('[data-cf-edit-total]') : null;
+        const tot = Math.max(0, Number(totInp ? totInp.value : cfSlider.getAttribute('data-cf-total')) || 0);
         const used = Math.min(tot, Math.max(0, Number(cfSlider.value) || 0));
         const rem = Math.max(0, Number((tot - used).toFixed(2)));
-        const row = cfSlider.closest('[data-cf-slider-row]');
         if (row) {
           const remEl = row.querySelector('[data-cf-live-rem]');
           if (remEl) {
-            remEl.textContent = rem > 0 ? `${fmtUsd(rem)} left of ${fmtUsdCompact(tot)}` : `✓ $0 left (${fmtUsdCompact(tot)} used)`;
+            remEl.textContent = rem > 0 ? `${fmtUsd(rem)} left of ${fmtUsdCompact(tot)}` : `✓ $0 left`;
             remEl.classList.toggle('zero', rem === 0);
           }
           const numInp = row.querySelector('[data-input-cf-used]');
           if (numInp) numInp.value = used;
-        } else if (editKey) {
-          const remEl = document.querySelector(`[data-cf-live-rem="${CSS.escape(editKey)}"]`);
-          if (remEl) remEl.textContent = rem > 0 ? `${fmtUsd(rem)} left of ${fmtUsdCompact(tot)}` : `✓ $0 left (${fmtUsdCompact(tot)} used)`;
+        }
+        return;
+      }
+      const cfUsedInp = e.target.closest('[data-input-cf-used]');
+      if (cfUsedInp) {
+        const row = cfUsedInp.closest('[data-cf-slider-row]');
+        const totInp = row ? row.querySelector('[data-cf-edit-total]') : null;
+        const tot = Math.max(0, Number(totInp ? totInp.value : cfUsedInp.getAttribute('data-cf-total')) || 0);
+        const used = Math.min(tot, Math.max(0, Number(cfUsedInp.value) || 0));
+        const rem = Math.max(0, Number((tot - used).toFixed(2)));
+        if (row) {
+          const sliderEl = row.querySelector('[data-slider-cf-item]');
+          if (sliderEl) sliderEl.value = used;
+          const remEl = row.querySelector('[data-cf-live-rem]');
+          if (remEl) {
+            remEl.textContent = rem > 0 ? `${fmtUsd(rem)} left of ${fmtUsdCompact(tot)}` : `✓ $0 left`;
+            remEl.classList.toggle('zero', rem === 0);
+          }
+        }
+        return;
+      }
+      const cfTotEditInp = e.target.closest('[data-cf-edit-total]');
+      if (cfTotEditInp) {
+        const row = cfTotEditInp.closest('[data-cf-edit-row]');
+        const tot = Math.max(0, Number(cfTotEditInp.value) || 0);
+        if (row && tot > 0) {
+          const sliderEl = row.querySelector('[data-slider-cf-item]');
+          const numInp = row.querySelector('[data-input-cf-used]');
+          if (sliderEl) {
+            sliderEl.max = tot;
+            sliderEl.setAttribute('data-cf-total', tot);
+            if (Number(sliderEl.value) > tot) sliderEl.value = tot;
+          }
+          const used = Math.min(tot, Math.max(0, Number(numInp ? numInp.value : (sliderEl ? sliderEl.value : 0)) || 0));
+          if (numInp) {
+            numInp.max = tot;
+            numInp.value = used;
+          }
+          const rem = Math.max(0, Number((tot - used).toFixed(2)));
+          const remEl = row.querySelector('[data-cf-live-rem]');
+          if (remEl) {
+            remEl.textContent = rem > 0 ? `${fmtUsd(rem)} left of ${fmtUsdCompact(tot)}` : `✓ $0 left`;
+            remEl.classList.toggle('zero', rem === 0);
+          }
         }
       }
     });
@@ -11941,14 +11997,20 @@
       if (cfEditMode) {
         const row = cfEditMode.closest('[data-cf-edit-row]');
         const totEl = row ? row.querySelector('[data-cf-edit-total]') : null;
+        const sliderWrap = row ? row.querySelector('[data-cf-edit-slider-wrap]') : null;
         if (totEl) {
           totEl.style.display = cfEditMode.value === 'slider' ? 'inline-block' : 'none';
           if (cfEditMode.value === 'slider') setTimeout(() => totEl.focus(), 20);
+        }
+        if (sliderWrap) {
+          sliderWrap.style.display = cfEditMode.value === 'slider' ? 'flex' : 'none';
         }
         return;
       }
       const cfSliderChange = e.target.closest('[data-slider-cf-item], [data-input-cf-used]');
       if (cfSliderChange) {
+        // Inside the inline edit row, keep editing open until user clicks ✓
+        if (cfSliderChange.closest('[data-cf-edit-row]')) return;
         const ownerKey = cfSliderChange.getAttribute('data-slider-cf-item') || cfSliderChange.getAttribute('data-input-cf-used');
         const idx = Number(cfSliderChange.getAttribute('data-cf-idx'));
         const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
@@ -12854,8 +12916,11 @@
           fields[idx].value = nextVal;
           fields[idx].mode = nextMode;
           if (nextMode === 'slider') {
+            const usedInp = row ? row.querySelector('[data-input-cf-used]') : null;
+            const sliderInp = row ? row.querySelector('[data-slider-cf-item]') : null;
+            const rawUsed = usedInp ? Number(usedInp.value) : (sliderInp ? Number(sliderInp.value) : Number(fields[idx].used_usd));
             fields[idx].total_usd = nextTot;
-            const curUsed = Math.min(nextTot, Math.max(0, Number(fields[idx].used_usd) || 0));
+            const curUsed = Math.min(nextTot, Math.max(0, Number.isFinite(rawUsed) ? rawUsed : 0));
             fields[idx].used_usd = curUsed;
             fields[idx].checked = nextTot > 0 && curUsed >= nextTot;
           } else {
