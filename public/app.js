@@ -1499,6 +1499,19 @@
         }
         if (existing) {
           existing.custom_fields = mergeCustomFieldsArrays(existing.custom_fields, secItem.custom_fields);
+          if (Array.isArray(secItem.notes_list) && secItem.notes_list.length > 0) {
+            const primNotes = Array.isArray(existing.notes_list) ? existing.notes_list : [];
+            const seenNoteIds = new Set(primNotes.map(n => n && n.id).filter(Boolean));
+            const mergedNotes = [...primNotes];
+            for (const sn of secItem.notes_list) {
+              if (sn && sn.text && (!sn.id || !seenNoteIds.has(sn.id))) {
+                mergedNotes.push(sn);
+                if (sn.id) seenNoteIds.add(sn.id);
+              }
+            }
+            existing.notes_list = mergedNotes;
+          }
+          if (!existing.notes && secItem.notes) existing.notes = secItem.notes;
           if (!existing.owner && secItem.owner) existing.owner = secItem.owner;
           if (!existing.image_url && secItem.image_url) existing.image_url = secItem.image_url;
           if (!existing.card_number && secItem.card_number) existing.card_number = secItem.card_number;
@@ -7490,6 +7503,136 @@
     return { kind, id, prog, card, fields };
   }
 
+  let activeRewardNotesOwnerKey = '';
+  let activeEditingRewardNoteIdx = -1;
+
+  function getSyncedNotesList(prog, card) {
+    const out = [];
+    const seen = new Set();
+    const pushNote = (n) => {
+      if (!n || !String(n.text || '').trim()) return;
+      const key = n.id || String(n.text).trim().toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({
+        id: n.id || ('note-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)),
+        text: String(n.text).trim(),
+        updated_at: n.updated_at || ''
+      });
+    };
+    if (card && Array.isArray(card.notes_list)) card.notes_list.forEach(pushNote);
+    if (prog && Array.isArray(prog.notes_list)) prog.notes_list.forEach(pushNote);
+    // Include legacy single-string notes if not already in notes_list
+    if (card && card.notes && !out.some(n => n.text === String(card.notes).trim())) {
+      pushNote({ id: 'legacy-card-note', text: card.notes, updated_at: '' });
+    }
+    if (prog && prog.notes && !out.some(n => n.text === String(prog.notes).trim())) {
+      pushNote({ id: 'legacy-prog-note', text: prog.notes, updated_at: '' });
+    }
+    return out;
+  }
+
+  function syncNotesToItems(prog, card, notesList) {
+    const clean = (Array.isArray(notesList) ? notesList : []).map(n => ({
+      id: n.id || ('note-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)),
+      text: String(n.text || '').trim(),
+      updated_at: n.updated_at || new Date().toISOString()
+    })).filter(n => n.text);
+    const applyTo = (item) => {
+      if (!item) return;
+      item.notes_list = clean.map(n => ({ ...n }));
+      // Keep legacy .notes synced with first/combined note or cleared if empty
+      if (clean.length === 0) {
+        item.notes = '';
+      } else if (item.notes && !clean.some(n => n.text === String(item.notes).trim())) {
+        item.notes = clean[0].text;
+      }
+    };
+    applyTo(prog);
+    applyTo(card);
+  }
+
+  function renderNotesPageIconHtml(kind, id, prog, card) {
+    const notes = getSyncedNotesList(prog, card);
+    const count = notes.length;
+    const ownerKey = `${kind}:${id}`;
+    return `
+      <button
+        type="button"
+        class="btn-color-edit-inline"
+        data-open-reward-notes="${escapeHtml(ownerKey)}"
+        title="${count > 0 ? `${count} Note${count === 1 ? '' : 's'} — Click to view & edit` : 'Add Notes for this card'}"
+        style="${count > 0 ? 'border-color: rgba(14, 165, 233, 0.55); background: rgba(14, 165, 233, 0.12);' : ''}"
+      >
+        📄${count > 0 ? `<span style="font-size: 10px; font-weight: 700; margin-left: 2px; color: var(--accent-sky);">${count}</span>` : ''}
+      </button>
+    `;
+  }
+
+  function formatNoteTimestamp(isoStr) {
+    if (!isoStr) return 'Saved Note';
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return 'Saved Note';
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+
+  function renderRewardNotesModal() {
+    const listEl = document.getElementById('reward-notes-list');
+    const subEl = document.getElementById('modal-rnotes-subtitle');
+    if (!listEl) return;
+    const { prog, card } = resolveCustomFieldsTarget(activeRewardNotesOwnerKey);
+    const labelParts = [];
+    if (card && (card.name || card.card_name)) labelParts.push(card.name || card.card_name);
+    if (prog && prog.name && !labelParts.includes(prog.name)) labelParts.push(prog.name);
+    if (subEl) subEl.textContent = labelParts.join(' • ') || 'Card & Loyalty Notes';
+
+    const notes = getSyncedNotesList(prog, card);
+    if (notes.length === 0) {
+      listEl.innerHTML = `
+        <div style="padding: 18px; text-align: center; border: 1px dashed var(--border-subtle); border-radius: 8px; color: var(--text-muted); font-size: 12.5px;">
+          No notes saved yet for this card. Add your first note below!
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = notes.map((n, idx) => {
+      if (activeEditingRewardNoteIdx === idx) {
+        return `
+          <div style="padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--accent-sky); border-radius: 8px;">
+            <textarea class="form-input" id="rnote-edit-text-${idx}" rows="3">${escapeHtml(n.text)}</textarea>
+            <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px;">
+              <button type="button" class="btn btn-sm" data-cancel-rnote-edit="1">Cancel</button>
+              <button type="button" class="btn btn-sm btn-primary" data-save-rnote-idx="${idx}">Save</button>
+            </div>
+          </div>
+        `;
+      }
+      return `
+        <div style="padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 8px; display: flex; flex-direction: column; gap: 6px;">
+          <div style="white-space: pre-wrap; font-size: 13px; line-height: 1.45; color: var(--text-primary);">${escapeHtml(n.text)}</div>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid var(--border-subtle); padding-top: 6px;">
+            <span style="font-size: 10.5px; color: var(--text-muted);">${escapeHtml(formatNoteTimestamp(n.updated_at))}</span>
+            <div style="display: inline-flex; gap: 4px;">
+              <button type="button" class="btn btn-sm" style="padding: 2px 8px; font-size: 10.5px;" data-edit-rnote-idx="${idx}">✎ Edit</button>
+              <button type="button" class="btn btn-sm btn-danger-ghost" style="padding: 2px 8px; font-size: 10.5px;" data-del-rnote-idx="${idx}">🗑️</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function openRewardNotesModal(ownerKey) {
+    activeRewardNotesOwnerKey = ownerKey;
+    activeEditingRewardNoteIdx = -1;
+    const inputEl = document.getElementById('rnote-new-text');
+    if (inputEl) inputEl.value = '';
+    renderRewardNotesModal();
+    openModal('modal-reward-notes');
+    if (inputEl) setTimeout(() => inputEl.focus(), 60);
+  }
+
   function renderCardCustomChecklistHtml(kind, id, prog, card) {
     const ownerKey = `${kind}:${id}`;
     const fields = getSyncedCustomFields(prog, card);
@@ -8097,6 +8240,7 @@
                 <button type="button" class="btn-color-edit-inline" data-quick-color-prog="${escapeHtml(p.id)}" title="Change category or card color">
                   ✏️
                 </button>
+                ${renderNotesPageIconHtml('program', p.id, p, primaryCard)}
               </div>
               <h4 style="font-size: 16.5px; font-weight: 800; margin-top: 5px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span>${escapeHtml(p.name)}</span>
@@ -8493,6 +8637,7 @@
                   <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${cardBannerColor};"></span>
                   💳 ${escapeHtml(c.issuer || 'Bank')} • ${escapeHtml(c.ecosystem || c.points_program || 'Rewards')}
                 </span>
+                ${renderNotesPageIconHtml('card', c.id, linkedProg, c)}
               </div>
               <h4 style="font-size: 16.5px; font-weight: 800; margin-top: 5px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span>${escapeHtml(cardName)}</span>
@@ -12256,6 +12401,95 @@
         } else {
           showToast(`🌐 Opening ${label} login portal...`);
         }
+        return;
+      }
+
+      // Open Card / Loyalty Program Notes Modal
+      const openNotesBtn = e.target.closest('[data-open-reward-notes]');
+      if (openNotesBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const ownerKey = openNotesBtn.getAttribute('data-open-reward-notes');
+        if (ownerKey) openRewardNotesModal(ownerKey);
+        return;
+      }
+      if (e.target.closest('#btn-rnote-add')) {
+        e.preventDefault();
+        const inputEl = document.getElementById('rnote-new-text');
+        const text = (inputEl ? inputEl.value : '').trim();
+        if (!text) {
+          showToast('Please enter a note first');
+          if (inputEl) inputEl.focus();
+          return;
+        }
+        const { prog, card } = resolveCustomFieldsTarget(activeRewardNotesOwnerKey);
+        if (prog || card) {
+          const notes = getSyncedNotesList(prog, card);
+          notes.unshift({
+            id: 'note-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+            text,
+            updated_at: new Date().toISOString()
+          });
+          syncNotesToItems(prog, card, notes);
+          if (inputEl) inputEl.value = '';
+          activeEditingRewardNoteIdx = -1;
+          await saveRewardsState('Saved note!');
+          renderRewardNotesModal();
+        }
+        return;
+      }
+      const editRnoteBtn = e.target.closest('[data-edit-rnote-idx]');
+      if (editRnoteBtn) {
+        e.preventDefault();
+        activeEditingRewardNoteIdx = Number(editRnoteBtn.getAttribute('data-edit-rnote-idx'));
+        renderRewardNotesModal();
+        return;
+      }
+      if (e.target.closest('[data-cancel-rnote-edit]')) {
+        e.preventDefault();
+        activeEditingRewardNoteIdx = -1;
+        renderRewardNotesModal();
+        return;
+      }
+      const saveRnoteBtn = e.target.closest('[data-save-rnote-idx]');
+      if (saveRnoteBtn) {
+        e.preventDefault();
+        const idx = Number(saveRnoteBtn.getAttribute('data-save-rnote-idx'));
+        const editEl = document.getElementById(`rnote-edit-text-${idx}`);
+        const nextText = (editEl ? editEl.value : '').trim();
+        if (!nextText) {
+          showToast('Note cannot be empty');
+          return;
+        }
+        const { prog, card } = resolveCustomFieldsTarget(activeRewardNotesOwnerKey);
+        const notes = getSyncedNotesList(prog, card);
+        if (notes[idx]) {
+          notes[idx] = { ...notes[idx], text: nextText, updated_at: new Date().toISOString() };
+          syncNotesToItems(prog, card, notes);
+          activeEditingRewardNoteIdx = -1;
+          await saveRewardsState('Updated note!');
+          renderRewardNotesModal();
+        }
+        return;
+      }
+      const delRnoteBtn = e.target.closest('[data-del-rnote-idx]');
+      if (delRnoteBtn) {
+        e.preventDefault();
+        const idx = Number(delRnoteBtn.getAttribute('data-del-rnote-idx'));
+        const { prog, card } = resolveCustomFieldsTarget(activeRewardNotesOwnerKey);
+        const notes = getSyncedNotesList(prog, card);
+        if (!notes[idx]) return;
+        const ok = await confirmDelete({
+          title: 'Delete Note',
+          message: 'Are you sure you want to delete this note?',
+          extra: 'This note will be permanently removed from this card.'
+        });
+        if (!ok) return;
+        notes.splice(idx, 1);
+        syncNotesToItems(prog, card, notes);
+        activeEditingRewardNoteIdx = -1;
+        await saveRewardsState('Deleted note');
+        renderRewardNotesModal();
         return;
       }
 
