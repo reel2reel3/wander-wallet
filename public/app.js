@@ -7466,25 +7466,28 @@
   let activeMiniDashboardState = { kind: 'program', id: '', tab: 'overview' };
   let activeQuickBalanceProgId = null;
 
+  function normalizeCustomFieldItem(f, idx, useTimestampId = false) {
+    const isSlider = f && f.mode === 'slider' && Number(f.total_usd) > 0;
+    const totalUsd = isSlider ? Math.max(0, Number(f.total_usd) || 0) : 0;
+    const usedUsd = isSlider ? Math.min(totalUsd, Math.max(0, Number(f.used_usd) || 0)) : 0;
+    return {
+      id: (f && f.id) || (useTimestampId ? `cf-${Date.now()}-${idx}` : `cf-${idx}`),
+      label: String((f && (f.label || f.key)) || 'Custom Field').trim(),
+      value: String((f && f.value) || '').trim(),
+      checked: isSlider ? (totalUsd > 0 && usedUsd >= totalUsd) : Boolean(f && f.checked),
+      ...(isSlider ? { mode: 'slider', total_usd: totalUsd, used_usd: usedUsd } : {})
+    };
+  }
+
   function getSyncedCustomFields(prog, card) {
     const pFields = prog && Array.isArray(prog.custom_fields) ? prog.custom_fields : [];
     const cFields = card && Array.isArray(card.custom_fields) ? card.custom_fields : [];
     const raw = mergeCustomFieldsArrays(pFields, cFields);
-    return raw.map((f, idx) => ({
-      id: f.id || `cf-${idx}`,
-      label: String(f.label || f.key || 'Custom Field').trim(),
-      value: String(f.value || '').trim(),
-      checked: Boolean(f.checked)
-    }));
+    return raw.map((f, idx) => normalizeCustomFieldItem(f, idx, false));
   }
 
   function syncCustomFieldsToItems(prog, card, nextFields) {
-    const cleaned = (Array.isArray(nextFields) ? nextFields : []).map((f, idx) => ({
-      id: f.id || `cf-${Date.now()}-${idx}`,
-      label: String(f.label || 'Custom Field').trim(),
-      value: String(f.value || '').trim(),
-      checked: Boolean(f.checked)
-    }));
+    const cleaned = (Array.isArray(nextFields) ? nextFields : []).map((f, idx) => normalizeCustomFieldItem(f, idx, true));
     if (prog) prog.custom_fields = JSON.parse(JSON.stringify(cleaned));
     if (card) card.custom_fields = JSON.parse(JSON.stringify(cleaned));
   }
@@ -14261,6 +14264,30 @@
     // Drag-and-Drop Reordering for Custom Checkbox Fields & Credit Cards, Loyalty Programs, Certificates/Perks
     let activeDraggedReward = null;
     let activeDraggedCustomField = null;
+
+    // Temporarily disable ancestor draggable="true" while interacting with range sliders/inputs
+    let temporarilyDisabledDraggables = [];
+    const restoreTemporarilyDisabledDraggables = () => {
+      for (const el of temporarilyDisabledDraggables) {
+        if (el && el.isConnected) el.setAttribute('draggable', 'true');
+      }
+      temporarilyDisabledDraggables = [];
+    };
+    document.addEventListener('pointerdown', e => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) {
+        restoreTemporarilyDisabledDraggables();
+        let cur = e.target.parentElement;
+        while (cur) {
+          if (cur.getAttribute && cur.getAttribute('draggable') === 'true') {
+            cur.setAttribute('draggable', 'false');
+            temporarilyDisabledDraggables.push(cur);
+          }
+          cur = cur.parentElement;
+        }
+      }
+    });
+    document.addEventListener('pointerup', restoreTemporarilyDisabledDraggables);
+    document.addEventListener('pointercancel', restoreTemporarilyDisabledDraggables);
 
     document.addEventListener('dragstart', e => {
       // Do not start drag if user is dragging a slider or text input
