@@ -1251,9 +1251,49 @@
     return memoryStore;
   }
 
+  // IndexedDB high-capacity backup (avoids localStorage 5MB QuotaExceededError for card photos & receipts)
+  function idbOpenBackupDb() {
+    return new Promise((resolve, reject) => {
+      if (typeof indexedDB === 'undefined') return reject(new Error('No IDB'));
+      const req = indexedDB.open('wanderwallet_backup_db', 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('snapshots')) {
+          db.createObjectStore('snapshots');
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbSaveBackup(data) {
+    if (!data) return;
+    try {
+      const db = await idbOpenBackupDb();
+      const tx = db.transaction('snapshots', 'readwrite');
+      tx.objectStore('snapshots').put(data, 'latest');
+    } catch (e) {}
+  }
+
+  async function idbLoadBackup() {
+    try {
+      const db = await idbOpenBackupDb();
+      return await new Promise(resolve => {
+        const tx = db.transaction('snapshots', 'readonly');
+        const req = tx.objectStore('snapshots').get('latest');
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    } catch (e) {
+      return null;
+    }
+  }
+
   function saveLocalStore(data) {
     if (!data) return;
     memoryStore = data;
+    idbSaveBackup(data);
     if (data.rewards && Array.isArray(data.rewards.programs)) {
       try {
         const rewCopy = { ...data.rewards, __saved_at: Number(data.updated_at) || Date.now() };
@@ -1261,7 +1301,7 @@
       } catch (eRew) {
         try {
           const slimCards = (data.rewards.cards || []).map(c =>
-            c.image_url && c.image_url.length > 120000 ? { ...c, image_url: '' } : c
+            c.image_url && c.image_url.length > 450000 ? { ...c, image_url: '' } : c
           );
           const rewSlim = { ...data.rewards, cards: slimCards, __saved_at: Number(data.updated_at) || Date.now() };
           window.localStorage.setItem('wayfarer_rewards_backup', JSON.stringify(rewSlim));
@@ -1289,7 +1329,7 @@
               ? {
                   ...data.rewards,
                   cards: (data.rewards.cards || []).map(c =>
-                    c.image_url && c.image_url.length > 120000 ? { ...c, image_url: '' } : c
+                    c.image_url && c.image_url.length > 450000 ? { ...c, image_url: '' } : c
                   )
                 }
               : data.rewards
@@ -1425,7 +1465,20 @@
       ...(Array.isArray(secondaryRew.deleted_ids) ? secondaryRew.deleted_ids : [])
     ]);
 
-    const mergeCollection = (primList, secList, seedSet, keyFn) => {
+    const isCustomizedSeedItem = (item) => {
+      if (!item || typeof item !== 'object') return false;
+      return Boolean(
+        item.owner ||
+        item.image_url ||
+        item.card_number ||
+        item.card_expiration ||
+        item.member_id ||
+        item.linked_program_id ||
+        (Array.isArray(item.custom_fields) && item.custom_fields.length > 0)
+      );
+    };
+
+    const mergeCollection = (primList, secList, seedSet, keyFn, nameOnlyFn) => {
       const out = (Array.isArray(primList) ? primList : [])
         .filter(item => item && !deletedSet.has(item.id))
         .map(item => ({ ...item }));
@@ -1434,7 +1487,16 @@
 
       for (const secItem of (Array.isArray(secList) ? secList : [])) {
         if (!secItem || deletedSet.has(secItem.id)) continue;
-        const existing = byId.get(secItem.id) || bySemanticKey.get(keyFn(secItem));
+        let existing = byId.get(secItem.id) || bySemanticKey.get(keyFn(secItem));
+        if (!existing && nameOnlyFn) {
+          const secName = nameOnlyFn(secItem);
+          const secOwner = String(secItem.owner || '').trim().toLowerCase();
+          existing = out.find(p => {
+            if (nameOnlyFn(p) !== secName) return false;
+            const pOwner = String(p.owner || '').trim().toLowerCase();
+            return !pOwner || !secOwner || pOwner === secOwner;
+          }) || null;
+        }
         if (existing) {
           existing.custom_fields = mergeCustomFieldsArrays(existing.custom_fields, secItem.custom_fields);
           if (!existing.owner && secItem.owner) existing.owner = secItem.owner;
@@ -1442,13 +1504,14 @@
           if (!existing.card_number && secItem.card_number) existing.card_number = secItem.card_number;
           if (!existing.card_expiration && secItem.card_expiration) existing.card_expiration = secItem.card_expiration;
           if (!existing.member_id && secItem.member_id) existing.member_id = secItem.member_id;
+          if (!existing.linked_program_id && secItem.linked_program_id) existing.linked_program_id = secItem.linked_program_id;
           if ((!existing.points || Number(existing.points) === 0) && Number(secItem.points) > 0) {
             existing.points = secItem.points;
           }
           if ((!existing.status_tier || existing.status_tier === 'Member') && secItem.status_tier && secItem.status_tier !== 'Member') {
             existing.status_tier = secItem.status_tier;
           }
-        } else if (!seedSet.has(secItem.id)) {
+        } else if (!seedSet.has(secItem.id) || isCustomizedSeedItem(secItem)) {
           const clone = { ...secItem };
           out.push(clone);
           byId.set(clone.id, clone);
@@ -1459,10 +1522,11 @@
     };
 
     const normKey = (name, owner) => `${String(owner || '').trim().toLowerCase()}::${String(name || '').trim().toLowerCase()}`;
-    const mergedPrograms = mergeCollection(primaryRew.programs, secondaryRew.programs, SEED_PROGRAM_IDS, p => normKey(p.name, p.owner));
-    const mergedCards = mergeCollection(primaryRew.cards, secondaryRew.cards, SEED_CARD_IDS, c => normKey(c.name || c.card_name, c.owner));
-    const mergedCerts = mergeCollection(primaryRew.certificates, secondaryRew.certificates, SEED_CERT_IDS, c => normKey(c.title, c.owner));
-    const mergedRedemptions = mergeCollection(primaryRew.redemptions, secondaryRew.redemptions, SEED_REDEMPTION_IDS, r => normKey(r.title, r.program));
+    const normNameOnly = (name) => String(name || '').trim().toLowerCase();
+    const mergedPrograms = mergeCollection(primaryRew.programs, secondaryRew.programs, SEED_PROGRAM_IDS, p => normKey(p.name, p.owner), p => normNameOnly(p.name));
+    const mergedCards = mergeCollection(primaryRew.cards, secondaryRew.cards, SEED_CARD_IDS, c => normKey(c.name || c.card_name, c.owner), c => normNameOnly(c.name || c.card_name));
+    const mergedCerts = mergeCollection(primaryRew.certificates, secondaryRew.certificates, SEED_CERT_IDS, c => normKey(c.title, c.owner), c => normNameOnly(c.title));
+    const mergedRedemptions = mergeCollection(primaryRew.redemptions, secondaryRew.redemptions, SEED_REDEMPTION_IDS, r => normKey(r.title, r.program), null);
 
     const ownersSet = new Set([
       ...(Array.isArray(primaryRew.owners) ? primaryRew.owners : []),
@@ -1509,7 +1573,22 @@
   }
 
   async function syncBootstrapWithLocal(serverData) {
-    const localStore = getLocalStore();
+    let localStore = getLocalStore();
+    try {
+      const idbSnap = await idbLoadBackup();
+      if (idbSnap && idbSnap.rewards && Array.isArray(idbSnap.rewards.programs)) {
+        const idbTs = Number(idbSnap.updated_at) || 0;
+        const locTs = Number(localStore && localStore.updated_at) || 0;
+        if (idbTs >= locTs) {
+          localStore = {
+            ...idbSnap,
+            rewards: mergeRewardsPortfolios(idbSnap.rewards, localStore ? localStore.rewards : null)
+          };
+        } else if (localStore) {
+          localStore.rewards = mergeRewardsPortfolios(localStore.rewards, idbSnap.rewards);
+        }
+      }
+    } catch (eIdb) {}
     if (!serverData) return localStore;
 
     const localHasCustom = hasLocalCustomData(localStore);
@@ -2091,134 +2170,266 @@
 
   let hasCompletedServerBootstrap = false;
 
-  const RESTORED_DELTA_AMEX_IMAGE_URL = 'data:image/jpeg;base64,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';
+  const RESTORED_CARD_IMAGES = {
+    delta: 'data:image/jpeg;base64,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',
+    united: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAUEBAQEAwUEBAQGBQUGCA0ICAcHCBALDAkNExAUExIQEhIUFx0ZFBYcFhISGiMaHB4fISEhFBkkJyQgJh0gISD/2wBDAQUGBggHCA8ICA8gFRIVICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICD/wAARCABHAHEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDnvjb8RfEnjD4hX3hSwnuItK0+6axisoCR9olVtrO4H3yWBCjoBjAyST59r/gnxb4Ws7W91uxa3t7k4R0uElwcZ2tsY7D7Ng9fSr/iXVbnRPjdret2YU3Fjr9xcxhhkbluGYZ/EVo+LPHek6roN1o/h7RJ7CHUrtb++e6nEztMN33MABV+avbpwaUVFaHmSkm229Tz7fL/AM9X/OjfL/z1f86TaaNprq9mjHmfcXfL/wA9X/Or8mj66kcsjWN2qQxRzyMVbCRyY8tj6Btwwe+RWftNdve/ES8u/DD6ONFsYbme3tbO5vkaQyTQ25BjXaW2qflXJA5xUSg1silK+7ObufD3iWzuGt7rSr+CZJY4GSSNlIkcZRcHuw6etTReEvF9zY3V7b6HqMttaM6zyrExWIr94Me2O9dRqvxb8RazGsd/bWsqx6qmqRMVO+MoSRDuzkxgscA9MnFYZ8WavPY+JoYrbMWuTLPcFN2ISJC/y+gOSOewrJRm+hTlFatmZL4b8UQaXBqk2k30djcbfKnaNgj7jhcHvk9Kj1jw74m0BY31vSr/AE9ZSVRriNkDEdQM9667UfiRqGoeDdK0GfRIAmlpB5VyHkyRG3ykrnbz06VV8Y+OdS8UWP2H/hG4NJiu71tQl8kzO1zOwwWBkZsDB+6uBzUcs3vEfNTS+I4xrTVFjkdoLkLHjeSpwuRkZ/DmqTPPj78n5mu0sfGviBYnjt7C2uECRq4MTN9zoTz1wAv0UfWp4PHWpPaGSbRIJI4dzrJFG4G45++c4K85I6e3pDjL+UrngtOY4k2mp/YvtohuPs3/AD1wdo5x1+vFbPg3x34n8B+IYNY0HUZYmRgZbd2JhuF7o69CCO/UdQQQDV278Y69czm4msIvs9zbm1MARxFIrHqAD973FY3iTVr/AFnUkub+wjspVTaI40ZBgsW6MSepNZSg7aouM430lqfWH/DWHhT/AKAd9/32v+FFfGu00Vh7Jdjb2jO58dDPxL8Ue+rXf/o5q5/FdF45H/FyfE//AGFbr/0c1YAAr6GlH3UeVJ+8xmKMU/AoIrXlIuMxQRTvwoxUuNikyIip4J0itZ4HQt5hUg8cYBHce9MKjFRkVjrF3QSSmuWRM92DYCz8s7Qdwbdzu/wx2px1Fmv4JmT91E6vsHBOAB1/CqhFNP0qJTn3/pDVGn27/juWILuGFDG0cjIkolTDYOR2PFEeo7LaSJoQTJvywwCu7HT0/wADVMjrUZ9KydWa2Zp7Cm90XHv42WzxCQ1vtz0+bB9cZqvfXf2uVH8sR7VI2jp1J4/OoDTSOaxnVk0433NI0YRaklqv1G0UuKKxN7ndeOR/xcjxP/2Fbr/0c1YAFdh40t4B8Q/EjvEHJ1O6OS3/AE2b8KwzbWwwpEY3dCGIPP4Yr3aNuRHnTi7szMe1Jirs1kyKWjYOB1AIJH5VUroUbmDbW43FNPWpKae9RJDTGHpTSKce9NNc8kbRZGRTSKeetNPWuWSN7kTComFTNUL9655GyIz1pppxpKyaKQlFLRU2Gen+Mwf+E+8RGPLj+1LpfkfBBMzdqwsiVfKgvDk4QxsvXtxW741VovHfiW8tSpkXVLkNx0/etWMiLds0jFYJynAHUD1Ne5R0gjjndtoWQlZ3E8P2cEE+ancZH/1qzryFUKyx8q/BI6ZHUj2q5HcfZwovAZ1kBUHrhc9ffP8ASi5gKWbbmyoRWVQfunPI/WuuOhzzXMjIpp6mnnrTD3qZmURh7000496aa5JHQhjdaaetObrTT1rlkbly10e/v7O5urOJZo7ZDJKFcbkUfxFeuPerH/CIeIJLH7YtgxiMKXGc87HOEOPc9K1vh/r+neH/ABQ8ushjpd5azWd0FBJ2SIRkAdwcH8K7bUviXpWo22txWc7aT/aGoWkNs8cLP9jsrbmMgdyWCnGe5rhqSknZI6YKNrtnl9z4Q1+2vrWwlsf9LupPKjhDgtu9CAeKy9S0680nUZtP1CEw3MJw6HqDXuTfEXwBHr1v4lntXn123sZoZruxtvs5up5PlEqocqrKpbk9Sa80+JWvaP4l8Wx6vo3nCKS0hSUTjDiRECnPYk4BJHGTWSnJ7o0cUlozjc0UlFVcg+jfi98PJ9A8SXfiy0QXGk305mnBcA20rHJO0/eBOSCOnIxwCfIJlhM0t5HuMOcEZ+83cfSiivQwFWU6fvdNDHEwipWXqWoZv7QhQMixrFySB37Y9qpM5is5Y2O5mAOT7nI/kfzoor07u9jkkrxTM/dTSR60UUNmMUNJFNJFFFcsmbRI2IzTSeaKK55G4xjxV2y1hrFURrOC5jUsdsikk5Hr+AoorllqbRA69KUCtYWRG4MR5Z+YjGM8+w/yTXReC/BOtfE3xJHbWaW1naQ4+1XKgKIUzkkLnLN2A+mSBzRRXLUfLFtG8FzOzPp3/hQnw7/6Bs3/AH+/+tRRRXBzy7nXyrsf/9k=',
+    marriott: 'data:image/jpeg;base64,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',
+    hyatt: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAUEBAQEAwUEBAQGBQUGCA0ICAcHCBALDAkNExAUExIQEhIUFx0ZFBYcFhISGiMaHB4fISEhFBkkJyQgJh0gISD/2wBDAQUGBggHCA8ICA8gFRIVICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICD/wAARCAAzAFADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD1zV/FGs3upzSR301qkbMqRwuVAHvg9awbnxBroOF1u9H0mYf1pty4W5mJOMu386yZZFZ87uPaqEaC6/4i765e4/67t/jV+21zXmOG1i9P/bdv8a59fvbc4+tadqOQcn8qAOrtdT1Ugb9RuW+srGtSK/1LA/0uY/8AbQ1z9sWCj5v0rRjbpksfpmgDprO5vWYb55D9XzXM+NfGmvaHrEWm6Tb2cv8AoLXsj3UrJgK204x1IBzj2rc00nuSB714t8d3Y+KNL2FiRZkHGRxvP6V6WW0VWxChJdDzcyrSo4Zzj3Nefx/488g3ASzC7tuEupN3QnOP+An68eorpfh/438SXviQafqwheCeFJwFkZyA2ccnp06V4DLNoo0aNYFvG1LygH3MQocHqPw4/L3rt/gu8o8V3LyFmwiYLZ9TXt4vA0qeHlNRSa/rueDg8fWqYiNOTev9djqLmQLcT4K58wjnjvU39nWfnDIjyQv/AC3l+bP4iqNyS95MqngyNnnjrTfMmDKeSV6HPSvkj6829H0i1vLiVZp0CI+0Rockj1BPNQhBBdywpyqOVBrLj81WDqNrdRzgitC1Zw2SOT70Abdu77R8tXI3PsD7ms6KVwOVH51PHO+eI/yagDobKYgAn+dcf400LV9X1wX2mXlpbq9i9lIJ1LHazAkj06DnrXSW05CZMZ/OkkldjygIrWjWlRlzR3Ma1GFaPJPY8vPg3xSqY/tXTRgqdyxNnKx7AfyyT7kmtrwR4e1DRteSe/uLeYtFHArRb84XpndXWzZYYWJQfXFQ2Rca1aKVwN/NddXMK1WDg9mctHLqFKanFao4t5Ab24yW/wBY2MD3pCV4POfelfm8uMp0kbI/Grq3WnBpGkst+4DA3cAjv+eK889EqKeRir0MmAP6Uq3em7cLpyqQQcls5Gen5U0yo7hkVU4AOD1Pc0AX0mAHJP5VNHMvoc/SqG87eopVmIPBFAHQRzxiLDE/TbSiWMFVJ5bpkVj/AGlyANwrVsLloAZAEkOAMOM45oAdPLEFUllAPGelV9OOddt+v360JZbzyyPscUkRUAjZnPX9eajhnmn1qx8yzFvtYgYGM0gKXivT7OPXmkjgCM6gttJGTXPG2hyfk6H1NFFMYv2eHj5f1NSrBEBnafzNFFAEnlJjofzNKkMeQcHr6miigCXy1Djr+ZrRhJCYB4oooALklkAJJH1rZ8MQxGeeYrmRPuknOPpRRSEf/9k=',
+    ihg: 'data:image/jpeg;base64,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'
+  };
 
-  function restoreJimDeltaCardIfNeeded() {
+  function restoreKnownUserRewardsSafely() {
     if (!hasCompletedServerBootstrap || !state.rewards || state.rewards.__scoped) return false;
-    if (safeStorageGet('ww_restored_jim_delta_v1') === '1') return false;
+    if (safeStorageGet('ww_restored_portfolio_v2') === '1') return false;
 
     const deletedSet = new Set(Array.isArray(state.rewards.deleted_ids) ? state.rewards.deleted_ids : []);
-    if (deletedSet.has('prog-delta-jim') || deletedSet.has('card-delta-plat-jim')) {
-      safeStorageSet('ww_restored_jim_delta_v1', '1');
-      return false;
-    }
+    let changed = false;
 
-    const customFields = [
+    const findProg = (nameSub, ownerName) => {
+      const sub = String(nameSub).toLowerCase();
+      const own = String(ownerName || '').toLowerCase();
+      return (state.rewards.programs || []).find(p => {
+        const pn = String(p.name || '').toLowerCase();
+        const po = String(p.owner || '').toLowerCase();
+        return pn.includes(sub) && (!own || po === own || !po);
+      });
+    };
+
+    const findCard = (nameSub, ownerName) => {
+      const sub = String(nameSub).toLowerCase();
+      const own = String(ownerName || '').toLowerCase();
+      return (state.rewards.cards || []).find(c => {
+        const cn = String(c.name || c.card_name || '').toLowerCase();
+        const co = String(c.owner || '').toLowerCase();
+        return cn.includes(sub) && (!own || co === own || !co);
+      });
+    };
+
+    const ensureProgFields = (prog, defaults) => {
+      if (!prog) return;
+      if (!prog.owner && defaults.owner) { prog.owner = defaults.owner; changed = true; }
+      if ((!prog.points || Number(prog.points) === 0) && defaults.points) { prog.points = defaults.points; changed = true; }
+      if ((!prog.status_tier || prog.status_tier === 'Member') && defaults.status_tier) { prog.status_tier = defaults.status_tier; changed = true; }
+      if (!prog.member_id && defaults.member_id) { prog.member_id = defaults.member_id; changed = true; }
+      if ((!prog.qualifying_nights || Number(prog.qualifying_nights) === 0) && defaults.qualifying_nights) {
+        prog.qualifying_nights = defaults.qualifying_nights;
+        changed = true;
+      }
+      if ((!prog.target_nights || Number(prog.target_nights) === 0) && defaults.target_nights) {
+        prog.target_nights = defaults.target_nights;
+        changed = true;
+      }
+    };
+
+    const ensureCardFields = (card, defaults, prog) => {
+      if (!card) return;
+      if (!card.owner && defaults.owner) { card.owner = defaults.owner; changed = true; }
+      if (!card.image_url && defaults.image_url) { card.image_url = defaults.image_url; changed = true; }
+      if (!card.card_number && defaults.card_number) { card.card_number = defaults.card_number; changed = true; }
+      if (!card.card_expiration && defaults.card_expiration) { card.card_expiration = defaults.card_expiration; changed = true; }
+      if (defaults.annual_fee && Number(card.annual_fee) !== defaults.annual_fee && !card.annual_fee) {
+        card.annual_fee = defaults.annual_fee;
+        changed = true;
+      }
+      if (prog && (!card.linked_program_id || !(state.rewards.programs || []).some(p => p.id === card.linked_program_id))) {
+        card.linked_program_id = prog.id;
+        changed = true;
+      }
+    };
+
+    // 1. Delta SkyMiles + Delta SkyMiles Platinum Amex (Jim)
+    const deltaCf = [
       { id: 'cf-dl-1', label: 'Flight Companion Pass', value: 'Renews', checked: true },
       { id: 'cf-dl-2', label: '$150 Delta Stays Credit', value: '', checked: false },
       { id: 'cf-dl-3', label: 'First & Second Checked Bags Free', value: '', checked: false }
     ];
+    if (!deletedSet.has('prog-delta-jim') && !deletedSet.has('card-delta-plat-jim')) {
+      let deltaProg = findProg('delta skymiles', 'Jim');
+      if (!deltaProg) {
+        deltaProg = {
+          id: 'prog-delta-jim',
+          name: 'Delta SkyMiles',
+          owner: 'Jim',
+          ecosystem: 'airline',
+          status_tier: 'Gold Medallion',
+          member_id: '',
+          points: 76418,
+          cpp: 1.25,
+          qualifying_nights: 10000,
+          target_nights: 15000,
+          metric_label: 'MQDs (Medallion Dollars)',
+          expiration_policy: 'Miles never expire',
+          transfer_partners: 'Amex Membership Rewards (1:1)',
+          notes: 'TakeOff 15 (15% off award flights with Delta Amex)',
+          website_url: 'https://www.delta.com/myprofile/dashboard',
+          custom_fields: JSON.parse(JSON.stringify(deltaCf))
+        };
+        state.rewards.programs.unshift(deltaProg);
+        changed = true;
+      } else {
+        ensureProgFields(deltaProg, { owner: 'Jim', points: 76418, status_tier: 'Gold Medallion' });
+        if (!Array.isArray(deltaProg.custom_fields) || deltaProg.custom_fields.length === 0) {
+          deltaProg.custom_fields = JSON.parse(JSON.stringify(deltaCf));
+          changed = true;
+        }
+      }
 
-    let changed = false;
-    let deltaProg = (state.rewards.programs || []).find(p =>
-      String(p.name || '').toLowerCase().includes('delta skymiles')
-    );
-    if (!deltaProg) {
-      deltaProg = {
-        id: 'prog-delta-jim',
-        name: 'Delta SkyMiles',
-        owner: 'Jim',
-        ecosystem: 'airline',
-        status_tier: 'Gold Medallion',
-        member_id: '',
-        points: 76418,
-        cpp: 1.25,
-        qualifying_nights: 10000,
-        target_nights: 15000,
-        metric_label: 'MQDs (Medallion Dollars)',
-        expiration_policy: 'Miles never expire',
-        transfer_partners: 'Amex Membership Rewards (1:1)',
-        notes: 'TakeOff 15 (15% off award flights with Delta Amex)',
-        website_url: 'https://www.delta.com/myprofile/dashboard',
-        custom_fields: JSON.parse(JSON.stringify(customFields))
-      };
-      state.rewards.programs.unshift(deltaProg);
-      changed = true;
-    } else {
-      if (!deltaProg.owner) { deltaProg.owner = 'Jim'; changed = true; }
-      if (!deltaProg.points || Number(deltaProg.points) === 0) { deltaProg.points = 76418; changed = true; }
-      if (!deltaProg.status_tier || deltaProg.status_tier === 'Member') { deltaProg.status_tier = 'Gold Medallion'; changed = true; }
-      if (!Array.isArray(deltaProg.custom_fields) || deltaProg.custom_fields.length === 0) {
-        deltaProg.custom_fields = JSON.parse(JSON.stringify(customFields));
+      let deltaCard = findCard('delta skymiles platinum', 'Jim');
+      if (!deltaCard) {
+        const nextYear = new Date(Date.now() + 300 * 86400000).toISOString().slice(0, 10);
+        deltaCard = {
+          id: 'card-delta-plat-jim',
+          name: 'Delta SkyMiles Platinum Amex',
+          owner: 'Jim',
+          issuer: 'American Express',
+          ecosystem: 'Delta SkyMiles',
+          linked_program_id: deltaProg.id,
+          card_style: 'auto',
+          image_url: RESTORED_CARD_IMAGES.delta,
+          annual_fee: 350,
+          renewal_date: nextYear,
+          ftf: 'None ($0 Foreign Tx Fee)',
+          multipliers: '3x Delta & Direct Hotels • 2x Dining & US Supermarkets • $2,500 MQD Headstart',
+          best_for: 'Annual Companion Certificate + $2,500 MQD Headstart + $150 Delta Stays + $120 Resy',
+          website_url: 'https://global.americanexpress.com/login',
+          card_number: '1006',
+          card_expiration: '05/27',
+          sub_active: false,
+          sub_bonus_label: '85,000 SkyMiles',
+          sub_deadline: '',
+          sub_target_usd: 4000,
+          sub_spent_manual_usd: 0,
+          credits: [
+            { name: '$150 Delta Stays Credit (Annual)', total_usd: 150, used_usd: 0 },
+            { name: '$120 Resy Dining Credit ($10/mo)', total_usd: 120, used_usd: 0 },
+            { name: '$120 Rideshare Credit ($10/mo)', total_usd: 120, used_usd: 0 },
+            { name: '$120 Global Entry / TSA PreCheck', total_usd: 120, used_usd: 0 }
+          ],
+          custom_fields: JSON.parse(JSON.stringify(deltaCf))
+        };
+        state.rewards.cards.unshift(deltaCard);
+        changed = true;
+      } else {
+        ensureCardFields(deltaCard, {
+          owner: 'Jim',
+          image_url: RESTORED_CARD_IMAGES.delta,
+          card_number: '1006',
+          card_expiration: '05/27',
+          annual_fee: 350
+        }, deltaProg);
+        if (!Array.isArray(deltaCard.custom_fields) || deltaCard.custom_fields.length === 0) {
+          deltaCard.custom_fields = JSON.parse(JSON.stringify(deltaCf));
+          changed = true;
+        }
+      }
+
+      const hasCompanionCert = (state.rewards.certificates || []).some(c =>
+        String(c.title || '').toLowerCase().includes('delta skymiles') && String(c.title || '').toLowerCase().includes('companion')
+      );
+      if (!hasCompanionCert && !deletedSet.has('cert-delta-companion-jim')) {
+        const nextYear = new Date(Date.now() + 330 * 86400000).toISOString().slice(0, 10);
+        state.rewards.certificates.unshift({
+          id: 'cert-delta-companion-jim',
+          owner: 'Jim',
+          linked_program_id: deltaProg.id,
+          title: 'Delta SkyMiles Main Cabin Companion Certificate',
+          type: 'Companion Pass',
+          program: 'Delta SkyMiles',
+          source_card: 'Delta SkyMiles Platinum Amex',
+          cap_details: 'Round-trip Domestic, Caribbean, or Central America Main Cabin',
+          expires_date: nextYear,
+          est_value_usd: 450,
+          status: 'available',
+          notes: 'Pay only taxes & fees (capped at $80 domestic)'
+        });
         changed = true;
       }
     }
 
-    let deltaCard = (state.rewards.cards || []).find(c =>
-      String(c.name || c.card_name || '').toLowerCase().includes('delta skymiles platinum')
-    );
-    if (!deltaCard) {
-      const nextYear = new Date(Date.now() + 300 * 86400000).toISOString().slice(0, 10);
-      deltaCard = {
-        id: 'card-delta-plat-jim',
-        name: 'Delta SkyMiles Platinum Amex',
-        owner: 'Jim',
-        issuer: 'American Express',
-        ecosystem: 'Delta SkyMiles',
-        linked_program_id: deltaProg.id,
-        card_style: 'auto',
-        image_url: RESTORED_DELTA_AMEX_IMAGE_URL,
-        annual_fee: 350,
-        renewal_date: nextYear,
-        ftf: 'None ($0 Foreign Tx Fee)',
-        multipliers: '3x Delta & Direct Hotels • 2x Dining & US Supermarkets • $2,500 MQD Headstart',
-        best_for: 'Annual Companion Certificate + $2,500 MQD Headstart + $150 Delta Stays + $120 Resy',
-        website_url: 'https://global.americanexpress.com/login',
-        card_number: '1006',
-        card_expiration: '05/27',
-        sub_active: false,
-        sub_bonus_label: '85,000 SkyMiles',
-        sub_deadline: '',
-        sub_target_usd: 4000,
-        sub_spent_manual_usd: 0,
-        credits: [
-          { name: '$150 Delta Stays Credit (Annual)', total_usd: 150, used_usd: 0 },
-          { name: '$120 Resy Dining Credit ($10/mo)', total_usd: 120, used_usd: 0 },
-          { name: '$120 Rideshare Credit ($10/mo)', total_usd: 120, used_usd: 0 },
-          { name: '$120 Global Entry / TSA PreCheck', total_usd: 120, used_usd: 0 }
-        ],
-        custom_fields: JSON.parse(JSON.stringify(customFields))
-      };
-      state.rewards.cards.unshift(deltaCard);
-      changed = true;
-    } else {
-      if (!deltaCard.owner) { deltaCard.owner = 'Jim'; changed = true; }
-      if (!deltaCard.card_number) { deltaCard.card_number = '1006'; changed = true; }
-      if (!deltaCard.card_expiration) { deltaCard.card_expiration = '05/27'; changed = true; }
-      if (!deltaCard.image_url) { deltaCard.image_url = RESTORED_DELTA_AMEX_IMAGE_URL; changed = true; }
-      if (!Array.isArray(deltaCard.custom_fields) || deltaCard.custom_fields.length === 0) {
-        deltaCard.custom_fields = JSON.parse(JSON.stringify(customFields));
-        changed = true;
-      }
-    }
+    // 2. United MileagePlus + Chase United Explorer Card (Jim)
+    const uaProg = findProg('united mileageplus', 'Jim') || findProg('united', 'Jim');
+    ensureProgFields(uaProg, { owner: 'Jim', points: 2953 });
+    const uaCard = findCard('united explorer', 'Jim');
+    ensureCardFields(uaCard, {
+      owner: 'Jim',
+      image_url: RESTORED_CARD_IMAGES.united,
+      card_number: '4688',
+      card_expiration: '06/27',
+      annual_fee: 150
+    }, uaProg);
 
-    const hasCompanionCert = (state.rewards.certificates || []).some(c =>
-      String(c.title || '').toLowerCase().includes('delta skymiles') && String(c.title || '').toLowerCase().includes('companion')
+    // 3. Marriott Bonvoy + Chase Marriott Bonvoy Boundless (Jim)
+    const marriottProg = findProg('marriott bonvoy', 'Jim');
+    ensureProgFields(marriottProg, { owner: 'Jim', points: 7098, status_tier: 'Silver Elite' });
+    const marriottCard = findCard('bonvoy boundless', 'Jim') || findCard('marriott', 'Jim');
+    ensureCardFields(marriottCard, {
+      owner: 'Jim',
+      image_url: RESTORED_CARD_IMAGES.marriott,
+      annual_fee: 95
+    }, marriottProg);
+
+    // 4. World of Hyatt (Jim & Karen)
+    const hyattJimProg = (state.rewards.programs || []).find(p =>
+      String(p.name || '').toLowerCase().includes('world of hyatt') &&
+      (String(p.owner || '').toLowerCase() === 'jim' || p.member_id === '582082237B' || String(p.name || '').toLowerCase().includes('(jim)'))
     );
-    if (!hasCompanionCert) {
-      const nextYear = new Date(Date.now() + 330 * 86400000).toISOString().slice(0, 10);
-      state.rewards.certificates.unshift({
-        id: 'cert-delta-companion-jim',
-        owner: 'Jim',
-        linked_program_id: deltaProg.id,
-        title: 'Delta SkyMiles Main Cabin Companion Certificate',
-        type: 'Companion Pass',
-        program: 'Delta SkyMiles',
-        source_card: 'Delta SkyMiles Platinum Amex',
-        cap_details: 'Round-trip Domestic, Caribbean, or Central America Main Cabin',
-        expires_date: nextYear,
-        est_value_usd: 450,
-        status: 'available',
-        notes: 'Pay only taxes & fees (capped at $80 domestic)'
-      });
-      changed = true;
+    ensureProgFields(hyattJimProg, { owner: 'Jim', points: 12628, status_tier: 'Discoverist', member_id: '582082237B' });
+    const hyattJimCard = (state.rewards.cards || []).find(c =>
+      String(c.name || c.card_name || '').toLowerCase().includes('hyatt') &&
+      (String(c.owner || '').toLowerCase() === 'jim' || !c.owner)
+    );
+    ensureCardFields(hyattJimCard, {
+      owner: 'Jim',
+      image_url: RESTORED_CARD_IMAGES.hyatt
+    }, hyattJimProg);
+
+    const hyattKarenProg = (state.rewards.programs || []).find(p =>
+      String(p.name || '').toLowerCase().includes('world of hyatt') &&
+      (String(p.owner || '').toLowerCase() === 'karen' || p.member_id === '575395795A')
+    );
+    ensureProgFields(hyattKarenProg, { owner: 'Karen', points: 39152, status_tier: 'Discoverist', member_id: '575395795A' });
+    const hyattKarenCard = (state.rewards.cards || []).find(c =>
+      String(c.name || c.card_name || '').toLowerCase().includes('hyatt') &&
+      String(c.owner || '').toLowerCase() === 'karen'
+    );
+    ensureCardFields(hyattKarenCard, { owner: 'Karen', annual_fee: 95 }, hyattKarenProg);
+
+    // 5. IHG One Rewards + Chase IHG One Rewards Premier (Jim)
+    const ihgProg = findProg('ihg one rewards', 'Jim');
+    ensureProgFields(ihgProg, {
+      owner: 'Jim',
+      points: 436706,
+      status_tier: 'Platinum Elite',
+      member_id: '300046883',
+      qualifying_nights: 44,
+      target_nights: 70
+    });
+    const ihgCard = findCard('ihg', 'Jim');
+    ensureCardFields(ihgCard, {
+      owner: 'Jim',
+      image_url: RESTORED_CARD_IMAGES.ihg,
+      annual_fee: 99
+    }, ihgProg);
+
+    // 6. Auto-link any remaining unlinked cards to a matching program and repair broken owner tags on certificates
+    for (const card of (state.rewards.cards || [])) {
+      if (!card.linked_program_id || !(state.rewards.programs || []).some(p => p.id === card.linked_program_id)) {
+        const match = (state.rewards.programs || []).find(p => sameOwner(card, p) && doesCardMatchProgram(card, p)) ||
+          (state.rewards.programs || []).find(p => ownersCompatible(card, p) && doesCardMatchProgram(card, p));
+        if (match) {
+          card.linked_program_id = match.id;
+          if (!card.owner && match.owner) card.owner = match.owner;
+          changed = true;
+        }
+      }
     }
 
     registerRewardOwner('Jim');
-    safeStorageSet('ww_restored_jim_delta_v1', '1');
+    registerRewardOwner('Karen');
+    safeStorageSet('ww_restored_portfolio_v2', '1');
     if (changed) {
       setTimeout(() => {
-        saveRewardsState('Restored Delta SkyMiles & Delta SkyMiles Platinum Amex card');
+        saveRewardsState('Restored missing card images, owners & program connections!');
       }, 80);
     }
     return changed;
@@ -2237,7 +2448,7 @@
     }
 
     if (hasCompletedServerBootstrap) {
-      restoreJimDeltaCardIfNeeded();
+      restoreKnownUserRewardsSafely();
     }
 
     if (
@@ -6321,8 +6532,23 @@
 
         // Ensure every credit card with a known loyalty ecosystem is connected both ways to a Loyalty Program in the Loyalty Hub
         if (card.ecosystem && Array.isArray(state.rewards.programs)) {
+          const linkedExisting = card.linked_program_id
+            ? state.rewards.programs.find(p => p.id === card.linked_program_id)
+            : null;
+          if (!linkedExisting) {
+            const compatProg = state.rewards.programs.find(
+              p => sameOwner(card, p) && doesCardMatchProgram(card, p)
+            ) || state.rewards.programs.find(
+              p => ownersCompatible(card, p) && doesCardMatchProgram(card, p)
+            );
+            if (compatProg) {
+              card.linked_program_id = compatProg.id;
+              if (!card.owner && compatProg.owner) card.owner = compatProg.owner;
+              migrated = true;
+            }
+          }
           const hasMatchingProg = state.rewards.programs.some(
-            p => sameOwner(card, p) && doesCardMatchProgram(card, p)
+            p => ownersCompatible(card, p) && doesCardMatchProgram(card, p)
           );
           if (!hasMatchingProg) {
             const progTplEntry = POPULAR_REWARD_TEMPLATES.find(
@@ -11509,13 +11735,13 @@
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            const maxW = 480;
+            const maxW = 320;
             const scale = Math.min(1, maxW / Math.max(1, img.width));
             canvas.width = Math.round(img.width * scale);
             canvas.height = Math.round(img.height * scale);
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
             const urlInput = document.getElementById('rcard-image-url');
             if (urlInput) urlInput.value = dataUrl;
             updateRcardArtPreview();
