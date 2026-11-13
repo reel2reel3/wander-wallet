@@ -6641,7 +6641,7 @@
       const modeEl = document.querySelector(`[data-cf-new-mode="${CSS.escape(ownerKey)}"]`);
       const totEl = document.querySelector(`[data-cf-new-total="${CSS.escape(ownerKey)}"]`);
       const value = valEl ? valEl.value.trim() : '';
-      const mode = modeEl && modeEl.value === 'slider' ? 'slider' : 'checkbox';
+      const mode = modeEl && (modeEl.value === 'slider' || modeEl.value === 'text') ? modeEl.value : 'checkbox';
       const totalUsd = mode === 'slider' ? Math.max(0, Number(totEl ? totEl.value : 0) || 0) : 0;
       const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
       if (prog || card) {
@@ -6650,7 +6650,7 @@
           label,
           value,
           checked: false,
-          ...(mode === 'slider' && totalUsd > 0 ? { mode: 'slider', total_usd: totalUsd, used_usd: 0 } : { mode: 'checkbox' })
+          ...(mode === 'slider' && totalUsd > 0 ? { mode: 'slider', total_usd: totalUsd, used_usd: 0 } : { mode })
         });
         syncCustomFieldsToItems(prog, card, fields);
       }
@@ -7468,14 +7468,15 @@
 
   function normalizeCustomFieldItem(f, idx, useTimestampId = false) {
     const isSlider = f && f.mode === 'slider' && Number(f.total_usd) > 0;
+    const isText = !isSlider && f && f.mode === 'text';
     const totalUsd = isSlider ? Math.max(0, Number(f.total_usd) || 0) : 0;
     const usedUsd = isSlider ? Math.min(totalUsd, Math.max(0, Number(f.used_usd) || 0)) : 0;
     return {
       id: (f && f.id) || (useTimestampId ? `cf-${Date.now()}-${idx}` : `cf-${idx}`),
       label: String((f && (f.label || f.key)) || 'Custom Field').trim(),
       value: String((f && f.value) || '').trim(),
-      checked: isSlider ? (totalUsd > 0 && usedUsd >= totalUsd) : Boolean(f && f.checked),
-      ...(isSlider ? { mode: 'slider', total_usd: totalUsd, used_usd: usedUsd } : {})
+      checked: isSlider ? (totalUsd > 0 && usedUsd >= totalUsd) : (isText ? false : Boolean(f && f.checked)),
+      ...(isSlider ? { mode: 'slider', total_usd: totalUsd, used_usd: usedUsd } : (isText ? { mode: 'text' } : {}))
     };
   }
 
@@ -7667,7 +7668,7 @@
           const isDone = isSlider ? (totUsd > 0 && usedUsd >= totUsd) : Boolean(f.checked);
 
           if (isEditingRow) {
-            const editMode = f.mode === 'slider' ? 'slider' : 'checkbox';
+            const editMode = f.mode === 'slider' ? 'slider' : (f.mode === 'text' ? 'text' : 'checkbox');
             const editTot = totUsd > 0 ? totUsd : 100;
             const editUsed = Math.min(editTot, Math.max(0, usedUsd));
             const editRem = Math.max(0, Number((editTot - editUsed).toFixed(2)));
@@ -7687,6 +7688,7 @@
                   >
                     <option value="checkbox" ${editMode === 'checkbox' ? 'selected' : ''}>☑️ Checkbox</option>
                     <option value="slider" ${editMode === 'slider' ? 'selected' : ''}>🎚️ $ Slider</option>
+                    <option value="text" ${editMode === 'text' ? 'selected' : ''}>📝 Text / Perk</option>
                   </select>
                   <input
                     type="text"
@@ -7825,6 +7827,42 @@
             `;
           }
 
+          if (f.mode === 'text') {
+            return `
+              <div
+                class="reward-custom-check-row"
+                draggable="true"
+                data-drag-cf-owner="${escapeHtml(ownerKey)}"
+                data-drag-cf-idx="${idx}"
+              >
+                <span
+                  class="reward-cf-drag-handle"
+                  data-move-cf-top="${escapeHtml(ownerKey)}"
+                  data-move-cf-idx="${idx}"
+                  title="Drag to reorder custom field (or double-click to move to top/bottom)"
+                >⠿</span>
+                <span class="reward-cf-check-label" style="cursor: default;">
+                  <span class="reward-cf-text">✦ ${escapeHtml(f.label)}</span>
+                </span>
+                ${f.value ? `<span class="reward-cf-val mono">${escapeHtml(f.value)}</span>` : ''}
+                <button
+                  type="button"
+                  class="reward-cf-edit-btn"
+                  data-edit-cf-item="${escapeHtml(ownerKey)}"
+                  data-cf-idx="${idx}"
+                  title="Edit custom field"
+                >✏️</button>
+                <button
+                  type="button"
+                  class="reward-cf-del-btn"
+                  data-del-cf-item="${escapeHtml(ownerKey)}"
+                  data-cf-idx="${idx}"
+                  title="Remove custom field"
+                >✕</button>
+              </div>
+            `;
+          }
+
           return `
             <div
               class="reward-custom-check-row ${f.checked ? 'is-checked' : ''}"
@@ -7899,10 +7937,11 @@
                 class="form-select form-input-sm"
                 style="flex: 0 0 auto; font-size: 11px; padding: 3px 6px;"
                 data-cf-new-mode="${escapeHtml(ownerKey)}"
-                title="Choose Checkbox or Dollar Credit Slider"
+                title="Choose Checkbox, Dollar Credit Slider, or Text Perk"
               >
                 <option value="checkbox">☑️ Checkbox</option>
                 <option value="slider">🎚️ $ Slider</option>
+                <option value="text">📝 Text / Perk</option>
               </select>
               <input
                 type="text"
@@ -12788,7 +12827,7 @@
         const totEl = box ? box.querySelector('[data-cf-new-total]') : document.querySelector(`[data-cf-new-total="${ownerKey}"]`);
         const lbl = ((lblEl && lblEl.value) || '').trim();
         const val = ((valEl && valEl.value) || '').trim();
-        const mode = modeEl && modeEl.value === 'slider' ? 'slider' : 'checkbox';
+        const mode = modeEl && (modeEl.value === 'slider' || modeEl.value === 'text') ? modeEl.value : 'checkbox';
         if (!lbl) {
           showToast('Please enter a custom field label (e.g. $300 Annual Travel Credit)');
           if (lblEl) lblEl.focus();
@@ -12811,13 +12850,13 @@
           label: lbl,
           value: val,
           checked: false,
-          ...(mode === 'slider' ? { mode: 'slider', total_usd: totalUsd, used_usd: 0 } : { mode: 'checkbox' })
+          ...(mode === 'slider' ? { mode: 'slider', total_usd: totalUsd, used_usd: 0 } : { mode })
         });
         if (lblEl) lblEl.value = '';
         if (valEl) valEl.value = '';
         if (totEl) totEl.value = '';
         syncCustomFieldsToItems(prog, card, fields);
-        await saveRewardsState(mode === 'slider' ? `✓ Added ${fmtUsdCompact(totalUsd)} slider "${lbl}"!` : `✓ Added custom checkbox "${lbl}"!`);
+        await saveRewardsState(mode === 'slider' ? `✓ Added ${fmtUsdCompact(totalUsd)} slider "${lbl}"!` : (mode === 'text' ? `✓ Added text perk "${lbl}"!` : `✓ Added custom checkbox "${lbl}"!`));
         setTimeout(() => {
           const nextInp = document.querySelector(`[data-cf-new-label="${ownerKey}"]`);
           if (nextInp) nextInp.focus();
@@ -12896,7 +12935,7 @@
         const labelInp = row ? row.querySelector('[data-cf-edit-label]') : document.querySelector(`[data-cf-edit-label="${editKey}"]`);
         const totInp = row ? row.querySelector('[data-cf-edit-total]') : document.querySelector(`[data-cf-edit-total="${editKey}"]`);
         const valInp = row ? row.querySelector('[data-cf-edit-val]') : document.querySelector(`[data-cf-edit-val="${editKey}"]`);
-        const nextMode = modeInp && modeInp.value === 'slider' ? 'slider' : 'checkbox';
+        const nextMode = modeInp && (modeInp.value === 'slider' || modeInp.value === 'text') ? modeInp.value : 'checkbox';
         const nextLabel = labelInp ? labelInp.value.trim() : '';
         const nextVal = valInp ? valInp.value.trim() : '';
         if (!nextLabel) {
