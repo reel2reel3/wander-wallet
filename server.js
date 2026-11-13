@@ -115,7 +115,9 @@ const DEFAULT_RATES = {
 
 function seedIfNeeded() {
   const countRow = db.prepare('SELECT COUNT(*) as count FROM trips').get();
-  if (countRow && countRow.count > 0) return;
+  const modRow = db.prepare("SELECT value FROM settings WHERE key = 'user_modified'").get();
+  const rewRow = db.prepare("SELECT value FROM settings WHERE key = 'rewards_data'").get();
+  if ((countRow && countRow.count > 0) || (modRow && modRow.value === 'true') || (rewRow && rewRow.value)) return;
 
   const insertSetting = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
   insertSetting.run('channel_name', 'Wander Wallet');
@@ -1241,7 +1243,7 @@ function getAuthCredentials() {
 }
 
 // Signing secret must never be a value visible in the public repo.
-// Priority: SESSION_SECRET env var -> derived from private env vars (APP_PASSWORD etc.) -> random per-process secret.
+// Priority: SESSION_SECRET env var -> derived from private env vars -> persisted SQLite secret.
 const TOKEN_SIGNING_SECRET = (() => {
   if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim()) return process.env.SESSION_SECRET.trim();
   const privateMaterial = [process.env.APP_PASSWORD, process.env.APP_USERNAME, process.env.GOOGLE_CLIENT_ID, process.env.ALLOWED_GOOGLE_EMAILS]
@@ -1250,8 +1252,15 @@ const TOKEN_SIGNING_SECRET = (() => {
   if (process.env.APP_PASSWORD && privateMaterial) {
     return crypto.createHash('sha256').update('ww-session-v1|' + privateMaterial).digest('hex');
   }
-  console.warn('[auth] SESSION_SECRET/APP_PASSWORD not set: login sessions will reset on each restart. Set SESSION_SECRET in Railway Variables.');
-  return crypto.randomBytes(32).toString('hex');
+  try {
+    const existing = db.prepare("SELECT value FROM settings WHERE key = 'auth_signing_secret'").get();
+    if (existing && existing.value) return existing.value;
+    const generated = crypto.randomBytes(32).toString('hex');
+    db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('auth_signing_secret', generated);
+    return generated;
+  } catch (e) {
+    return crypto.randomBytes(32).toString('hex');
+  }
 })();
 
 function signStatelessToken(username, expiresAt) {
@@ -1654,7 +1663,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const now = new Date().toISOString();
 
-      if (Array.isArray(body.trips) && body.trips.length > 0) {
+      if (Array.isArray(body.trips) && (body.trips.length > 0 || body.user_modified)) {
         db.exec('PRAGMA foreign_keys = OFF;');
         db.exec('DELETE FROM trips;');
         const insTrip = db.prepare(`
@@ -1740,9 +1749,19 @@ const server = http.createServer(async (req, res) => {
       }
 
       if (body.rewards && Array.isArray(body.rewards.programs)) {
+        const currentRew = getRewardsData();
+        const syncedRewards = {
+          programs: body.rewards.programs,
+          certificates: Array.isArray(body.rewards.certificates) ? body.rewards.certificates : currentRew.certificates,
+          cards: Array.isArray(body.rewards.cards) ? body.rewards.cards : currentRew.cards,
+          redemptions: Array.isArray(body.rewards.redemptions) ? body.rewards.redemptions : currentRew.redemptions,
+          owners: Array.isArray(body.rewards.owners) ? body.rewards.owners.map(o => String(o).trim()).filter(Boolean).slice(0, 12) : (currentRew.owners || []),
+          deleted_ids: Array.isArray(body.rewards.deleted_ids) ? body.rewards.deleted_ids.slice(-200) : (currentRew.deleted_ids || []),
+          ecosystem_colors: body.rewards.ecosystem_colors || currentRew.ecosystem_colors || null
+        };
         db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
           'rewards_data',
-          JSON.stringify(body.rewards)
+          JSON.stringify(syncedRewards)
         );
       }
 
@@ -1982,6 +2001,7 @@ const server = http.createServer(async (req, res) => {
         cards: Array.isArray(body.cards) ? body.cards : current.cards,
         redemptions: Array.isArray(body.redemptions) ? body.redemptions : current.redemptions,
         owners: Array.isArray(body.owners) ? body.owners.map(o => String(o).trim()).filter(Boolean).slice(0, 12) : (current.owners || []),
+        deleted_ids: Array.isArray(body.deleted_ids) ? body.deleted_ids.slice(-200) : (current.deleted_ids || []),
         ecosystem_colors: body.ecosystem_colors || current.ecosystem_colors || null
       };
       db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(

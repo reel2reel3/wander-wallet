@@ -1204,7 +1204,7 @@
   }
 
   function getLocalStore() {
-    if (memoryStore && Array.isArray(memoryStore.trips) && memoryStore.trips.length > 0) {
+    if (memoryStore && Array.isArray(memoryStore.trips)) {
       if (!memoryStore.rewards || !Array.isArray(memoryStore.rewards.programs)) {
         memoryStore.rewards = getDefaultRewardsData();
       }
@@ -1214,24 +1214,90 @@
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.trips) && parsed.trips.length > 0) {
+        if (parsed && (Array.isArray(parsed.trips) || (parsed.rewards && Array.isArray(parsed.rewards.programs)))) {
+          if (!Array.isArray(parsed.trips)) parsed.trips = [];
+          if (!Array.isArray(parsed.expenses)) parsed.expenses = [];
+          if (!Array.isArray(parsed.revenues)) parsed.revenues = [];
           if (!parsed.rewards || !Array.isArray(parsed.rewards.programs)) {
             parsed.rewards = getDefaultRewardsData();
+          }
+          const rawRewBackup = safeStorageGet('wayfarer_rewards_backup');
+          if (rawRewBackup) {
+            try {
+              const rewParsed = JSON.parse(rawRewBackup);
+              if (rewParsed && Array.isArray(rewParsed.programs) && Number(rewParsed.__saved_at || 0) >= Number(parsed.updated_at || 0)) {
+                parsed.rewards = rewParsed;
+              }
+            } catch (e2) {}
           }
           memoryStore = parsed;
           return memoryStore;
         }
       } catch (e) {}
     }
+    const rawRewOnly = safeStorageGet('wayfarer_rewards_backup');
     memoryStore = getInitialSeedData();
-    safeStorageSet('wayfarer_backup_state', JSON.stringify(memoryStore));
+    if (rawRewOnly) {
+      try {
+        const rewParsed = JSON.parse(rawRewOnly);
+        if (rewParsed && Array.isArray(rewParsed.programs)) {
+          memoryStore.rewards = rewParsed;
+          memoryStore.user_modified = true;
+          memoryStore.updated_at = Number(rewParsed.__saved_at) || Date.now();
+        }
+      } catch (e3) {}
+    }
+    saveLocalStore(memoryStore);
     return memoryStore;
   }
 
   function saveLocalStore(data) {
     if (!data) return;
     memoryStore = data;
-    safeStorageSet('wayfarer_backup_state', JSON.stringify(data));
+    if (data.rewards && Array.isArray(data.rewards.programs)) {
+      try {
+        const rewCopy = { ...data.rewards, __saved_at: Number(data.updated_at) || Date.now() };
+        window.localStorage.setItem('wayfarer_rewards_backup', JSON.stringify(rewCopy));
+      } catch (eRew) {
+        try {
+          const slimCards = (data.rewards.cards || []).map(c =>
+            c.image_url && c.image_url.length > 120000 ? { ...c, image_url: '' } : c
+          );
+          const rewSlim = { ...data.rewards, cards: slimCards, __saved_at: Number(data.updated_at) || Date.now() };
+          window.localStorage.setItem('wayfarer_rewards_backup', JSON.stringify(rewSlim));
+        } catch (eRew2) {}
+      }
+    }
+    try {
+      window.localStorage.setItem('wayfarer_backup_state', JSON.stringify(data));
+    } catch (e) {
+      // QuotaExceededError fallback: strip heavy base64 receipt images from the localStorage backup so rewards & cards always persist
+      try {
+        const compact = {
+          ...data,
+          expenses: Array.isArray(data.expenses)
+            ? data.expenses.map(ex => (ex.receipt_data && ex.receipt_data.length > 2000 ? { ...ex, receipt_data: '' } : ex))
+            : []
+        };
+        window.localStorage.setItem('wayfarer_backup_state', JSON.stringify(compact));
+      } catch (e2) {
+        try {
+          const ultraCompact = {
+            ...data,
+            expenses: Array.isArray(data.expenses) ? data.expenses.map(ex => ({ ...ex, receipt_data: '' })) : [],
+            rewards: data.rewards
+              ? {
+                  ...data.rewards,
+                  cards: (data.rewards.cards || []).map(c =>
+                    c.image_url && c.image_url.length > 120000 ? { ...c, image_url: '' } : c
+                  )
+                }
+              : data.rewards
+          };
+          window.localStorage.setItem('wayfarer_backup_state', JSON.stringify(ultraCompact));
+        } catch (e3) {}
+      }
+    }
   }
 
   function applyLocalMutation(url, method, payload) {
@@ -1280,11 +1346,15 @@
     } else if (url === '/api/settings' && method === 'PUT') {
       store.settings = { ...store.settings, ...payload };
     } else if (url === '/api/rewards' && method === 'PUT') {
+      const prevRew = store.rewards || {};
       store.rewards = {
-        programs: Array.isArray(payload.programs) ? payload.programs : store.rewards.programs,
-        certificates: Array.isArray(payload.certificates) ? payload.certificates : store.rewards.certificates,
-        cards: Array.isArray(payload.cards) ? payload.cards : store.rewards.cards,
-        redemptions: Array.isArray(payload.redemptions) ? payload.redemptions : store.rewards.redemptions
+        programs: Array.isArray(payload.programs) ? payload.programs : prevRew.programs,
+        certificates: Array.isArray(payload.certificates) ? payload.certificates : prevRew.certificates,
+        cards: Array.isArray(payload.cards) ? payload.cards : prevRew.cards,
+        redemptions: Array.isArray(payload.redemptions) ? payload.redemptions : prevRew.redemptions,
+        owners: Array.isArray(payload.owners) ? payload.owners : (prevRew.owners || []),
+        deleted_ids: Array.isArray(payload.deleted_ids) ? payload.deleted_ids : (prevRew.deleted_ids || []),
+        ecosystem_colors: payload.ecosystem_colors || prevRew.ecosystem_colors || null
       };
     }
     store.user_modified = true;
@@ -1294,12 +1364,146 @@
   }
 
   const SEED_TRIP_IDS = new Set(['trip-japan-2026', 'trip-iceland-2026', 'trip-alps-2026']);
+  const SEED_PROGRAM_IDS = new Set(['prog-c1', 'prog-chase', 'prog-amex', 'prog-hyatt', 'prog-hilton', 'prog-marriott', 'prog-ua', 'prog-aa']);
+  const SEED_CARD_IDS = new Set(['card-vx', 'card-csr', 'card-amex-plat', 'card-hyatt', 'card-aspire']);
+  const SEED_CERT_IDS = new Set(['cert-hyatt-1', 'cert-hilton-1', 'cert-marriott-1', 'cert-vx-credit', 'cert-csr-credit']);
+  const SEED_REDEMPTION_IDS = new Set(['red-1', 'red-2', 'red-3']);
+
+  function recordDeletedRewardId(id) {
+    if (!id || !state.rewards) return;
+    if (!Array.isArray(state.rewards.deleted_ids)) state.rewards.deleted_ids = [];
+    if (!state.rewards.deleted_ids.includes(id)) {
+      state.rewards.deleted_ids.push(id);
+    }
+  }
+
+  function hasCustomRewardsContent(rew) {
+    if (!rew || typeof rew !== 'object') return false;
+    if (Array.isArray(rew.owners) && rew.owners.length > 0) return true;
+    if (Array.isArray(rew.programs) && rew.programs.some(p => !SEED_PROGRAM_IDS.has(p.id) || (Array.isArray(p.custom_fields) && p.custom_fields.length > 0) || p.owner)) return true;
+    if (Array.isArray(rew.cards) && rew.cards.some(c => !SEED_CARD_IDS.has(c.id) || (Array.isArray(c.custom_fields) && c.custom_fields.length > 0) || c.owner || c.card_number || c.image_url)) return true;
+    if (Array.isArray(rew.certificates) && rew.certificates.some(c => !SEED_CERT_IDS.has(c.id) || (Array.isArray(c.custom_fields) && c.custom_fields.length > 0) || c.owner)) return true;
+    if (Array.isArray(rew.redemptions) && rew.redemptions.some(r => !SEED_REDEMPTION_IDS.has(r.id))) return true;
+    return false;
+  }
 
   function hasLocalCustomData(store) {
     if (!store) return false;
     if (store.user_modified) return true;
     if (Array.isArray(store.trips) && store.trips.some(t => !SEED_TRIP_IDS.has(t.id))) {
       return true;
+    }
+    if (hasCustomRewardsContent(store.rewards)) {
+      return true;
+    }
+    return false;
+  }
+
+  function mergeCustomFieldsArrays(primaryCf, secondaryCf) {
+    const pArr = Array.isArray(primaryCf) ? primaryCf : [];
+    const sArr = Array.isArray(secondaryCf) ? secondaryCf : [];
+    if (pArr.length === 0) return sArr;
+    if (sArr.length === 0) return pArr;
+    const merged = [...pArr];
+    const seenLabels = new Set(pArr.map(f => String(f.label || f.key || '').trim().toLowerCase()).filter(Boolean));
+    for (const sf of sArr) {
+      const lbl = String(sf.label || sf.key || '').trim().toLowerCase();
+      if (lbl && !seenLabels.has(lbl)) {
+        merged.push(sf);
+        seenLabels.add(lbl);
+      }
+    }
+    return merged;
+  }
+
+  function mergeRewardsPortfolios(primaryRew, secondaryRew) {
+    if (!primaryRew || !Array.isArray(primaryRew.programs)) return secondaryRew || getDefaultRewardsData();
+    if (!secondaryRew || !Array.isArray(secondaryRew.programs)) return primaryRew;
+
+    const deletedSet = new Set([
+      ...(Array.isArray(primaryRew.deleted_ids) ? primaryRew.deleted_ids : []),
+      ...(Array.isArray(secondaryRew.deleted_ids) ? secondaryRew.deleted_ids : [])
+    ]);
+
+    const mergeCollection = (primList, secList, seedSet, keyFn) => {
+      const out = (Array.isArray(primList) ? primList : [])
+        .filter(item => item && !deletedSet.has(item.id))
+        .map(item => ({ ...item }));
+      const byId = new Map(out.map(item => [item.id, item]));
+      const bySemanticKey = new Map(out.map(item => [keyFn(item), item]));
+
+      for (const secItem of (Array.isArray(secList) ? secList : [])) {
+        if (!secItem || deletedSet.has(secItem.id)) continue;
+        const existing = byId.get(secItem.id) || bySemanticKey.get(keyFn(secItem));
+        if (existing) {
+          existing.custom_fields = mergeCustomFieldsArrays(existing.custom_fields, secItem.custom_fields);
+          if (!existing.owner && secItem.owner) existing.owner = secItem.owner;
+          if (!existing.image_url && secItem.image_url) existing.image_url = secItem.image_url;
+          if (!existing.card_number && secItem.card_number) existing.card_number = secItem.card_number;
+          if (!existing.card_expiration && secItem.card_expiration) existing.card_expiration = secItem.card_expiration;
+          if (!existing.member_id && secItem.member_id) existing.member_id = secItem.member_id;
+          if ((!existing.points || Number(existing.points) === 0) && Number(secItem.points) > 0) {
+            existing.points = secItem.points;
+          }
+          if ((!existing.status_tier || existing.status_tier === 'Member') && secItem.status_tier && secItem.status_tier !== 'Member') {
+            existing.status_tier = secItem.status_tier;
+          }
+        } else if (!seedSet.has(secItem.id)) {
+          const clone = { ...secItem };
+          out.push(clone);
+          byId.set(clone.id, clone);
+          bySemanticKey.set(keyFn(clone), clone);
+        }
+      }
+      return out;
+    };
+
+    const normKey = (name, owner) => `${String(owner || '').trim().toLowerCase()}::${String(name || '').trim().toLowerCase()}`;
+    const mergedPrograms = mergeCollection(primaryRew.programs, secondaryRew.programs, SEED_PROGRAM_IDS, p => normKey(p.name, p.owner));
+    const mergedCards = mergeCollection(primaryRew.cards, secondaryRew.cards, SEED_CARD_IDS, c => normKey(c.name || c.card_name, c.owner));
+    const mergedCerts = mergeCollection(primaryRew.certificates, secondaryRew.certificates, SEED_CERT_IDS, c => normKey(c.title, c.owner));
+    const mergedRedemptions = mergeCollection(primaryRew.redemptions, secondaryRew.redemptions, SEED_REDEMPTION_IDS, r => normKey(r.title, r.program));
+
+    const ownersSet = new Set([
+      ...(Array.isArray(primaryRew.owners) ? primaryRew.owners : []),
+      ...(Array.isArray(secondaryRew.owners) ? secondaryRew.owners : [])
+    ].map(o => String(o || '').trim()).filter(Boolean));
+
+    return {
+      programs: mergedPrograms,
+      cards: mergedCards,
+      certificates: mergedCerts,
+      redemptions: mergedRedemptions,
+      owners: Array.from(ownersSet).slice(0, 12),
+      deleted_ids: Array.from(deletedSet).slice(-200),
+      ecosystem_colors: primaryRew.ecosystem_colors || secondaryRew.ecosystem_colors || null
+    };
+  }
+
+  function hasMissingLocalRewardsOnServer(localRew, serverRew) {
+    if (!localRew || !Array.isArray(localRew.programs)) return false;
+    if (!serverRew || !Array.isArray(serverRew.programs)) return true;
+    const deletedSet = new Set(Array.isArray(serverRew.deleted_ids) ? serverRew.deleted_ids : []);
+    const normKey = (name, owner) => `${String(owner || '').trim().toLowerCase()}::${String(name || '').trim().toLowerCase()}`;
+
+    const sProgKeys = new Set((serverRew.programs || []).map(p => normKey(p.name, p.owner)));
+    for (const lp of (localRew.programs || [])) {
+      if (deletedSet.has(lp.id)) continue;
+      if (!SEED_PROGRAM_IDS.has(lp.id) && !sProgKeys.has(normKey(lp.name, lp.owner))) return true;
+      const sp = (serverRew.programs || []).find(p => p.id === lp.id || normKey(p.name, p.owner) === normKey(lp.name, lp.owner));
+      if (sp && Array.isArray(lp.custom_fields) && lp.custom_fields.length > (Array.isArray(sp.custom_fields) ? sp.custom_fields.length : 0)) {
+        return true;
+      }
+    }
+
+    const sCardKeys = new Set((serverRew.cards || []).map(c => normKey(c.name || c.card_name, c.owner)));
+    for (const lc of (localRew.cards || [])) {
+      if (deletedSet.has(lc.id)) continue;
+      if (!SEED_CARD_IDS.has(lc.id) && !sCardKeys.has(normKey(lc.name || lc.card_name, lc.owner))) return true;
+      const sc = (serverRew.cards || []).find(c => c.id === lc.id || normKey(c.name || c.card_name, c.owner) === normKey(lc.name || lc.card_name, lc.owner));
+      if (sc && Array.isArray(lc.custom_fields) && lc.custom_fields.length > (Array.isArray(sc.custom_fields) ? sc.custom_fields.length : 0)) {
+        return true;
+      }
     }
     return false;
   }
@@ -1313,38 +1517,49 @@
     const localUpdated = Number(localStore && localStore.updated_at) || 0;
     const serverUpdated = Number(serverData.updated_at) || 0;
 
-    // Check if local store has custom trips/items that were lost on server (e.g., Railway container redeploy)
-    // or if local store was modified more recently than server
+    // Check if local store has custom trips or custom rewards/cards/custom_fields missing on server
     const serverTripIds = new Set((serverData.trips || []).map(t => t.id));
     const missingLocalTrips = (localStore.trips || []).filter(t => !SEED_TRIP_IDS.has(t.id) && !serverTripIds.has(t.id));
+    const missingLocalRewards = hasMissingLocalRewardsOnServer(localStore.rewards, serverData.rewards);
+
+    const preferLocalAsPrimary = (localHasCustom && !serverModified) || (localHasCustom && localUpdated > serverUpdated);
+    const mergedRewards = preferLocalAsPrimary
+      ? mergeRewardsPortfolios(localStore.rewards, serverData.rewards)
+      : mergeRewardsPortfolios(serverData.rewards, localStore.rewards);
 
     if (
-      (localHasCustom && !serverModified) ||
-      (localHasCustom && localUpdated > serverUpdated) ||
-      missingLocalTrips.length > 0
+      preferLocalAsPrimary ||
+      missingLocalTrips.length > 0 ||
+      missingLocalRewards
     ) {
       // Merge any unique trips, expenses, revenues so nothing is ever lost
-      const mergedTrips = [...(localStore.trips || [])];
+      const primaryTrips = preferLocalAsPrimary ? (localStore.trips || []) : (serverData.trips || []);
+      const secondaryTrips = preferLocalAsPrimary ? (serverData.trips || []) : (localStore.trips || []);
+      const mergedTrips = [...primaryTrips];
       const seenTrips = new Set(mergedTrips.map(t => t.id));
-      for (const st of (serverData.trips || [])) {
-        if (!seenTrips.has(st.id)) {
+      for (const st of secondaryTrips) {
+        if (!seenTrips.has(st.id) && (!SEED_TRIP_IDS.has(st.id) || !preferLocalAsPrimary)) {
           mergedTrips.push(st);
           seenTrips.add(st.id);
         }
       }
 
-      const mergedExpenses = [...(localStore.expenses || [])];
+      const primaryExp = preferLocalAsPrimary ? (localStore.expenses || []) : (serverData.expenses || []);
+      const secondaryExp = preferLocalAsPrimary ? (serverData.expenses || []) : (localStore.expenses || []);
+      const mergedExpenses = [...primaryExp];
       const seenExp = new Set(mergedExpenses.map(e => e.id));
-      for (const se of (serverData.expenses || [])) {
+      for (const se of secondaryExp) {
         if (!seenExp.has(se.id) && seenTrips.has(se.trip_id)) {
           mergedExpenses.push(se);
           seenExp.add(se.id);
         }
       }
 
-      const mergedRevenues = [...(localStore.revenues || [])];
+      const primaryRev = preferLocalAsPrimary ? (localStore.revenues || []) : (serverData.revenues || []);
+      const secondaryRev = preferLocalAsPrimary ? (serverData.revenues || []) : (localStore.revenues || []);
+      const mergedRevenues = [...primaryRev];
       const seenRev = new Set(mergedRevenues.map(r => r.id));
-      for (const sr of (serverData.revenues || [])) {
+      for (const sr of secondaryRev) {
         if (!seenRev.has(sr.id) && seenTrips.has(sr.trip_id)) {
           mergedRevenues.push(sr);
           seenRev.add(sr.id);
@@ -1352,13 +1567,13 @@
       }
 
       const syncPayload = {
-        settings: localStore.settings || serverData.settings,
+        user_modified: true,
+        updated_at: Math.max(localUpdated, serverUpdated, Date.now()),
+        settings: preferLocalAsPrimary ? (localStore.settings || serverData.settings) : (serverData.settings || localStore.settings),
         trips: mergedTrips,
         expenses: mergedExpenses,
         revenues: mergedRevenues,
-        rewards: (localStore.rewards && Array.isArray(localStore.rewards.programs))
-          ? localStore.rewards
-          : serverData.rewards
+        rewards: mergedRewards
       };
 
       try {
@@ -1390,6 +1605,7 @@
       return fallbackMerged;
     }
 
+    serverData.rewards = mergedRewards;
     saveLocalStore(serverData);
     return serverData;
   }
@@ -1485,6 +1701,7 @@
       hideAuthGate();
       showToast(`Signed in with Google (${state.authUsername})!`);
       const boot = await apiRequest('/api/bootstrap');
+      hasCompletedServerBootstrap = true;
       if (boot) applyBootstrapData(boot);
     } catch (err) {
       showAuthGate('login', 'admin', 'Could not verify Google Sign-In with server.', currentGoogleClientId);
@@ -1622,6 +1839,7 @@
         hideAuthGate();
         showToast(mode === 'setup' ? 'Security configured & device signed in!' : `Welcome back, ${state.authUsername}!`);
         const boot = await apiRequest('/api/bootstrap');
+        hasCompletedServerBootstrap = true;
         if (boot) applyBootstrapData(boot);
         return;
       } catch (err) {
@@ -1630,6 +1848,7 @@
     }
 
     // Local / standalone preview mode authentication
+    hasCompletedServerBootstrap = true;
     if (mode === 'setup') {
       saveLocalAuthCreds({ username, password, googleClientId: setupGoogleId, allowedEmails: setupEmails });
       memorySessionUnlocked = true;
@@ -1870,6 +2089,141 @@
     }
   }
 
+  let hasCompletedServerBootstrap = false;
+
+  const RESTORED_DELTA_AMEX_IMAGE_URL = 'data:image/jpeg;base64,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';
+
+  function restoreJimDeltaCardIfNeeded() {
+    if (!hasCompletedServerBootstrap || !state.rewards || state.rewards.__scoped) return false;
+    if (safeStorageGet('ww_restored_jim_delta_v1') === '1') return false;
+
+    const deletedSet = new Set(Array.isArray(state.rewards.deleted_ids) ? state.rewards.deleted_ids : []);
+    if (deletedSet.has('prog-delta-jim') || deletedSet.has('card-delta-plat-jim')) {
+      safeStorageSet('ww_restored_jim_delta_v1', '1');
+      return false;
+    }
+
+    const customFields = [
+      { id: 'cf-dl-1', label: 'Flight Companion Pass', value: 'Renews', checked: true },
+      { id: 'cf-dl-2', label: '$150 Delta Stays Credit', value: '', checked: false },
+      { id: 'cf-dl-3', label: 'First & Second Checked Bags Free', value: '', checked: false }
+    ];
+
+    let changed = false;
+    let deltaProg = (state.rewards.programs || []).find(p =>
+      String(p.name || '').toLowerCase().includes('delta skymiles')
+    );
+    if (!deltaProg) {
+      deltaProg = {
+        id: 'prog-delta-jim',
+        name: 'Delta SkyMiles',
+        owner: 'Jim',
+        ecosystem: 'airline',
+        status_tier: 'Gold Medallion',
+        member_id: '',
+        points: 76418,
+        cpp: 1.25,
+        qualifying_nights: 10000,
+        target_nights: 15000,
+        metric_label: 'MQDs (Medallion Dollars)',
+        expiration_policy: 'Miles never expire',
+        transfer_partners: 'Amex Membership Rewards (1:1)',
+        notes: 'TakeOff 15 (15% off award flights with Delta Amex)',
+        website_url: 'https://www.delta.com/myprofile/dashboard',
+        custom_fields: JSON.parse(JSON.stringify(customFields))
+      };
+      state.rewards.programs.unshift(deltaProg);
+      changed = true;
+    } else {
+      if (!deltaProg.owner) { deltaProg.owner = 'Jim'; changed = true; }
+      if (!deltaProg.points || Number(deltaProg.points) === 0) { deltaProg.points = 76418; changed = true; }
+      if (!deltaProg.status_tier || deltaProg.status_tier === 'Member') { deltaProg.status_tier = 'Gold Medallion'; changed = true; }
+      if (!Array.isArray(deltaProg.custom_fields) || deltaProg.custom_fields.length === 0) {
+        deltaProg.custom_fields = JSON.parse(JSON.stringify(customFields));
+        changed = true;
+      }
+    }
+
+    let deltaCard = (state.rewards.cards || []).find(c =>
+      String(c.name || c.card_name || '').toLowerCase().includes('delta skymiles platinum')
+    );
+    if (!deltaCard) {
+      const nextYear = new Date(Date.now() + 300 * 86400000).toISOString().slice(0, 10);
+      deltaCard = {
+        id: 'card-delta-plat-jim',
+        name: 'Delta SkyMiles Platinum Amex',
+        owner: 'Jim',
+        issuer: 'American Express',
+        ecosystem: 'Delta SkyMiles',
+        linked_program_id: deltaProg.id,
+        card_style: 'auto',
+        image_url: RESTORED_DELTA_AMEX_IMAGE_URL,
+        annual_fee: 350,
+        renewal_date: nextYear,
+        ftf: 'None ($0 Foreign Tx Fee)',
+        multipliers: '3x Delta & Direct Hotels • 2x Dining & US Supermarkets • $2,500 MQD Headstart',
+        best_for: 'Annual Companion Certificate + $2,500 MQD Headstart + $150 Delta Stays + $120 Resy',
+        website_url: 'https://global.americanexpress.com/login',
+        card_number: '1006',
+        card_expiration: '05/27',
+        sub_active: false,
+        sub_bonus_label: '85,000 SkyMiles',
+        sub_deadline: '',
+        sub_target_usd: 4000,
+        sub_spent_manual_usd: 0,
+        credits: [
+          { name: '$150 Delta Stays Credit (Annual)', total_usd: 150, used_usd: 0 },
+          { name: '$120 Resy Dining Credit ($10/mo)', total_usd: 120, used_usd: 0 },
+          { name: '$120 Rideshare Credit ($10/mo)', total_usd: 120, used_usd: 0 },
+          { name: '$120 Global Entry / TSA PreCheck', total_usd: 120, used_usd: 0 }
+        ],
+        custom_fields: JSON.parse(JSON.stringify(customFields))
+      };
+      state.rewards.cards.unshift(deltaCard);
+      changed = true;
+    } else {
+      if (!deltaCard.owner) { deltaCard.owner = 'Jim'; changed = true; }
+      if (!deltaCard.card_number) { deltaCard.card_number = '1006'; changed = true; }
+      if (!deltaCard.card_expiration) { deltaCard.card_expiration = '05/27'; changed = true; }
+      if (!deltaCard.image_url) { deltaCard.image_url = RESTORED_DELTA_AMEX_IMAGE_URL; changed = true; }
+      if (!Array.isArray(deltaCard.custom_fields) || deltaCard.custom_fields.length === 0) {
+        deltaCard.custom_fields = JSON.parse(JSON.stringify(customFields));
+        changed = true;
+      }
+    }
+
+    const hasCompanionCert = (state.rewards.certificates || []).some(c =>
+      String(c.title || '').toLowerCase().includes('delta skymiles') && String(c.title || '').toLowerCase().includes('companion')
+    );
+    if (!hasCompanionCert) {
+      const nextYear = new Date(Date.now() + 330 * 86400000).toISOString().slice(0, 10);
+      state.rewards.certificates.unshift({
+        id: 'cert-delta-companion-jim',
+        owner: 'Jim',
+        linked_program_id: deltaProg.id,
+        title: 'Delta SkyMiles Main Cabin Companion Certificate',
+        type: 'Companion Pass',
+        program: 'Delta SkyMiles',
+        source_card: 'Delta SkyMiles Platinum Amex',
+        cap_details: 'Round-trip Domestic, Caribbean, or Central America Main Cabin',
+        expires_date: nextYear,
+        est_value_usd: 450,
+        status: 'available',
+        notes: 'Pay only taxes & fees (capped at $80 domestic)'
+      });
+      changed = true;
+    }
+
+    registerRewardOwner('Jim');
+    safeStorageSet('ww_restored_jim_delta_v1', '1');
+    if (changed) {
+      setTimeout(() => {
+        saveRewardsState('Restored Delta SkyMiles & Delta SkyMiles Platinum Amex card');
+      }, 80);
+    }
+    return changed;
+  }
+
   function applyBootstrapData(data) {
     if (!data) return;
     state.settings = data.settings || state.settings;
@@ -1880,6 +2234,10 @@
       state.rewards = data.rewards;
     } else if (!state.rewards || !Array.isArray(state.rewards.programs)) {
       state.rewards = getDefaultRewardsData();
+    }
+
+    if (hasCompletedServerBootstrap) {
+      restoreJimDeltaCardIfNeeded();
     }
 
     if (
@@ -1933,6 +2291,7 @@
     }
 
     const data = await apiRequest('/api/bootstrap');
+    hasCompletedServerBootstrap = true;
     if (data) {
       applyBootstrapData(data);
     }
@@ -5951,7 +6310,7 @@
           }
           // If this United Explorer card previously got mismatched IHG/Hyatt credits or outdated credits, sync its authentic United Explorer credits
           const hasWrongCredits = Array.isArray(card.credits) && card.credits.some(cr => /ihg|hyatt|40,000-pt/i.test(cr.name || ''));
-          if (uaExplorerTpl && (hasWrongCredits || !Array.isArray(card.credits) || card.credits.length <= 2)) {
+          if (uaExplorerTpl && (hasWrongCredits || !Array.isArray(card.credits))) {
             card.credits = JSON.parse(JSON.stringify(uaExplorerTpl.data.credits));
             card.multipliers = uaExplorerTpl.data.multipliers;
             card.best_for = uaExplorerTpl.data.best_for;
@@ -6013,7 +6372,7 @@
           }
         }
       }
-      if (migrated && !hasAutoMigratedCardFees) {
+      if (migrated && hasCompletedServerBootstrap && !hasAutoMigratedCardFees) {
         hasAutoMigratedCardFees = true;
         setTimeout(() => {
           apiRequest('/api/rewards', { method: 'PUT', body: JSON.stringify(state.rewards) }).catch(() => {});
@@ -6031,7 +6390,26 @@
     return Math.round((target - today) / (1000 * 60 * 60 * 24));
   }
 
+  function flushPendingInlineCustomFields() {
+    const inputs = document.querySelectorAll('[data-cf-new-label]');
+    inputs.forEach(lblEl => {
+      const label = (lblEl.value || '').trim();
+      if (!label) return;
+      const ownerKey = lblEl.getAttribute('data-cf-new-label');
+      const valEl = document.querySelector(`[data-cf-new-val="${CSS.escape(ownerKey)}"]`);
+      const value = valEl ? valEl.value.trim() : '';
+      const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
+      if (prog || card) {
+        fields.push({ id: 'cf-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5), label, value, checked: false });
+        syncCustomFieldsToItems(prog, card, fields);
+      }
+      lblEl.value = '';
+      if (valEl) valEl.value = '';
+    });
+  }
+
   async function saveRewardsState(toastMsg) {
+    flushPendingInlineCustomFields();
     ensureRewardsStructure();
     const updated = await apiRequest('/api/rewards', {
       method: 'PUT',
@@ -6243,7 +6621,7 @@
       }
     }
 
-    if (resetNotices.length > 0) {
+    if (resetNotices.length > 0 && hasCompletedServerBootstrap) {
       setTimeout(() => {
         saveRewardsState(`🔄 Auto-Reset on Schedule: ${resetNotices.join(', ')}!`);
       }, 60);
@@ -6839,7 +7217,7 @@
   function getSyncedCustomFields(prog, card) {
     const pFields = prog && Array.isArray(prog.custom_fields) ? prog.custom_fields : [];
     const cFields = card && Array.isArray(card.custom_fields) ? card.custom_fields : [];
-    const raw = pFields.length > 0 ? pFields : cFields;
+    const raw = mergeCustomFieldsArrays(pFields, cFields);
     return raw.map((f, idx) => ({
       id: f.id || `cf-${idx}`,
       label: String(f.label || f.key || 'Custom Field').trim(),
@@ -6871,13 +7249,13 @@
     if (kind === 'program') {
       prog = (fullRewards.programs || []).find(p => p.id === id) || null;
       if (prog) {
-        const linked = (fullRewards.cards || []).filter(c => doesCardMatchProgram(c, prog));
+        const linked = (fullRewards.cards || []).filter(c => sameOwner(c, prog) && doesCardMatchProgram(c, prog));
         card = linked[0] || null;
       }
     } else {
       card = (fullRewards.cards || []).find(c => c.id === id) || null;
       if (card) {
-        prog = (fullRewards.programs || []).find(p => doesCardMatchProgram(card, p)) || null;
+        prog = (fullRewards.programs || []).find(p => sameOwner(card, p) && doesCardMatchProgram(card, p)) || null;
       }
     }
     const fields = getSyncedCustomFields(prog, card);
@@ -9371,7 +9749,8 @@
         if (scopeEcoRadio) scopeEcoRadio.checked = true;
         syncRprogColorPickerUi(getEcosystemColor(editProg.ecosystem || 'bank'));
       }
-      renderCustomFieldsEditor('rprog-custom-fields-container', editProg.custom_fields);
+      const linkedCardsForProg = getLinkedCardsForProgram(editProg);
+      renderCustomFieldsEditor('rprog-custom-fields-container', getSyncedCustomFields(editProg, linkedCardsForProg[0] || null));
     } else {
       if (titleEl) titleEl.textContent = 'Add Loyalty Program';
       document.getElementById('rprog-id').value = '';
@@ -9442,6 +9821,10 @@
       state.rewards.programs = state.rewards.programs.map(p => (p.id === id ? item : p));
     } else {
       state.rewards.programs.unshift(item);
+    }
+    const linkedCardsForSavedProg = getLinkedCardsForProgram(item);
+    if (linkedCardsForSavedProg[0]) {
+      syncCustomFieldsToItems(item, linkedCardsForSavedProg[0], item.custom_fields);
     }
     if (owner) registerRewardOwner(owner);
     closeModal('modal-reward-program');
@@ -9581,7 +9964,8 @@
       if (imgUrlEl) imgUrlEl.value = editCard.image_url || '';
 
       renderRcardCreditsVisualEditor(editCard.credits || []);
-      renderCustomFieldsEditor('rcard-custom-fields-container', editCard.custom_fields);
+      const linkedProgForEditCard = (state.rewards.programs || []).find(p => sameOwner(editCard, p) && doesCardMatchProgram(editCard, p)) || null;
+      renderCustomFieldsEditor('rcard-custom-fields-container', getSyncedCustomFields(linkedProgForEditCard, editCard));
     } else {
       if (titleEl) titleEl.textContent = 'Add Travel Credit Card & Auto-Import Perks';
       document.getElementById('rcard-id').value = '';
@@ -9663,6 +10047,13 @@
       state.rewards.cards = state.rewards.cards.map(c => (c.id === id ? item : c));
     } else {
       state.rewards.cards.unshift(item);
+    }
+    const linkedProgForSavedCard = (state.rewards.programs || []).find(p => sameOwner(item, p) && doesCardMatchProgram(item, p)) || null;
+    if (linkedProgForSavedCard) {
+      const mergedCf = item.custom_fields && item.custom_fields.length > 0
+        ? item.custom_fields
+        : getSyncedCustomFields(linkedProgForSavedCard, item);
+      syncCustomFieldsToItems(linkedProgForSavedCard, item, mergedCf);
     }
     if (owner) registerRewardOwner(owner);
     closeModal('modal-reward-card');
@@ -11977,6 +12368,7 @@
           extra: 'Any saved point balances and tier targets for this program will be removed.'
         });
         if (!ok) return;
+        recordDeletedRewardId(id);
         state.rewards.programs = state.rewards.programs.filter(p => p.id !== id);
         await saveRewardsState(`Deleted ${name}`);
         return;
@@ -12006,6 +12398,7 @@
           extra: 'This certificate will be removed from your perks tracker.'
         });
         if (!ok) return;
+        recordDeletedRewardId(id);
         state.rewards.certificates = state.rewards.certificates.filter(c => c.id !== id);
         await saveRewardsState(`Deleted ${title}`);
         return;
@@ -12400,6 +12793,7 @@
           extra: 'Its annual fee, sign-up bonus tracker, and statement credits will be removed.'
         });
         if (!ok) return;
+        recordDeletedRewardId(id);
         state.rewards.cards = state.rewards.cards.filter(c => c.id !== id);
         await saveRewardsState(`Removed ${name} from wallet`);
         return;
