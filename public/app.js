@@ -7780,42 +7780,47 @@
                 draggable="true"
                 data-drag-cf-owner="${escapeHtml(ownerKey)}"
                 data-drag-cf-idx="${idx}"
+                style="flex-direction: column; align-items: stretch; gap: 4px; padding: 5px 8px;"
               >
-                <span
-                  class="reward-cf-drag-handle"
-                  data-move-cf-top="${escapeHtml(ownerKey)}"
-                  data-move-cf-idx="${idx}"
-                  title="Drag to reorder custom field (or double-click to move to top/bottom)"
-                >⠿</span>
-                <span
-                  class="reward-cf-check-label"
-                  data-edit-cf-item="${escapeHtml(ownerKey)}"
-                  data-cf-idx="${idx}"
-                  title="Click ✏️ to adjust slider"
-                >
-                  <span class="reward-cf-text">${escapeHtml(f.label)}</span>
-                </span>
-                ${f.value ? `<span class="reward-cf-val mono">${escapeHtml(f.value)}</span>` : ''}
-                <span
-                  class="credit-avail-pill ${remUsd === 0 ? 'zero' : ''}"
-                  style="font-size: 10px; padding: 1px 6px; flex-shrink: 0;"
-                >
-                  ${remUsd > 0 ? `${fmtUsd(remUsd)} left of ${fmtUsdCompact(totUsd)}` : `✓ $0 left`}
-                </span>
-                <button
-                  type="button"
-                  class="reward-cf-edit-btn"
-                  data-edit-cf-item="${escapeHtml(ownerKey)}"
-                  data-cf-idx="${idx}"
-                  title="Adjust slider &amp; edit"
-                >✏️</button>
-                <button
-                  type="button"
-                  class="reward-cf-del-btn"
-                  data-del-cf-item="${escapeHtml(ownerKey)}"
-                  data-cf-idx="${idx}"
-                  title="Remove custom field"
-                >✕</button>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span
+                    class="reward-cf-drag-handle"
+                    data-move-cf-top="${escapeHtml(ownerKey)}"
+                    data-move-cf-idx="${idx}"
+                    title="Drag to reorder custom field (or double-click to move to top/bottom)"
+                  >⠿</span>
+                  <span
+                    class="reward-cf-check-label"
+                    data-edit-cf-item="${escapeHtml(ownerKey)}"
+                    data-cf-idx="${idx}"
+                    title="Click ✏️ to adjust slider"
+                  >
+                    <span class="reward-cf-text">${escapeHtml(f.label)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    class="reward-cf-edit-btn"
+                    data-edit-cf-item="${escapeHtml(ownerKey)}"
+                    data-cf-idx="${idx}"
+                    title="Adjust slider &amp; edit"
+                  >✏️</button>
+                  <button
+                    type="button"
+                    class="reward-cf-del-btn"
+                    data-del-cf-item="${escapeHtml(ownerKey)}"
+                    data-cf-idx="${idx}"
+                    title="Remove custom field"
+                  >✕</button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-left: 16px;">
+                  ${f.value ? `<span class="reward-cf-val mono">${escapeHtml(f.value)}</span>` : ''}
+                  <span
+                    class="credit-avail-pill ${remUsd === 0 ? 'zero' : ''}"
+                    style="font-size: 10px; padding: 1px 6px; flex-shrink: 0;"
+                  >
+                    ${remUsd > 0 ? `${fmtUsd(remUsd)} left of ${fmtUsdCompact(totUsd)}` : `✓ $0 left`}
+                  </span>
+                </div>
               </div>
             `;
           }
