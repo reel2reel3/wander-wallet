@@ -7567,19 +7567,22 @@
     applyTo(card);
   }
 
-  function renderNotesPageIconHtml(kind, id, prog, card) {
+  function renderNotesStatPillHtml(kind, id, prog, card) {
     const notes = getSyncedNotesList(prog, card);
     const count = notes.length;
     const ownerKey = `${kind}:${id}`;
     return `
       <button
         type="button"
-        class="btn-color-edit-inline"
+        class="reward-quick-stat-box reward-quick-stat-btn"
         data-open-reward-notes="${escapeHtml(ownerKey)}"
         title="${count > 0 ? `${count} Note${count === 1 ? '' : 's'} — Click to view & edit` : 'Add Notes for this card'}"
-        style="${count > 0 ? 'border-color: rgba(14, 165, 233, 0.55); background: rgba(14, 165, 233, 0.12);' : ''}"
+        style="${count > 0 ? 'border-color: rgba(14, 165, 233, 0.45); background: rgba(14, 165, 233, 0.06);' : ''}"
       >
-        📄${count > 0 ? `<span style="font-size: 10px; font-weight: 700; margin-left: 2px; color: var(--accent-sky);">${count}</span>` : ''}
+        <span class="reward-quick-stat-label">Notes</span>
+        <span class="reward-quick-stat-val" style="color: ${count > 0 ? 'var(--accent-sky)' : 'var(--text-secondary)'};">
+          ✏️ ${count > 0 ? `${count} Note${count === 1 ? '' : 's'}` : 'Add Note'}
+        </span>
       </button>
     `;
   }
@@ -8436,7 +8439,6 @@
                 <button type="button" class="btn-color-edit-inline" data-quick-color-prog="${escapeHtml(p.id)}" title="Change category or card color">
                   ✏️
                 </button>
-                ${renderNotesPageIconHtml('program', p.id, p, primaryCard)}
               </div>
               <h4 style="font-size: 16.5px; font-weight: 800; margin-top: 5px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span>${escapeHtml(p.name)}</span>
@@ -8506,18 +8508,7 @@
                   🔍 View Info
                 </span>
               </button>
-              <button
-                type="button"
-                class="reward-quick-stat-box reward-quick-stat-btn"
-                data-open-prog-md="${escapeHtml(p.id)}"
-                data-md-tab="perks"
-                title="Open Free Nights &amp; Perks in Mini-Dashboard"
-              >
-                <span class="reward-quick-stat-label">Free Nights</span>
-                <span class="reward-quick-stat-val mono" style="color: ${availCerts.length > 0 ? 'var(--accent-sky)' : 'var(--text-secondary)'};">
-                  ${availCerts.length} Avail
-                </span>
-              </button>
+              ${renderNotesStatPillHtml('program', p.id, p, primaryCard)}
               <a
                 href="${escapeHtml(resolveRewardWebsiteUrl(p, false))}"
                 target="_blank"
@@ -8833,7 +8824,6 @@
                   <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${cardBannerColor};"></span>
                   💳 ${escapeHtml(c.issuer || 'Bank')} • ${escapeHtml(c.ecosystem || c.points_program || 'Rewards')}
                 </span>
-                ${renderNotesPageIconHtml('card', c.id, linkedProg, c)}
               </div>
               <h4 style="font-size: 16.5px; font-weight: 800; margin-top: 5px; color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span>${escapeHtml(cardName)}</span>
@@ -8919,18 +8909,7 @@
                   🔍 View Info
                 </span>
               </button>
-              <button
-                type="button"
-                class="reward-quick-stat-box reward-quick-stat-btn"
-                data-open-card-md="${escapeHtml(c.id)}"
-                data-md-tab="perks"
-                title="Open Free Nights &amp; Perks in Mini-Dashboard"
-              >
-                <span class="reward-quick-stat-label">Free Nights</span>
-                <span class="reward-quick-stat-val mono" style="color: ${availCardCerts.length > 0 ? 'var(--accent-sky)' : 'var(--text-secondary)'};">
-                  ${availCardCerts.length} Avail
-                </span>
-              </button>
+              ${renderNotesStatPillHtml('card', c.id, linkedProg, c)}
               <a
                 href="${escapeHtml(resolveRewardWebsiteUrl(c, true))}"
                 target="_blank"
