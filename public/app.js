@@ -2413,6 +2413,7 @@
 
     // 6. Auto-link any remaining unlinked cards to a matching program and repair broken owner tags on certificates
     for (const card of (state.rewards.cards || [])) {
+      if (card.program_unlinked) continue;
       if (!card.linked_program_id || !(state.rewards.programs || []).some(p => p.id === card.linked_program_id)) {
         const match = (state.rewards.programs || []).find(p => sameOwner(card, p) && doesCardMatchProgram(card, p)) ||
           (state.rewards.programs || []).find(p => ownersCompatible(card, p) && doesCardMatchProgram(card, p));
@@ -6343,6 +6344,7 @@
   function doesCardMatchProgram(card, prog) {
     if (!card || !prog) return false;
     if (card.linked_program_id && card.linked_program_id === prog.id) return true;
+    if (card.program_unlinked) return false;
     if (!ownersCompatible(card, prog)) return false;
     // If the card is explicitly linked to a different program, don't double-show it
     if (card.linked_program_id && ((state.rewards.__full || state.rewards).programs || []).some(p => p.id === card.linked_program_id)) return false;
@@ -6530,8 +6532,8 @@
           }
         }
 
-        // Ensure every credit card with a known loyalty ecosystem is connected both ways to a Loyalty Program in the Loyalty Hub
-        if (card.ecosystem && Array.isArray(state.rewards.programs)) {
+        // Ensure every credit card with a known loyalty ecosystem is connected both ways to a Loyalty Program in the Loyalty Hub (unless explicitly unlinked)
+        if (card.ecosystem && Array.isArray(state.rewards.programs) && !card.program_unlinked) {
           const linkedExisting = card.linked_program_id
             ? state.rewards.programs.find(p => p.id === card.linked_program_id)
             : null;
@@ -8509,7 +8511,14 @@
                   <button type="button" class="btn btn-sm" style="padding: 1px 7px; font-size: 10.5px;" data-auto-integrate-card="${escapeHtml(c.id)}" title="Link Loyalty Program">
                     🔗 Link
                   </button>
-                ` : ''}
+                ` : `
+                  <button type="button" class="btn btn-sm" style="padding: 1px 7px; font-size: 10.5px;" data-unlink-rcard="${escapeHtml(c.id)}" title="Unlink from ${escapeHtml(linkedProg.name)}">
+                    ⛓️‍💥 Unlink
+                  </button>
+                `}
+                <button type="button" class="btn btn-sm btn-danger-ghost" style="padding: 1px 6px; font-size: 10.5px;" data-del-rcard="${escapeHtml(c.id)}" title="Delete Credit Card">
+                  🗑️
+                </button>
               </div>
             </div>
           </div>
@@ -8940,8 +8949,9 @@
           ${prog ? `<button type="button" class="btn btn-sm" data-md-edit-prog="${escapeHtml(prog.id)}">✎ Edit Program</button>` : ''}
           ${primaryCard ? `<button type="button" class="btn btn-sm" data-md-edit-card="${escapeHtml(primaryCard.id)}">💳 Edit Card</button>` : ''}
           ${prog ? `<button type="button" class="btn btn-sm" data-add-cert-for-prog="${escapeHtml(prog.name)}">🎟️ + Add Perk</button>` : ''}
-          ${prog ? `<button type="button" class="btn btn-sm btn-danger-ghost" data-del-rprog="${escapeHtml(prog.id)}" title="Delete Loyalty Program">🗑️ Delete</button>` : ''}
-          ${!prog && primaryCard ? `<button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcard="${escapeHtml(primaryCard.id)}" title="Delete Credit Card">🗑️ Delete</button>` : ''}
+          ${prog ? `<button type="button" class="btn btn-sm btn-danger-ghost" data-del-rprog="${escapeHtml(prog.id)}" title="Delete Loyalty Program (keeps linked cards)">🗑️ Delete Program</button>` : ''}
+          ${prog && primaryCard ? `<button type="button" class="btn btn-sm" data-unlink-rcard="${escapeHtml(primaryCard.id)}" title="Unlink Card from ${escapeHtml(prog.name)}">⛓️‍💥 Unlink Card</button>` : ''}
+          ${primaryCard ? `<button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcard="${escapeHtml(primaryCard.id)}" title="Delete Credit Card (keeps loyalty program)">🗑️ Delete Card</button>` : ''}
         </div>
         <button type="button" class="btn btn-primary" data-close-modal="modal-reward-mini-dashboard">Done</button>
       `;
@@ -10160,8 +10170,18 @@
     const imgUrlEl = document.getElementById('rcard-image-url');
     const autoLinkEl = document.getElementById('rcard-auto-link-prog');
     const autoCertEl = document.getElementById('rcard-auto-add-certs');
-    if (autoLinkEl) autoLinkEl.checked = true;
+    if (autoLinkEl) autoLinkEl.checked = editCard ? !editCard.program_unlinked : true;
     if (autoCertEl) autoCertEl.checked = true;
+    const modalDelCardBtn = document.getElementById('btn-rcard-delete-modal');
+    if (modalDelCardBtn) {
+      if (editCard && editCard.id) {
+        modalDelCardBtn.style.display = 'inline-flex';
+        modalDelCardBtn.setAttribute('data-del-rcard', editCard.id);
+      } else {
+        modalDelCardBtn.style.display = 'none';
+        modalDelCardBtn.removeAttribute('data-del-rcard');
+      }
+    }
 
     if (editCard) {
       if (titleEl) titleEl.textContent = 'Edit Travel Credit Card, Art & Statement Credits';
@@ -10267,6 +10287,12 @@
 
     const autoLinkProg = Boolean((document.getElementById('rcard-auto-link-prog') || {}).checked);
     const autoAddCerts = Boolean((document.getElementById('rcard-auto-add-certs') || {}).checked);
+    if (!autoLinkProg) {
+      item.program_unlinked = true;
+      item.linked_program_id = '';
+    } else {
+      delete item.program_unlinked;
+    }
     const syncedExtras = integrateCardIntoEcosystem(item, { autoLinkProg, autoAddCerts });
 
     if (id) {
@@ -12588,14 +12614,26 @@
         const id = delRprogBtn.getAttribute('data-del-rprog');
         const prog = state.rewards.programs.find(p => p.id === id);
         const name = prog ? prog.name : 'this loyalty program';
+        const linkedCards = prog ? getLinkedCardsForProgram(prog) : [];
+        const extraMsg = linkedCards.length > 0
+          ? `Your saved point balances and tier targets will be removed. Your ${linkedCards.length} linked credit card(s) will be unlinked and kept safely in your wallet.`
+          : 'Any saved point balances and tier targets for this program will be removed.';
         const ok = await confirmDelete({
           title: 'Delete Loyalty Program',
           message: `Are you sure you want to delete "${name}"?`,
-          extra: 'Any saved point balances and tier targets for this program will be removed.'
+          extra: extraMsg
         });
         if (!ok) return;
+        // Unlink cards pointing to this program so they stay in wallet and don't auto-recreate the program
+        for (const c of (state.rewards.cards || [])) {
+          if (c.linked_program_id === id || (prog && doesCardMatchProgram(c, prog))) {
+            c.linked_program_id = '';
+            c.program_unlinked = true;
+          }
+        }
         recordDeletedRewardId(id);
         state.rewards.programs = state.rewards.programs.filter(p => p.id !== id);
+        closeModal('modal-reward-mini-dashboard');
         await saveRewardsState(`Deleted ${name}`);
         return;
       }
@@ -12752,12 +12790,35 @@
         const cId = autoIntCardBtn.getAttribute('data-auto-integrate-card');
         const card = (state.rewards.cards || []).find(c => c.id === cId);
         if (card) {
+          delete card.program_unlinked;
           const added = integrateCardIntoEcosystem(card, { autoLinkProg: true, autoAddCerts: true });
           await saveRewardsState(
             added.length > 0
               ? `🔗 Synced ${card.name}: Created & linked ${added.join(' & ')}!`
               : `🔗 Linked ${card.name} to Loyalty Hub!`
           );
+        }
+        return;
+      }
+      const unlinkRcardBtn = e.target.closest('[data-unlink-rcard]');
+      if (unlinkRcardBtn) {
+        e.preventDefault();
+        const cId = unlinkRcardBtn.getAttribute('data-unlink-rcard');
+        const card = (state.rewards.cards || []).find(c => c.id === cId);
+        if (card) {
+          const linkedProg = (state.rewards.programs || []).find(p => doesCardMatchProgram(card, p));
+          const progName = linkedProg ? linkedProg.name : (card.ecosystem || 'its Loyalty Program');
+          const ok = await confirmDelete({
+            title: 'Unlink Card from Loyalty Program',
+            message: `Are you sure you want to unlink "${card.name}" from "${progName}"?`,
+            extra: 'Both the credit card and the loyalty program will stay in your wallet, just disconnected. You can re-link them anytime.',
+            confirmText: 'Unlink'
+          });
+          if (!ok) return;
+          card.linked_program_id = '';
+          card.program_unlinked = true;
+          closeModal('modal-reward-mini-dashboard');
+          await saveRewardsState(`Unlinked ${card.name} from ${progName}`);
         }
         return;
       }
@@ -13013,14 +13074,20 @@
         const id = delRcardBtn.getAttribute('data-del-rcard');
         const card = state.rewards.cards.find(c => c.id === id);
         const name = card ? card.name : 'this credit card';
+        const linkedProg = card ? (state.rewards.programs || []).find(p => doesCardMatchProgram(card, p)) : null;
+        const extraMsg = linkedProg
+          ? `Its annual fee, sign-up bonus tracker, and statement credits will be removed. Your "${linkedProg.name}" loyalty program and points will NOT be affected.`
+          : 'Its annual fee, sign-up bonus tracker, and statement credits will be removed.';
         const ok = await confirmDelete({
-          title: 'Delete Travel Credit Card',
-          message: `Are you sure you want to remove "${name}" from your wallet?`,
-          extra: 'Its annual fee, sign-up bonus tracker, and statement credits will be removed.'
+          title: 'Delete Credit Card',
+          message: `Are you sure you want to delete "${name}" from your wallet?`,
+          extra: extraMsg
         });
         if (!ok) return;
         recordDeletedRewardId(id);
         state.rewards.cards = state.rewards.cards.filter(c => c.id !== id);
+        closeModal('modal-reward-card');
+        closeModal('modal-reward-mini-dashboard');
         await saveRewardsState(`Removed ${name} from wallet`);
         return;
       }

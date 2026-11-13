@@ -2240,9 +2240,12 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn" data-close-modal="modal-reward-card">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="btn-submit-reward-card">Save Credit Card &amp; Sync Perks</button>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+          <button type="button" class="btn btn-danger-ghost" id="btn-rcard-delete-modal" style="display: none;">🗑️ Delete Card</button>
+          <div style="display: flex; gap: 8px; margin-left: auto;">
+            <button type="button" class="btn" data-close-modal="modal-reward-card">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-reward-card">Save Credit Card &amp; Sync Perks</button>
+          </div>
         </div>
       </form>
     </div>
