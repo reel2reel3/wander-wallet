@@ -6638,14 +6638,25 @@
       if (!label) return;
       const ownerKey = lblEl.getAttribute('data-cf-new-label');
       const valEl = document.querySelector(`[data-cf-new-val="${CSS.escape(ownerKey)}"]`);
+      const modeEl = document.querySelector(`[data-cf-new-mode="${CSS.escape(ownerKey)}"]`);
+      const totEl = document.querySelector(`[data-cf-new-total="${CSS.escape(ownerKey)}"]`);
       const value = valEl ? valEl.value.trim() : '';
+      const mode = modeEl && modeEl.value === 'slider' ? 'slider' : 'checkbox';
+      const totalUsd = mode === 'slider' ? Math.max(0, Number(totEl ? totEl.value : 0) || 0) : 0;
       const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
       if (prog || card) {
-        fields.push({ id: 'cf-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5), label, value, checked: false });
+        fields.push({
+          id: 'cf-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5),
+          label,
+          value,
+          checked: false,
+          ...(mode === 'slider' && totalUsd > 0 ? { mode: 'slider', total_usd: totalUsd, used_usd: 0 } : { mode: 'checkbox' })
+        });
         syncCustomFieldsToItems(prog, card, fields);
       }
       lblEl.value = '';
       if (valEl) valEl.value = '';
+      if (totEl) totEl.value = '';
     });
   }
 
@@ -7646,13 +7657,29 @@
         ${fields.map((f, idx) => {
           const editKey = `${ownerKey}:${idx}`;
           const isEditingRow = activeEditingCustomFieldKey === editKey;
+          const isSlider = f.mode === 'slider' && Number(f.total_usd) > 0;
+          const totUsd = Math.max(0, Number(f.total_usd) || 0);
+          const usedUsd = Math.min(totUsd, Math.max(0, Number(f.used_usd) || 0));
+          const remUsd = Math.max(0, Number((totUsd - usedUsd).toFixed(2)));
+          const isDone = isSlider ? (totUsd > 0 && usedUsd >= totUsd) : Boolean(f.checked);
+
           if (isEditingRow) {
+            const editMode = f.mode === 'slider' ? 'slider' : 'checkbox';
             return `
               <div
                 class="reward-custom-check-row is-editing"
                 data-cf-edit-row="${escapeHtml(editKey)}"
                 style="flex-wrap: wrap; gap: 5px;"
               >
+                <select
+                  class="form-select form-input-sm"
+                  style="flex: 0 0 auto; height: 24px; font-size: 11px; padding: 0 6px;"
+                  data-cf-edit-mode="${escapeHtml(editKey)}"
+                  title="Field Type"
+                >
+                  <option value="checkbox" ${editMode === 'checkbox' ? 'selected' : ''}>☑️ Checkbox</option>
+                  <option value="slider" ${editMode === 'slider' ? 'selected' : ''}>🎚️ $ Slider</option>
+                </select>
                 <input
                   type="text"
                   class="form-input form-input-sm"
@@ -7662,10 +7689,21 @@
                   data-cf-edit-label="${escapeHtml(editKey)}"
                 />
                 <input
+                  type="number"
+                  step="1"
+                  min="1"
+                  class="form-input form-input-sm mono"
+                  style="flex: 0 1 82px; min-width: 72px; height: 24px; font-size: 11px; padding: 0 7px; ${editMode === 'slider' ? '' : 'display: none;'}"
+                  placeholder="Beg $"
+                  value="${totUsd > 0 ? totUsd : ''}"
+                  data-cf-edit-total="${escapeHtml(editKey)}"
+                  title="Beginning Dollar Value ($)"
+                />
+                <input
                   type="text"
                   class="form-input form-input-sm"
                   style="flex: 0 1 85px; min-width: 70px; height: 24px; font-size: 11px; padding: 0 7px;"
-                  placeholder="Val / Note"
+                  placeholder="Note / Exp"
                   value="${escapeHtml(f.value)}"
                   data-cf-edit-val="${escapeHtml(editKey)}"
                 />
@@ -7687,6 +7725,83 @@
               </div>
             `;
           }
+
+          if (isSlider) {
+            return `
+              <div
+                class="reward-custom-check-row ${isDone ? 'is-checked' : ''}"
+                draggable="true"
+                data-drag-cf-owner="${escapeHtml(ownerKey)}"
+                data-drag-cf-idx="${idx}"
+                data-cf-slider-row="${escapeHtml(editKey)}"
+                style="flex-direction: column; align-items: stretch; gap: 5px; padding: 7px 9px;"
+              >
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span
+                    class="reward-cf-drag-handle"
+                    data-move-cf-top="${escapeHtml(ownerKey)}"
+                    data-move-cf-idx="${idx}"
+                    title="Drag to reorder custom field"
+                  >⠿</span>
+                  <span class="reward-cf-text" style="flex: 1; min-width: 110px; font-weight: 600; ${isDone ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">${escapeHtml(f.label)}</span>
+                  ${f.value ? `<span class="reward-cf-val mono">${escapeHtml(f.value)}</span>` : ''}
+                  <span
+                    class="credit-avail-pill ${remUsd === 0 ? 'zero' : ''}"
+                    data-cf-live-rem="${escapeHtml(editKey)}"
+                    style="font-size: 10.5px; padding: 1px 7px;"
+                  >
+                    ${remUsd > 0 ? `${fmtUsd(remUsd)} left of ${fmtUsdCompact(totUsd)}` : `✓ $0 left (${fmtUsdCompact(totUsd)} used)`}
+                  </span>
+                  <button
+                    type="button"
+                    class="reward-cf-edit-btn"
+                    data-edit-cf-item="${escapeHtml(ownerKey)}"
+                    data-cf-idx="${idx}"
+                    title="Edit custom field"
+                  >✏️</button>
+                  <button
+                    type="button"
+                    class="reward-cf-del-btn"
+                    data-del-cf-item="${escapeHtml(ownerKey)}"
+                    data-cf-idx="${idx}"
+                    title="Remove custom field"
+                  >✕</button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; padding-left: 16px;">
+                  <input
+                    type="range"
+                    class="credit-range-slider"
+                    style="flex: 1;"
+                    min="0"
+                    max="${totUsd}"
+                    step="1"
+                    value="${usedUsd}"
+                    data-slider-cf-item="${escapeHtml(ownerKey)}"
+                    data-cf-idx="${idx}"
+                    data-cf-total="${totUsd}"
+                    data-cf-edit-key="${escapeHtml(editKey)}"
+                  />
+                  <div style="display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;">
+                    <span style="font-size: 10.5px; color: var(--text-muted);">Used $</span>
+                    <input
+                      type="number"
+                      class="form-input form-input-sm mono"
+                      style="width: 64px; height: 22px; font-size: 11px; padding: 0 5px; text-align: right;"
+                      min="0"
+                      max="${totUsd}"
+                      step="1"
+                      value="${usedUsd}"
+                      data-input-cf-used="${escapeHtml(ownerKey)}"
+                      data-cf-idx="${idx}"
+                      data-cf-total="${totUsd}"
+                      data-cf-edit-key="${escapeHtml(editKey)}"
+                    />
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+
           return `
             <div
               class="reward-custom-check-row ${f.checked ? 'is-checked' : ''}"
@@ -7733,7 +7848,7 @@
           <div class="reward-cf-inline-adder" data-cf-adder-box="${escapeHtml(ownerKey)}">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;">
               <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--accent-primary);">
-                ☑️ Add Custom Checkbox Field
+                ☑️ Add Custom Field (Checkbox or $ Slider)
               </span>
               <div style="display: inline-flex; align-items: center; gap: 4px;">
                 ${cardCredits.length > 0 ? `
@@ -7757,17 +7872,36 @@
               </div>
             </div>
             <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+              <select
+                class="form-select form-input-sm"
+                style="flex: 0 0 auto; font-size: 11px; padding: 3px 6px;"
+                data-cf-new-mode="${escapeHtml(ownerKey)}"
+                title="Choose Checkbox or Dollar Credit Slider"
+              >
+                <option value="checkbox">☑️ Checkbox</option>
+                <option value="slider">🎚️ $ Slider</option>
+              </select>
               <input
                 type="text"
                 class="form-input form-input-sm"
-                style="flex: 1; min-width: 135px; font-size: 11.5px; padding: 4px 7px;"
-                placeholder="e.g., $150 Delta Stays Credit or Companion Pass"
+                style="flex: 1; min-width: 125px; font-size: 11.5px; padding: 4px 7px;"
+                placeholder="e.g., $300 Annual Travel Credit"
                 data-cf-new-label="${escapeHtml(ownerKey)}"
+              />
+              <input
+                type="number"
+                step="1"
+                min="1"
+                class="form-input form-input-sm mono"
+                style="width: 78px; font-size: 11.5px; padding: 4px 7px; display: none;"
+                placeholder="Beg $"
+                data-cf-new-total="${escapeHtml(ownerKey)}"
+                title="Beginning dollar value (e.g. 300)"
               />
               <input
                 type="text"
                 class="form-input form-input-sm mono"
-                style="width: 76px; font-size: 11.5px; padding: 4px 7px;"
+                style="width: 78px; font-size: 11.5px; padding: 4px 7px;"
                 placeholder="$ / Note"
                 data-cf-new-val="${escapeHtml(ownerKey)}"
               />
@@ -11764,8 +11898,68 @@
       }
     });
 
+    // Live preview for custom field dollar sliders while dragging
+    document.addEventListener('input', e => {
+      const cfSlider = e.target.closest('[data-slider-cf-item]');
+      if (cfSlider) {
+        const editKey = cfSlider.getAttribute('data-cf-edit-key');
+        const tot = Math.max(0, Number(cfSlider.getAttribute('data-cf-total')) || 0);
+        const used = Math.min(tot, Math.max(0, Number(cfSlider.value) || 0));
+        const rem = Math.max(0, Number((tot - used).toFixed(2)));
+        const row = cfSlider.closest('[data-cf-slider-row]');
+        if (row) {
+          const remEl = row.querySelector('[data-cf-live-rem]');
+          if (remEl) {
+            remEl.textContent = rem > 0 ? `${fmtUsd(rem)} left of ${fmtUsdCompact(tot)}` : `✓ $0 left (${fmtUsdCompact(tot)} used)`;
+            remEl.classList.toggle('zero', rem === 0);
+          }
+          const numInp = row.querySelector('[data-input-cf-used]');
+          if (numInp) numInp.value = used;
+        } else if (editKey) {
+          const remEl = document.querySelector(`[data-cf-live-rem="${CSS.escape(editKey)}"]`);
+          if (remEl) remEl.textContent = rem > 0 ? `${fmtUsd(rem)} left of ${fmtUsdCompact(tot)}` : `✓ $0 left (${fmtUsdCompact(tot)} used)`;
+        }
+      }
+    });
+
     // Statement Credit Checkbox, Slider & Numeric Input + Card Image Upload delegation
     document.addEventListener('change', async e => {
+      const cfNewMode = e.target.closest('[data-cf-new-mode]');
+      if (cfNewMode) {
+        const box = cfNewMode.closest('[data-cf-adder-box]');
+        const totEl = box ? box.querySelector('[data-cf-new-total]') : null;
+        if (totEl) {
+          totEl.style.display = cfNewMode.value === 'slider' ? 'inline-block' : 'none';
+          if (cfNewMode.value === 'slider') setTimeout(() => totEl.focus(), 20);
+        }
+        return;
+      }
+      const cfEditMode = e.target.closest('[data-cf-edit-mode]');
+      if (cfEditMode) {
+        const row = cfEditMode.closest('[data-cf-edit-row]');
+        const totEl = row ? row.querySelector('[data-cf-edit-total]') : null;
+        if (totEl) {
+          totEl.style.display = cfEditMode.value === 'slider' ? 'inline-block' : 'none';
+          if (cfEditMode.value === 'slider') setTimeout(() => totEl.focus(), 20);
+        }
+        return;
+      }
+      const cfSliderChange = e.target.closest('[data-slider-cf-item], [data-input-cf-used]');
+      if (cfSliderChange) {
+        const ownerKey = cfSliderChange.getAttribute('data-slider-cf-item') || cfSliderChange.getAttribute('data-input-cf-used');
+        const idx = Number(cfSliderChange.getAttribute('data-cf-idx'));
+        const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
+        if (fields[idx]) {
+          const tot = Math.max(0, Number(fields[idx].total_usd) || 0);
+          const used = Math.min(tot, Math.max(0, Number(cfSliderChange.value) || 0));
+          const rem = Math.max(0, Number((tot - used).toFixed(2)));
+          fields[idx].used_usd = used;
+          fields[idx].checked = tot > 0 && used >= tot;
+          syncCustomFieldsToItems(prog, card, fields);
+          await saveRewardsState(`Updated "${fields[idx].label}": ${fmtUsd(rem)} left of ${fmtUsdCompact(tot)}`);
+        }
+        return;
+      }
       if (e.target && e.target.id === 'advisor-trip-select') {
         const tId = e.target.value;
         if (tId && tId !== 'custom') {
@@ -12520,22 +12714,40 @@
         const box = addCfSubmitBtn.closest('[data-cf-adder-box]');
         const lblEl = box ? box.querySelector('[data-cf-new-label]') : document.querySelector(`[data-cf-new-label="${ownerKey}"]`);
         const valEl = box ? box.querySelector('[data-cf-new-val]') : document.querySelector(`[data-cf-new-val="${ownerKey}"]`);
+        const modeEl = box ? box.querySelector('[data-cf-new-mode]') : document.querySelector(`[data-cf-new-mode="${ownerKey}"]`);
+        const totEl = box ? box.querySelector('[data-cf-new-total]') : document.querySelector(`[data-cf-new-total="${ownerKey}"]`);
         const lbl = ((lblEl && lblEl.value) || '').trim();
         const val = ((valEl && valEl.value) || '').trim();
+        const mode = modeEl && modeEl.value === 'slider' ? 'slider' : 'checkbox';
         if (!lbl) {
-          showToast('Please enter a custom field label (e.g. $150 Delta Stays Credit)');
+          showToast('Please enter a custom field label (e.g. $300 Annual Travel Credit)');
           if (lblEl) lblEl.focus();
           return;
+        }
+        let totalUsd = Number(totEl ? totEl.value : 0) || 0;
+        if (mode === 'slider' && totalUsd <= 0) {
+          const parsedFromVal = parseFloat(val.replace(/[^0-9.]/g, '')) || 0;
+          const parsedFromLbl = parseFloat((lbl.match(/\$\s*([0-9,]+(?:\.[0-9]+)?)/) || [])[1]?.replace(/,/g, '') || '0') || 0;
+          totalUsd = parsedFromVal || parsedFromLbl;
+          if (totalUsd <= 0) {
+            showToast('Please enter the Beginning $ value for the slider (e.g. 300)');
+            if (totEl) totEl.focus();
+            return;
+          }
         }
         const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
         fields.push({
           id: `cf-${Date.now()}`,
           label: lbl,
           value: val,
-          checked: false
+          checked: false,
+          ...(mode === 'slider' ? { mode: 'slider', total_usd: totalUsd, used_usd: 0 } : { mode: 'checkbox' })
         });
+        if (lblEl) lblEl.value = '';
+        if (valEl) valEl.value = '';
+        if (totEl) totEl.value = '';
         syncCustomFieldsToItems(prog, card, fields);
-        await saveRewardsState(`✓ Added custom checkbox "${lbl}"!`);
+        await saveRewardsState(mode === 'slider' ? `✓ Added ${fmtUsdCompact(totalUsd)} slider "${lbl}"!` : `✓ Added custom checkbox "${lbl}"!`);
         setTimeout(() => {
           const nextInp = document.querySelector(`[data-cf-new-label="${ownerKey}"]`);
           if (nextInp) nextInp.focus();
@@ -12610,8 +12822,11 @@
         const idx = Number(saveCfEditBtn.getAttribute('data-cf-idx'));
         const editKey = `${ownerKey}:${idx}`;
         const row = saveCfEditBtn.closest('[data-cf-edit-row]');
+        const modeInp = row ? row.querySelector('[data-cf-edit-mode]') : document.querySelector(`[data-cf-edit-mode="${editKey}"]`);
         const labelInp = row ? row.querySelector('[data-cf-edit-label]') : document.querySelector(`[data-cf-edit-label="${editKey}"]`);
+        const totInp = row ? row.querySelector('[data-cf-edit-total]') : document.querySelector(`[data-cf-edit-total="${editKey}"]`);
         const valInp = row ? row.querySelector('[data-cf-edit-val]') : document.querySelector(`[data-cf-edit-val="${editKey}"]`);
+        const nextMode = modeInp && modeInp.value === 'slider' ? 'slider' : 'checkbox';
         const nextLabel = labelInp ? labelInp.value.trim() : '';
         const nextVal = valInp ? valInp.value.trim() : '';
         if (!nextLabel) {
@@ -12619,10 +12834,31 @@
           if (labelInp) labelInp.focus();
           return;
         }
+        let nextTot = Number(totInp ? totInp.value : 0) || 0;
+        if (nextMode === 'slider' && nextTot <= 0) {
+          const parsedFromVal = parseFloat(nextVal.replace(/[^0-9.]/g, '')) || 0;
+          const parsedFromLbl = parseFloat((nextLabel.match(/\$\s*([0-9,]+(?:\.[0-9]+)?)/) || [])[1]?.replace(/,/g, '') || '0') || 0;
+          nextTot = parsedFromVal || parsedFromLbl;
+          if (nextTot <= 0) {
+            showToast('Please enter the Beginning $ value for the slider');
+            if (totInp) totInp.focus();
+            return;
+          }
+        }
         const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
         if (fields[idx]) {
           fields[idx].label = nextLabel;
           fields[idx].value = nextVal;
+          fields[idx].mode = nextMode;
+          if (nextMode === 'slider') {
+            fields[idx].total_usd = nextTot;
+            const curUsed = Math.min(nextTot, Math.max(0, Number(fields[idx].used_usd) || 0));
+            fields[idx].used_usd = curUsed;
+            fields[idx].checked = nextTot > 0 && curUsed >= nextTot;
+          } else {
+            delete fields[idx].total_usd;
+            delete fields[idx].used_usd;
+          }
           syncCustomFieldsToItems(prog, card, fields);
           activeEditingCustomFieldKey = null;
           await saveRewardsState(`✓ Updated "${nextLabel}"!`);
