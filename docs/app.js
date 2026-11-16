@@ -1462,13 +1462,28 @@
     const sArr = Array.isArray(secondaryCf) ? secondaryCf : [];
     if (pArr.length === 0) return sArr;
     if (sArr.length === 0) return pArr;
-    const merged = [...pArr];
-    const seenLabels = new Set(pArr.map(f => String(f.label || f.key || '').trim().toLowerCase()).filter(Boolean));
+    const merged = pArr.map(f => ({ ...f }));
+    const byLabel = new Map();
+    merged.forEach(f => {
+      const lbl = String(f.label || f.key || '').trim().toLowerCase();
+      if (lbl) byLabel.set(lbl, f);
+    });
     for (const sf of sArr) {
       const lbl = String(sf.label || sf.key || '').trim().toLowerCase();
-      if (lbl && !seenLabels.has(lbl)) {
-        merged.push(sf);
-        seenLabels.add(lbl);
+      if (!lbl) continue;
+      const existing = byLabel.get(lbl);
+      if (!existing) {
+        const clone = { ...sf };
+        merged.push(clone);
+        byLabel.set(lbl, clone);
+      } else {
+        if (sf.verified && !existing.verified) existing.verified = true;
+        if (!existing.value && sf.value) existing.value = sf.value;
+        if (sf.mode === 'slider' && existing.mode !== 'slider' && Number(sf.total_usd) > 0) {
+          existing.mode = 'slider';
+          existing.total_usd = sf.total_usd;
+          existing.used_usd = sf.used_usd;
+        }
       }
     }
     return merged;
@@ -7706,11 +7721,13 @@
     const isText = !isSlider && f && f.mode === 'text';
     const totalUsd = isSlider ? Math.max(0, Number(f.total_usd) || 0) : 0;
     const usedUsd = isSlider ? Math.min(totalUsd, Math.max(0, Number(f.used_usd) || 0)) : 0;
+    const verified = Boolean(f && f.verified);
     return {
       id: (f && f.id) || (useTimestampId ? `cf-${Date.now()}-${idx}` : `cf-${idx}`),
       label: String((f && (f.label || f.key)) || 'Custom Field').trim(),
       value: String((f && f.value) || '').trim(),
       checked: isSlider ? (totalUsd > 0 && usedUsd >= totalUsd) : (isText ? false : Boolean(f && f.checked)),
+      verified,
       ...(isSlider ? { mode: 'slider', total_usd: totalUsd, used_usd: usedUsd } : (isText ? { mode: 'text' } : {}))
     };
   }
@@ -7955,6 +7972,18 @@
                     value="${escapeHtml(f.value)}"
                     data-cf-edit-val="${escapeHtml(editKey)}"
                   />
+                  <label
+                    style="display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: var(--accent-primary); cursor: pointer; padding: 0 4px; user-select: none;"
+                    title="Check once verified on credit card statement"
+                  >
+                    <input
+                      type="checkbox"
+                      style="width: 12px; height: 12px; margin: 0; accent-color: var(--accent-primary); cursor: pointer;"
+                      data-cf-edit-verified="${escapeHtml(editKey)}"
+                      ${f.verified ? 'checked' : ''}
+                    />
+                    <span>Verified</span>
+                  </label>
                   <button
                     type="button"
                     class="btn btn-primary btn-sm"
@@ -8060,6 +8089,20 @@
                   >
                     ${remUsd > 0 ? `${fmtUsd(remUsd)} left of ${fmtUsdCompact(totUsd)}` : `✓ $0 left`}
                   </span>
+                  <label
+                    class="kpi-tag ${f.verified ? 'positive' : (usedUsd > 0 ? 'warning' : '')}"
+                    style="cursor: pointer; font-size: 10px; padding: 1px 7px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid ${f.verified ? 'rgba(16,185,129,0.45)' : (usedUsd > 0 ? 'rgba(245,158,11,0.45)' : 'var(--border-subtle)')}; flex-shrink: 0; user-select: none;"
+                    title="${f.verified ? 'Verified on credit card statement (Click to unverify)' : 'Check once you verify on your credit card statement that you received this credit'}"
+                  >
+                    <input
+                      type="checkbox"
+                      style="width: 11px; height: 11px; margin: 0; accent-color: var(--accent-primary); cursor: pointer;"
+                      data-toggle-cf-verified="${escapeHtml(ownerKey)}"
+                      data-cf-idx="${idx}"
+                      ${f.verified ? 'checked' : ''}
+                    />
+                    <span>${f.verified ? '✅ Verified Credit' : 'Verified Credit'}</span>
+                  </label>
                 </div>
               </div>
             `;
@@ -8125,6 +8168,22 @@
                 <span class="reward-cf-text">${escapeHtml(f.label)}</span>
               </label>
               ${f.value ? `<span class="reward-cf-val mono">${escapeHtml(f.value)}</span>` : ''}
+              ${(f.checked || f.verified || /credit|\$/i.test(f.label + ' ' + f.value)) ? `
+                <label
+                  class="kpi-tag ${f.verified ? 'positive' : (f.checked ? 'warning' : '')}"
+                  style="cursor: pointer; font-size: 9.5px; padding: 1px 6px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid ${f.verified ? 'rgba(16,185,129,0.45)' : (f.checked ? 'rgba(245,158,11,0.45)' : 'var(--border-subtle)')}; flex-shrink: 0; user-select: none;"
+                  title="${f.verified ? 'Verified on credit card statement (Click to unverify)' : 'Check once you verify on your credit card statement that you received this credit'}"
+                >
+                  <input
+                    type="checkbox"
+                    style="width: 10.5px; height: 10.5px; margin: 0; accent-color: var(--accent-primary); cursor: pointer;"
+                    data-toggle-cf-verified="${escapeHtml(ownerKey)}"
+                    data-cf-idx="${idx}"
+                    ${f.verified ? 'checked' : ''}
+                  />
+                  <span>${f.verified ? '✅ Verified' : 'Verified'}</span>
+                </label>
+              ` : ''}
               <button
                 type="button"
                 class="reward-cf-edit-btn"
@@ -8413,6 +8472,20 @@
             <span class="credit-avail-pill ${avail === 0 ? 'zero' : ''}" style="font-size: 10.5px; padding: 1px 7px;" data-live-avail-pill>
               ${avail > 0 ? `Reward Available: ${fmtUsd(avail)}` : `✓ $0.00 Left (${fmtUsd(tot)} Used)`}
             </span>
+            <label
+              class="kpi-tag ${cr.verified ? 'positive' : (used > 0 ? 'warning' : '')}"
+              style="cursor: pointer; font-size: 10px; padding: 1px 7px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid ${cr.verified ? 'rgba(16,185,129,0.45)' : (used > 0 ? 'rgba(245,158,11,0.45)' : 'var(--border-subtle)')}; user-select: none;"
+              title="${cr.verified ? 'Verified on credit card statement (Click to unverify)' : 'Check once you verify on your credit card statement that you received this credit'}"
+            >
+              <input
+                type="checkbox"
+                style="width: 11px; height: 11px; margin: 0; accent-color: var(--accent-primary); cursor: pointer;"
+                data-toggle-card-credit-verified="${escapeHtml(card.id)}"
+                data-credit-idx="${idx}"
+                ${cr.verified ? 'checked' : ''}
+              />
+              <span>${cr.verified ? '✅ Verified Credit' : 'Verified Credit'}</span>
+            </label>
             <span class="mono" data-live-used-tot style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">
               Used: ${fmtUsd(used)} / ${fmtUsd(tot)} • 🔄 ${escapeHtml(resetLabel)}
             </span>
@@ -8505,9 +8578,25 @@
 
         <!-- Row 2: Dedicated Reward Available Pill & Used / Total Readout (Never overlaps title) -->
         <div class="interactive-credit-amounts-bar">
-          <span class="credit-avail-pill ${avail === 0 ? 'zero' : ''}" data-live-avail-pill>
-            ${avail > 0 ? `Reward Available: ${fmtUsd(avail)}` : `✓ $0.00 Left (All ${fmtUsd(tot)} Used)`}
-          </span>
+          <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span class="credit-avail-pill ${avail === 0 ? 'zero' : ''}" data-live-avail-pill>
+              ${avail > 0 ? `Reward Available: ${fmtUsd(avail)}` : `✓ $0.00 Left (All ${fmtUsd(tot)} Used)`}
+            </span>
+            <label
+              class="kpi-tag ${cr.verified ? 'positive' : (used > 0 ? 'warning' : '')}"
+              style="cursor: pointer; font-size: 10.5px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid ${cr.verified ? 'rgba(16,185,129,0.45)' : (used > 0 ? 'rgba(245,158,11,0.45)' : 'var(--border-subtle)')}; user-select: none;"
+              title="${cr.verified ? 'Verified on credit card statement (Click to unverify)' : 'Check once you verify on your credit card statement that you received this credit'}"
+            >
+              <input
+                type="checkbox"
+                style="width: 12px; height: 12px; margin: 0; accent-color: var(--accent-primary); cursor: pointer;"
+                data-toggle-card-credit-verified="${escapeHtml(card.id)}"
+                data-credit-idx="${idx}"
+                ${cr.verified ? 'checked' : ''}
+              />
+              <span>${cr.verified ? '✅ Verified Credit' : 'Verified Credit'}</span>
+            </label>
+          </div>
           <span class="mono" data-live-used-tot style="font-size: 11.5px; font-weight: 700; color: ${isDone ? 'var(--accent-primary)' : 'var(--accent-sky)'}; white-space: nowrap;">
             Used: ${fmtUsd(used)} / ${fmtUsd(tot)}
           </span>
@@ -8915,10 +9004,25 @@
             </div>
           ` : ''}
 
-          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto;">
-            <button type="button" class="btn btn-sm ${isRedeemed ? '' : 'btn-primary'}" data-toggle-rcert="${escapeHtml(c.id)}">
-              ${isRedeemed ? '↺ Mark Available' : '✓ Mark Redeemed'}
-            </button>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border-subtle); margin-top: auto; gap: 6px; flex-wrap: wrap;">
+            <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-sm ${isRedeemed ? '' : 'btn-primary'}" data-toggle-rcert="${escapeHtml(c.id)}">
+                ${isRedeemed ? '↺ Mark Available' : '✓ Mark Redeemed'}
+              </button>
+              <label
+                class="kpi-tag ${c.verified ? 'positive' : (isRedeemed ? 'warning' : '')}"
+                style="cursor: pointer; font-size: 10.5px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid ${c.verified ? 'rgba(16,185,129,0.45)' : (isRedeemed ? 'rgba(245,158,11,0.45)' : 'var(--border-subtle)')}; user-select: none;"
+                title="${c.verified ? 'Verified on account / statement' : 'Check to confirm this certificate / perk is verified'}"
+              >
+                <input
+                  type="checkbox"
+                  style="width: 11.5px; height: 11.5px; margin: 0; accent-color: var(--accent-primary); cursor: pointer;"
+                  data-toggle-rcert-verified="${escapeHtml(c.id)}"
+                  ${c.verified ? 'checked' : ''}
+                />
+                <span>${c.verified ? '✅ Verified' : 'Verified'}</span>
+              </label>
+            </div>
             <div style="display: flex; gap: 6px;">
               <button type="button" class="btn btn-sm" data-edit-rcert="${escapeHtml(c.id)}">Edit</button>
               <button type="button" class="btn btn-sm btn-danger-ghost" data-del-rcert="${escapeHtml(c.id)}">✕</button>
@@ -10202,19 +10306,30 @@
     container.innerHTML = '';
     const arr = Array.isArray(fields) ? fields : [];
     arr.forEach(f => {
-      addCustomFieldRow(containerId, f.label || f.key || '', f.value || '', Boolean(f.checked));
+      addCustomFieldRow(containerId, f.label || f.key || '', f.value || '', Boolean(f.checked), f);
     });
   }
 
-  function addCustomFieldRow(containerId, label = '', value = '', checked = false) {
+  function addCustomFieldRow(containerId, label = '', value = '', checked = false, metaObj = null) {
     const container = document.getElementById(containerId);
     if (!container) return;
+    const verified = Boolean(metaObj && metaObj.verified);
+    const mode = (metaObj && metaObj.mode) || 'checkbox';
+    const totUsd = Number(metaObj && metaObj.total_usd) || 0;
+    const usedUsd = Number(metaObj && metaObj.used_usd) || 0;
     const row = document.createElement('div');
     row.className = 'custom-field-row';
+    row.setAttribute('data-cfield-mode', mode);
+    row.setAttribute('data-cfield-total', String(totUsd));
+    row.setAttribute('data-cfield-used', String(usedUsd));
     row.innerHTML = `
       <input type="checkbox" class="cfield-checked" style="width: 15px; height: 15px; accent-color: var(--accent-primary); cursor: pointer;" title="Checked / Used" ${checked ? 'checked' : ''} />
       <input type="text" class="form-input form-input-sm cfield-label" placeholder="Field / Perk name (e.g. $150 Delta Stays Credit)" value="${escapeHtml(label)}" />
       <input type="text" class="form-input form-input-sm cfield-value" placeholder="Value / Note (e.g. $150)" value="${escapeHtml(value)}" />
+      <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--accent-primary); cursor: pointer; white-space: nowrap; padding: 0 4px;" title="Check once verified on credit card statement">
+        <input type="checkbox" class="cfield-verified" style="width: 13px; height: 13px; margin: 0; accent-color: var(--accent-primary); cursor: pointer;" ${verified ? 'checked' : ''} />
+        <span>✅ Verified</span>
+      </label>
       <button type="button" class="btn btn-sm btn-danger-ghost cfield-del-btn" title="Remove custom field">✕</button>
     `;
     container.appendChild(row);
@@ -10229,10 +10344,21 @@
       const lbl = (r.querySelector('.cfield-label') || {}).value || '';
       const val = (r.querySelector('.cfield-value') || {}).value || '';
       const checked = Boolean((r.querySelector('.cfield-checked') || {}).checked);
+      const verified = Boolean((r.querySelector('.cfield-verified') || {}).checked);
+      const mode = r.getAttribute('data-cfield-mode') || 'checkbox';
+      const totUsd = Number(r.getAttribute('data-cfield-total')) || 0;
+      const usedUsd = Number(r.getAttribute('data-cfield-used')) || 0;
       const trimmedLbl = lbl.trim();
       const trimmedVal = val.trim();
       if (trimmedLbl || trimmedVal) {
-        fields.push({ id: `cf-${Date.now()}-${idx}`, label: trimmedLbl || 'Detail', value: trimmedVal, checked });
+        fields.push({
+          id: `cf-${Date.now()}-${idx}`,
+          label: trimmedLbl || 'Detail',
+          value: trimmedVal,
+          checked,
+          verified,
+          ...(mode === 'slider' && totUsd > 0 ? { mode: 'slider', total_usd: totUsd, used_usd: usedUsd } : (mode === 'text' ? { mode: 'text' } : {}))
+        });
       }
     });
     return fields;
@@ -10253,11 +10379,11 @@
       const used = cr.used_usd !== undefined ? Number(cr.used_usd) : (cr.used ? tot : 0);
       const resetDate = cr.reset_date || renewalVal || getDefaultCreditResetMonth(null, cr);
       const resetCycle = cr.reset_cycle || getDefaultCreditResetCycle(cr);
-      addRcardCreditVisualRow(nm, tot, used, resetDate, resetCycle);
+      addRcardCreditVisualRow(nm, tot, used, resetDate, resetCycle, Boolean(cr.verified));
     });
   }
 
-  function addRcardCreditVisualRow(name = '', total = 100, used = 0, resetDate = '', resetCycle = '') {
+  function addRcardCreditVisualRow(name = '', total = 100, used = 0, resetDate = '', resetCycle = '', verified = false) {
     const container = document.getElementById('rcard-credits-visual-list');
     if (!container) return;
     const totNum = Math.max(0, Number(total) || 0);
@@ -10280,7 +10406,11 @@
       <select class="form-select form-input-sm vcred-reset-cycle" style="padding: 2px 6px; font-size: 11px;">
         ${cycleOpts.map(opt => `<option value="${escapeHtml(opt)}" ${opt === defaultCycle ? 'selected' : ''}>${escapeHtml(opt)}</option>`).join('')}
       </select>
-      <div style="display: flex; gap: 3px;">
+      <div style="display: flex; align-items: center; gap: 3px;">
+        <label style="display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 700; color: var(--accent-primary); cursor: pointer; padding: 0 3px;" title="Check once verified on credit card statement">
+          <input type="checkbox" class="vcred-verified" style="width: 12px; height: 12px; margin: 0; accent-color: var(--accent-primary); cursor: pointer;" ${verified ? 'checked' : ''} />
+          <span>✅</span>
+        </label>
         <button type="button" class="btn btn-sm vcred-max-btn" style="padding: 3px 5px; font-size: 10px;" title="Mark 100% Used">✓ Max</button>
         <button type="button" class="btn btn-sm vcred-zero-btn" style="padding: 3px 5px; font-size: 10px;" title="Reset Used to $0 (100% Available)">↺ $0</button>
         <button type="button" class="btn btn-sm btn-danger-ghost vcred-del-btn" style="padding: 3px 5px; font-size: 10px;" title="Remove credit row">✕</button>
@@ -10300,12 +10430,14 @@
       const used = Math.max(0, Number((r.querySelector('.vcred-used') || {}).value) || 0);
       const resetDate = ((r.querySelector('.vcred-reset-date') || {}).value || '').trim();
       const resetCycle = ((r.querySelector('.vcred-reset-cycle') || {}).value || 'Annually').trim();
+      const verified = Boolean((r.querySelector('.vcred-verified') || {}).checked);
       if (name || tot > 0) {
         credits.push({
           id: `cred-${Date.now()}-${idx}`,
           name: name || `Statement Credit ${idx + 1}`,
           total_usd: tot,
           used_usd: Math.min(tot, used),
+          verified,
           reset_date: resetDate || '2027-03',
           reset_cycle: resetCycle || 'Annually'
         });
@@ -11353,7 +11485,8 @@
             id: matchOld ? matchOld.id : `cred-${Date.now()}-${idx}`,
             name: newCr.name,
             total_usd: tot,
-            used_usd: Math.min(tot, used)
+            used_usd: Math.min(tot, used),
+            verified: Boolean(matchOld && matchOld.verified)
           };
         });
         item.credits = mergedCredits;
@@ -11490,7 +11623,8 @@
               id: matchOld ? matchOld.id : `cred-${Date.now()}-${idx}`,
               name: newCr.name,
               total_usd: tot,
-              used_usd: Math.min(tot, used)
+              used_usd: Math.min(tot, used),
+              verified: Boolean(matchOld && matchOld.verified)
             };
           });
         }
@@ -12360,6 +12494,57 @@
         return;
       }
 
+      const cfVerifiedCheck = e.target.closest('[data-toggle-cf-verified]');
+      if (cfVerifiedCheck) {
+        const ownerKey = cfVerifiedCheck.getAttribute('data-toggle-cf-verified');
+        const idx = Number(cfVerifiedCheck.getAttribute('data-cf-idx'));
+        const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
+        if (fields[idx]) {
+          fields[idx].verified = Boolean(cfVerifiedCheck.checked);
+          syncCustomFieldsToItems(prog, card, fields);
+          const lbl = fields[idx].label || 'Credit';
+          await saveRewardsState(
+            cfVerifiedCheck.checked
+              ? `✅ Verified "${lbl}" on statement!`
+              : `Unchecked verified status for "${lbl}"`
+          );
+        }
+        return;
+      }
+
+      const cardCredVerifiedCheck = e.target.closest('[data-toggle-card-credit-verified]');
+      if (cardCredVerifiedCheck) {
+        const cardId = cardCredVerifiedCheck.getAttribute('data-toggle-card-credit-verified');
+        const idx = Number(cardCredVerifiedCheck.getAttribute('data-credit-idx'));
+        const card = state.rewards.cards.find(c => c.id === cardId);
+        if (card && Array.isArray(card.credits) && card.credits[idx]) {
+          const cr = card.credits[idx];
+          cr.verified = Boolean(cardCredVerifiedCheck.checked);
+          const label = cr.name || cr.label || 'Statement Credit';
+          await saveRewardsState(
+            cardCredVerifiedCheck.checked
+              ? `✅ Verified "${label}" on credit card statement!`
+              : `Unchecked verified status for "${label}"`
+          );
+        }
+        return;
+      }
+
+      const certVerifiedCheck = e.target.closest('[data-toggle-rcert-verified]');
+      if (certVerifiedCheck) {
+        const certId = certVerifiedCheck.getAttribute('data-toggle-rcert-verified');
+        const cert = (state.rewards.certificates || []).find(c => c.id === certId);
+        if (cert) {
+          cert.verified = Boolean(certVerifiedCheck.checked);
+          await saveRewardsState(
+            certVerifiedCheck.checked
+              ? `✅ Verified "${cert.title}"!`
+              : `Unchecked verified status for "${cert.title}"`
+          );
+        }
+        return;
+      }
+
       const credSlider = e.target.closest('[data-slider-card-credit]');
       if (credSlider) {
         const cardId = credSlider.getAttribute('data-slider-card-credit');
@@ -13191,9 +13376,11 @@
         }
         const { prog, card, fields } = resolveCustomFieldsTarget(ownerKey);
         if (fields[idx]) {
+          const verInp = row ? row.querySelector('[data-cf-edit-verified]') : document.querySelector(`[data-cf-edit-verified="${editKey}"]`);
           fields[idx].label = nextLabel;
           fields[idx].value = nextVal;
           fields[idx].mode = nextMode;
+          if (verInp) fields[idx].verified = Boolean(verInp.checked);
           if (nextMode === 'slider') {
             const usedInp = row ? row.querySelector('[data-input-cf-used]') : null;
             const sliderInp = row ? row.querySelector('[data-slider-cf-item]') : null;
@@ -13821,6 +14008,7 @@
           const tot = Number(cr.total_usd ?? cr.amount ?? 0);
           cr.used_usd = 0;
           cr.used = false;
+          cr.verified = false;
           const label = cr.name || cr.label || 'Credit';
           await saveRewardsState(`↺ Reset "${label}" — Full ${fmtUsd(tot)} Reward Available again!`);
         }
