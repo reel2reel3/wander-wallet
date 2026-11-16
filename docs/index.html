@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Wander Wallet — Creator Road Finance & Travel Expense Tracker</title>
-  <meta name="description" content="Modern multi-currency travel expense tracker, trip budget burn-rate monitor, receipt vault, and YouTube sponsorship ROI dashboard for creators on the road." />
+  <title>Wander Wallet — Travel Rewards, Loyalty &amp; Trip Expense Tracker</title>
+  <meta name="description" content="Modern multi-currency travel expense tracker, trip budget burn-rate monitor, receipt vault, and travel rewards &amp; loyalty command center." />
   <meta name="theme-color" content="#0c0f14" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="stylesheet" href="styles.css?v=11" />
 </head>
 <body>
   <div class="app-shell">
@@ -53,11 +53,11 @@
             <span class="nav-badge" id="badge-trip-count">0</span>
           </button>
         </li>
-        <li>
+        <li id="nav-item-revenue" style="display: none;">
           <button type="button" class="nav-item-btn" data-view="revenue" id="nav-btn-revenue">
             <span class="nav-item-left">
               <span>🎬</span>
-              <span class="nav-item-text">Sponsors &amp; AdSense ROI</span>
+              <span class="nav-item-text">Sponsors &amp; AdSense</span>
             </span>
             <span class="nav-badge" id="badge-revenue-count">0</span>
           </button>
@@ -69,6 +69,15 @@
               <span class="nav-item-text">Rewards &amp; Loyalty</span>
             </span>
             <span class="nav-badge" id="badge-rewards-value" style="color: var(--accent-amber);">$0</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item-btn" id="nav-btn-quick-rewards" title="Open Quick Rewards At-A-Glance Summary (Balances, Unused Credits, Use-By Dates &amp; Perks)">
+            <span class="nav-item-left">
+              <span>⚡</span>
+              <span class="nav-item-text">Quick Rewards</span>
+            </span>
+            <span class="nav-badge" id="badge-quick-rewards-avail" style="color: var(--accent-primary); font-weight: 700;">Glance</span>
           </button>
         </li>
         <li>
@@ -89,6 +98,30 @@
           </button>
         </li>
       </ul>
+
+      <!-- Left Dashboard Quick Rewards Live Glance Box (Click to open full summary) -->
+      <div class="nav-section-label" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>⚡ Quick Rewards Glance</span>
+        <span style="font-size: 10px; color: var(--accent-primary); cursor: pointer;" id="sidebar-qr-open-link">View All →</span>
+      </div>
+      <div class="sidebar-quick-rewards-box" id="sidebar-quick-rewards-widget" role="button" tabindex="0" title="Click for complete Quick Rewards summary (Points, Miles, Unused Credits &amp; Reset Dates)">
+        <div class="sq-row">
+          <span class="sq-label">💎 Points &amp; Miles</span>
+          <span class="sq-val mono" id="sq-points-val">$0 (0 pts)</span>
+        </div>
+        <div class="sq-row">
+          <span class="sq-label">💰 Reward Available</span>
+          <span class="sq-val mono" id="sq-credits-avail" style="color: var(--accent-primary);">$0.00 Left</span>
+        </div>
+        <div class="sq-row">
+          <span class="sq-label">🎟️ Free Nights / Perks</span>
+          <span class="sq-val mono" id="sq-certs-avail">0 Avail</span>
+        </div>
+        <div class="sq-row" style="border-top: 1px dashed var(--border-subtle); padding-top: 4px; margin-top: 2px;">
+          <span class="sq-label">⏰ Next Reset / Use-By</span>
+          <span class="sq-val" id="sq-next-reminder" style="font-size: 11px; color: var(--accent-amber);">All Current</span>
+        </div>
+      </div>
 
       <div class="nav-section-label">Active Trips</div>
       <ul class="nav-list" id="sidebar-trip-list">
@@ -128,11 +161,11 @@
     <main class="main-workspace">
       <header class="topbar">
         <div class="topbar-left">
-          <h1 class="page-heading" id="main-page-heading">Road Finance Dashboard</h1>
-          <div class="trip-pill-selector" title="Filter workspace by production trip">
+          <h1 class="page-heading" id="main-page-heading">Trip Expense &amp; Rewards Dashboard</h1>
+          <div class="trip-pill-selector" title="Filter workspace by trip">
             <span>📍 Trip:</span>
             <select id="global-trip-select" aria-label="Select Trip">
-              <option value="all">All Production Trips</option>
+              <option value="all">All Trips</option>
             </select>
           </div>
         </div>
@@ -144,7 +177,6 @@
           </button>
           <button type="button" class="btn" id="btn-topbar-help" title="How Wander Wallet Works & Guided Tour">🎓 Help &amp; Tour</button>
           <button type="button" class="btn" id="btn-open-new-trip">+ New Trip</button>
-          <button type="button" class="btn" id="btn-open-new-revenue">+ Log Revenue</button>
           <button type="button" class="btn" id="btn-export-csv-top">⬇ Export Tax CSV</button>
           <button type="button" class="btn" id="btn-topbar-lock" title="Exit App & Sign Out">🚪 Exit</button>
           <button type="button" class="btn btn-primary" id="btn-topbar-quick-add">+ Add Expense</button>
@@ -163,13 +195,13 @@
           <section class="kpi-grid" aria-label="Key Financial Metrics" style="margin-bottom: 22px;">
             <div class="kpi-card">
               <div class="kpi-header">
-                <span class="kpi-label">Total Production Spend</span>
+                <span class="kpi-label">Total Trip Spend</span>
                 <span class="kpi-tag positive" id="kpi-tax-pct-tag">100% Deductible</span>
               </div>
               <div class="kpi-value tabular" id="kpi-total-spend">$0.00</div>
               <div class="kpi-subtext">
                 <span id="kpi-expense-items-sub">0 itemized entries</span>
-                <span class="mono" id="kpi-cost-per-video">$0 / video</span>
+                <span class="mono" id="kpi-cost-per-video">🧾 0 receipts</span>
               </div>
             </div>
 
@@ -192,8 +224,8 @@
 
             <div class="kpi-card">
               <div class="kpi-header">
-                <span class="kpi-label">Daily Road Burn Rate</span>
-                <span class="kpi-tag" id="kpi-burn-days-tag">0 Shoot Days</span>
+                <span class="kpi-label">Daily Trip Burn Rate</span>
+                <span class="kpi-tag" id="kpi-burn-days-tag">0 Trip Days</span>
               </div>
               <div class="kpi-value tabular" id="kpi-daily-burn">$0.00<span style="font-size: 14px; font-weight: 500; color: var(--text-muted);">/day</span></div>
               <div class="kpi-subtext">
@@ -204,12 +236,12 @@
 
             <div class="kpi-card">
               <div class="kpi-header">
-                <span class="kpi-label">Net Trip Profit (ROI)</span>
-                <span class="kpi-tag positive" id="kpi-roi-multiple-tag">0.0x ROI</span>
+                <span class="kpi-label">Rewards &amp; Points Savings</span>
+                <span class="kpi-tag positive" id="kpi-roi-multiple-tag">🏆 Loyalty Value</span>
               </div>
               <div class="kpi-value tabular" id="kpi-net-profit">$0.00</div>
               <div class="kpi-subtext">
-                <span id="kpi-total-revenue-sub">Rev: $0</span>
+                <span id="kpi-total-revenue-sub">Pts Used: 0</span>
                 <span id="kpi-reimbursable-sub">Reimburse: $0</span>
               </div>
             </div>
@@ -233,8 +265,8 @@
             <div class="panel-card">
               <div class="panel-header">
                 <div>
-                  <h2 class="panel-title">Daily Shoot Spend Timeline (USD)</h2>
-                  <p class="panel-subtitle">Converted to home currency across shoot dates</p>
+                  <h2 class="panel-title">Daily Trip Spend Timeline (USD)</h2>
+                  <p class="panel-subtitle">Converted to home currency across trip dates</p>
                 </div>
                 <span class="kpi-tag mono" id="chart-peak-day-tag">Peak: $0</span>
               </div>
@@ -248,8 +280,8 @@
           <section class="panel-card">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">Itemized Road Expense Ledger</h2>
-                <p class="panel-subtitle">Multi-currency receipts, hotels, crew meals, transit, and production gear</p>
+                <h2 class="panel-title">Itemized Trip Expense Ledger</h2>
+                <p class="panel-subtitle">Multi-currency receipts, hotels, dining, flights, transit, and activities</p>
               </div>
               <div style="display: flex; gap: 8px;">
                 <button type="button" class="btn btn-sm" id="btn-ledger-export-csv">⬇ CSV</button>
@@ -262,8 +294,13 @@
                 <input
                   type="search"
                   id="input-ledger-search"
+                  name="ww_ledger_filter_query"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
                   class="input-search"
-                  placeholder="Search hotel, meal, vendor, note, currency..."
+                  placeholder="Search hotel, meal, airline, vendor, note, currency..."
                   aria-label="Search expenses"
                 />
                 <select id="select-currency-filter" class="select-filter" aria-label="Filter by currency">
@@ -281,7 +318,7 @@
                   <option value="all">All Entries</option>
                   <option value="receipts">With Receipt Photo</option>
                   <option value="missing_receipt">Missing Receipt (&gt;$75)</option>
-                  <option value="reimbursable">Crew Reimbursable</option>
+                  <option value="reimbursable">Reimbursable</option>
                 </select>
               </div>
             </div>
@@ -313,15 +350,15 @@
           </section>
         </div>
 
-        <!-- VIEW 2: TRIPS & SHOOT BUDGETS -->
+        <!-- VIEW 2: TRIPS & BUDGETS -->
         <div id="view-trips" class="view-section" style="display: none;">
           <section class="panel-card">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">Production Trips &amp; Destination Budgets</h2>
-                <p class="panel-subtitle">Compare budget runway, cost per YouTube episode, and net sponsorship ROI per trip</p>
+                <h2 class="panel-title">Trips &amp; Destination Budgets</h2>
+                <p class="panel-subtitle">Track destination budgets, daily burn rates, itemized expenses, and loyalty rewards savings per trip</p>
               </div>
-              <button type="button" class="btn btn-primary" id="btn-trips-view-create">+ New Production Trip</button>
+              <button type="button" class="btn btn-primary" id="btn-trips-view-create">+ New Trip</button>
             </div>
             <div id="trips-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px;">
               <!-- Populated dynamically -->
@@ -329,15 +366,21 @@
           </section>
         </div>
 
-        <!-- VIEW 3: SPONSORSHIPS & ADSENSE ROI -->
+        <!-- VIEW 3: STANDALONE SPONSORSHIPS & ADSENSE -->
         <div id="view-revenue" class="view-section" style="display: none;">
+          <div class="kpi-grid" id="revenue-standalone-kpis" style="margin-bottom: 18px;">
+            <!-- Populated dynamically -->
+          </div>
           <section class="panel-card">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">YouTube AdSense &amp; Sponsorship Revenue Tracker</h2>
-                <p class="panel-subtitle">Offset travel and production costs against video brand deals and AdSense payouts</p>
+                <h2 class="panel-title">Sponsors &amp; AdSense Revenue Tracker</h2>
+                <p class="panel-subtitle">Standalone sponsorship deals and AdSense payout ledger (separate from your trip expenses &amp; rewards)</p>
               </div>
-              <button type="button" class="btn btn-primary" id="btn-rev-view-create">+ Log Sponsor / AdSense</button>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-sm" id="btn-rev-view-hide-feature" title="Hide the Sponsors &amp; AdSense feature in Admin">⚙️ Hide Feature</button>
+                <button type="button" class="btn btn-primary" id="btn-rev-view-create">+ Log Sponsor / AdSense</button>
+              </div>
             </div>
             <div class="table-responsive">
               <table class="ledger-table">
@@ -346,7 +389,7 @@
                     <th>Date</th>
                     <th>Deliverable / Revenue Title</th>
                     <th>Sponsor / Source</th>
-                    <th>Trip</th>
+                    <th>Trip (Optional)</th>
                     <th>Status</th>
                     <th style="text-align: right;">Amount (USD)</th>
                     <th style="text-align: right;">Actions</th>
@@ -366,11 +409,11 @@
             <div class="panel-header">
               <div>
                 <h2 class="panel-title">Accountant &amp; Tax Deduction Readiness</h2>
-                <p class="panel-subtitle">Schedule C category rollups, crew reimbursements, and one-click CSV / PDF exports</p>
+                <p class="panel-subtitle">Category rollups, reimbursements, and one-click CSV / PDF trip expense exports</p>
               </div>
               <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button type="button" class="btn" id="btn-print-pdf-report">🖨️ Print / Save PDF Report</button>
-                <button type="button" class="btn btn-primary" id="btn-tax-download-csv">⬇ Download Accountant CSV</button>
+                <button type="button" class="btn btn-primary" id="btn-tax-download-csv">⬇ Download Expense CSV</button>
               </div>
             </div>
 
@@ -380,11 +423,11 @@
 
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: var(--bg-elevated); border-radius: var(--radius-md); border: 1px solid var(--border-subtle); flex-wrap: wrap;">
               <div>
-                <div style="font-size: 13.5px; font-weight: 600;">Meals &amp; Craft Deduction Treatment</div>
-                <div style="font-size: 12px; color: var(--text-muted);">On-camera featured food challenges are typically 100% COGS/Production; standard travel crew meals can be toggled to 50% IRS limit.</div>
+                <div style="font-size: 13.5px; font-weight: 600;">Dining &amp; Meals Deduction Treatment</div>
+                <div style="font-size: 12px; color: var(--text-muted);">Choose whether dining &amp; meals are tracked at 100% full spend or the 50% standard travel meal limit.</div>
               </div>
               <select id="select-meal-deduction-rate" class="form-select" style="min-width: 210px;">
-                <option value="100">100% Production / On-Camera Deduction</option>
+                <option value="100">100% Full Travel Meal Tracking</option>
                 <option value="50">50% Standard Business Travel Meal Limit</option>
               </select>
             </div>
@@ -413,71 +456,112 @@
 
         <!-- VIEW 6: REWARDS & LOYALTY COMMAND CENTER -->
         <div id="view-rewards" class="view-section" style="display: none;">
-          <!-- Rewards Top Action Banner -->
-          <section class="panel-card rewards-hero-banner" style="margin-bottom: 18px;">
-            <div class="panel-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px;">
-              <div>
-                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-amber); margin-bottom: 4px;">
-                  🏆 TRAVEL REWARDS, POINTS, FREE NIGHTS &amp; CARD PERKS VAULT
+          <!-- Compact & Outlined Rewards Command Center Header -->
+          <section class="panel-card rewards-hero-banner">
+            <div class="reward-card-banner" style="background: linear-gradient(90deg, #10b981 0%, #0ea5e9 50%, #f59e0b 100%);"></div>
+
+            <!-- Row 1: Title + Inline Household Owner Filter (Left) & Streamlined Action Buttons (Right) -->
+            <div class="rewards-compact-top-row">
+              <div class="rewards-compact-brand-group">
+                <h2 class="panel-title" style="font-size: 18px; margin: 0; white-space: nowrap;">🏆 Loyalty &amp; Rewards</h2>
+                <div class="owner-filter-bar inline-owner-bar" id="rewards-owner-filter-bar">
+                  <!-- Populated dynamically by renderOwnerFilterBars() -->
                 </div>
-                <h2 class="panel-title" style="font-size: 20px;">Loyalty &amp; Rewards Command Center</h2>
-                <p class="panel-subtitle" style="margin-top: 3px;">
-                  Monitor transferable bank points, hotel &amp; airline status nights, expiring free night certificates, annual card statement credits, welcome bonus minimum spend, and trip redemption savings.
-                </p>
               </div>
-              <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                <button type="button" class="btn btn-sm" id="btn-rewards-back-finance">← Back to Finance Ledger</button>
-                <button type="button" class="btn btn-sm" id="btn-open-reward-templates">⚡ Popular Card &amp; Program Templates</button>
-                <button type="button" class="btn btn-sm" id="btn-open-add-program">+ Loyalty Program</button>
-                <button type="button" class="btn btn-sm" id="btn-open-add-cert">+ Free Night / Perk</button>
-                <button type="button" class="btn btn-sm" id="btn-open-add-card">+ Credit Card</button>
-                <button type="button" class="btn btn-sm btn-primary" id="btn-open-add-redemption">+ Log Point Redemption</button>
+
+              <div class="rewards-compact-actions">
+                <button type="button" class="btn btn-sm btn-primary" id="btn-open-rewards-summary" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); border: none; font-weight: 700;">
+                  📊 Summary
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-update-all-rewards" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; font-weight: 700;">
+                  🔄 Update
+                </button>
+
+                <div class="rewards-add-dropdown-wrap">
+                  <button type="button" class="btn btn-sm btn-primary" id="btn-rewards-add-menu-toggle" style="font-weight: 700;">
+                    + Add ▾
+                  </button>
+                  <div class="rewards-add-dropdown-menu" id="rewards-add-dropdown-menu" style="display: none;">
+                    <button type="button" class="rewards-add-menu-item" id="btn-open-reward-templates">
+                      <span>⚡</span>
+                      <div>
+                        <div style="font-weight: 700;">Smart Add from Database</div>
+                        <div style="font-size: 10.5px; color: var(--text-muted);">Pre-loaded cards, perks &amp; programs</div>
+                      </div>
+                    </button>
+                    <button type="button" class="rewards-add-menu-item" id="btn-open-add-card">
+                      <span>💳</span>
+                      <div>
+                        <div style="font-weight: 700;">+ Credit Card</div>
+                        <div style="font-size: 10.5px; color: var(--text-muted);">Annual fee, multipliers &amp; credits</div>
+                      </div>
+                    </button>
+                    <button type="button" class="rewards-add-menu-item" id="btn-open-add-program">
+                      <span>💎</span>
+                      <div>
+                        <div style="font-weight: 700;">+ Loyalty Program</div>
+                        <div style="font-size: 10.5px; color: var(--text-muted);">Hotel, airline or bank points</div>
+                      </div>
+                    </button>
+                    <button type="button" class="rewards-add-menu-item" id="btn-open-add-cert">
+                      <span>🎟️</span>
+                      <div>
+                        <div style="font-weight: 700;">+ Free Night / Perk</div>
+                        <div style="font-size: 10.5px; color: var(--text-muted);">Free night award or companion pass</div>
+                      </div>
+                    </button>
+                    <button type="button" class="rewards-add-menu-item" id="btn-open-add-redemption">
+                      <span>📓</span>
+                      <div>
+                        <div style="font-weight: 700;">+ Log Redemption</div>
+                        <div style="font-size: 10.5px; color: var(--text-muted);">Record points used &amp; cash saved</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <button type="button" class="btn btn-sm" id="btn-rewards-back-finance" title="Return to Finance Ledger">← Ledger</button>
               </div>
             </div>
 
-            <!-- 5 Portfolio Summary KPIs -->
-            <div class="rewards-kpi-grid" id="rewards-kpi-grid">
-              <!-- Populated dynamically by renderRewardsDashboard() -->
-            </div>
-
-            <!-- Sub-Navigation Tabs inside Rewards Command Center -->
-            <div class="rewards-subnav" role="tablist" aria-label="Rewards Sections">
+            <!-- Row 2: All 6 Shortened Navigation Tabs on One Single Line -->
+            <div class="rewards-subnav compact-subnav" role="tablist" aria-label="Rewards Sections">
               <button type="button" class="rewards-tab-btn active" data-rewards-tab="programs">
-                <span>💎 Points, Miles &amp; Elite Status</span>
+                <span>💎 Loyalty Hub</span>
                 <span class="nav-badge" id="r-badge-programs">0</span>
               </button>
-              <button type="button" class="rewards-tab-btn" data-rewards-tab="certs">
-                <span>🎟️ Free Nights, Companion &amp; Perks</span>
-                <span class="nav-badge" id="r-badge-certs">0</span>
-              </button>
               <button type="button" class="rewards-tab-btn" data-rewards-tab="cards">
-                <span>💳 Credit Cards, Credits &amp; SUB Spend</span>
+                <span>💳 Credit Cards</span>
                 <span class="nav-badge" id="r-badge-cards">0</span>
               </button>
+              <button type="button" class="rewards-tab-btn" data-rewards-tab="certs">
+                <span>🎟️ Free Nights &amp; Perks</span>
+                <span class="nav-badge" id="r-badge-certs">0</span>
+              </button>
               <button type="button" class="rewards-tab-btn" data-rewards-tab="matrix">
-                <span>🔄 Transfer Partners &amp; CPP Calculator</span>
+                <span>🔄 Transfer &amp; Calculator</span>
               </button>
               <button type="button" class="rewards-tab-btn" data-rewards-tab="redemptions">
-                <span>📓 Redemptions &amp; Trip Savings Log</span>
+                <span>📓 Redemptions</span>
                 <span class="nav-badge" id="r-badge-redemptions">0</span>
+              </button>
+              <button type="button" class="rewards-tab-btn ai-advisor-tab-btn" data-rewards-tab="advisor">
+                <span>✨ AI Advisor</span>
               </button>
             </div>
           </section>
 
-          <!-- REWARDS TAB 1: POINTS, MILES & ELITE STATUS -->
+          <!-- REWARDS TAB 1: UNIFIED LOYALTY, LINKED CARDS & PERKS HUB -->
           <div id="rewards-pane-programs" class="rewards-tab-pane">
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;">
               <div class="category-chips" id="rewards-ecosystem-chips">
                 <button type="button" class="chip-btn active" data-eco-filter="all">All Ecosystems</button>
-                <button type="button" class="chip-btn" data-eco-filter="bank">🏦 Transferable Bank Points</button>
+                <button type="button" class="chip-btn" data-eco-filter="bank">🏦 Bank Points</button>
                 <button type="button" class="chip-btn" data-eco-filter="hotel">🏨 Hotel Loyalty</button>
-                <button type="button" class="chip-btn" data-eco-filter="airline">✈️ Airline Frequent Flyer</button>
-                <button type="button" class="chip-btn" data-eco-filter="other">🚢 Rail / Cruise / Other</button>
+                <button type="button" class="chip-btn" data-eco-filter="airline">✈️ Airlines</button>
+                <button type="button" class="chip-btn" data-eco-filter="other">🚢 Other</button>
               </div>
-              <div style="display: flex; gap: 8px;">
-                <button type="button" class="btn btn-sm" id="btn-prog-open-templates">⚡ Add from Templates</button>
-                <button type="button" class="btn btn-sm btn-primary" id="btn-prog-add-custom">+ Add Loyalty Program</button>
-              </div>
+              <button type="button" class="btn btn-sm" id="btn-open-eco-colors" title="Customize category banner &amp; outline colors">🎨 Category Colors</button>
             </div>
 
             <div class="rewards-cards-grid" id="rewards-programs-grid">
@@ -525,8 +609,8 @@
             <section class="panel-card" style="margin-bottom: 18px;">
               <div class="panel-header">
                 <div>
-                  <h3 class="panel-title">⚡ "Which Card Should I Swipe?" Road Multiplier Cheat Sheet</h3>
-                  <p class="panel-subtitle">Quick reference for maximum point return on every shoot category</p>
+                  <h3 class="panel-title">⚡ "Which Card Should I Swipe?" Multiplier Cheat Sheet</h3>
+                  <p class="panel-subtitle">Quick reference for maximum point return on every travel category</p>
                 </div>
               </div>
               <div class="best-card-cheat-grid" id="best-card-cheat-grid">
@@ -591,12 +675,12 @@
                 </div>
               </section>
 
-              <!-- Creator Award Sweet Spots Cheat Sheet -->
+              <!-- Travel Award Sweet Spots Cheat Sheet -->
               <section class="panel-card">
                 <div class="panel-header">
                   <div>
-                    <h3 class="panel-title">🔥 Creator Travel Award Sweet Spots</h3>
-                    <p class="panel-subtitle">Highest-CPP redemptions for international production shoots</p>
+                    <h3 class="panel-title">🔥 Travel Award Sweet Spots</h3>
+                    <p class="panel-subtitle">Highest-CPP redemptions for international &amp; domestic trips</p>
                   </div>
                 </div>
                 <div class="help-info-stack">
@@ -613,7 +697,7 @@
                       ✈️ Air Canada Aeroplan (1:1 Amex, Chase, CapOne, Bilt) — 5k Stopover Trick
                     </div>
                     <div style="font-size: 12px; color: var(--text-secondary);">
-                      Book SWISS, ANA, Lufthansa, Singapore Airlines, or Emirates with fixed partner pricing and add a multi-day filming stopover in a second city for only <strong>+5,000 miles</strong>.
+                      Book SWISS, ANA, Lufthansa, Singapore Airlines, or Emirates with fixed partner pricing and add a multi-day stopover in a second city for only <strong>+5,000 miles</strong>.
                     </div>
                   </div>
                   <div class="help-callout-box">
@@ -621,7 +705,7 @@
                       🏨 4th / 5th Night Free Stacking (Hilton, Marriott &amp; Citi/IHG)
                     </div>
                     <div style="font-size: 12px; color: var(--text-secondary);">
-                      Hilton Elite &amp; Marriott Bonvoy both give the <strong>5th Night Free</strong> on standard point bookings; IHG Premier gives the <strong>4th Night Free</strong> — stretching your point balance by 20%–25% on longer shoots.
+                      Hilton Elite &amp; Marriott Bonvoy both give the <strong>5th Night Free</strong> on standard point bookings; IHG Premier gives the <strong>4th Night Free</strong> — stretching your point balance by 20%–25% on longer stays.
                     </div>
                   </div>
                 </div>
@@ -671,8 +755,8 @@
             <section class="panel-card">
               <div class="panel-header">
                 <div>
-                  <h3 class="panel-title">📓 Points &amp; Free Night Redemptions Log (Linked to Production Trips)</h3>
-                  <p class="panel-subtitle">Track how much cash your loyalty points and free night certificates saved on each shoot</p>
+                  <h3 class="panel-title">📓 Points &amp; Free Night Redemptions Log (Linked to Trips)</h3>
+                  <p class="panel-subtitle">Track how much cash your loyalty points and free night certificates saved on each trip</p>
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                   <button type="button" class="btn btn-sm" id="btn-export-rewards-csv">⬇ Export Rewards CSV</button>
@@ -685,7 +769,7 @@
                     <tr>
                       <th>Date</th>
                       <th>Booking / Hotel / Flight</th>
-                      <th>Production Trip</th>
+                      <th>Trip</th>
                       <th>Program &amp; Type</th>
                       <th style="text-align: right;">Points Used</th>
                       <th style="text-align: right;">Retail Cash</th>
@@ -702,6 +786,132 @@
               </div>
             </section>
           </div>
+
+          <!-- REWARDS TAB 6: AI TRIP & REWARDS ADVISOR -->
+          <div id="rewards-pane-advisor" class="rewards-tab-pane" style="display: none;">
+            <section class="panel-card ai-advisor-control-card" style="margin-bottom: 18px;">
+              <div class="panel-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
+                    <span class="ai-advisor-pill-badge">✨ AI PORTFOLIO &amp; TRIP STRATEGIST</span>
+                    <span id="ai-engine-status-badge" class="kpi-tag sky">⚡ Instant Built-In Strategy Engine Ready</span>
+                  </div>
+                  <h3 class="panel-title" style="font-size: 19px;">AI Trip &amp; Rewards Redemption Advisor</h3>
+                  <p class="panel-subtitle" style="margin-top: 3px;">
+                    Scans your live loyalty balances (IHG, World of Hyatt, Capital One Miles, Chase, Amex, Bilt, Airlines), Free Night Certificates, and unused statement credits ($83 Venture X credit, TravelBank, etc.) to build an exact hotel, flight, and card playbook for any trip.
+                  </p>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                  <button type="button" class="btn btn-sm" id="btn-toggle-ai-key-drawer" title="Optional: Connect Google Gemini or OpenAI API Key for live LLM deep-dives">
+                    ⚙️ Optional AI API Key
+                  </button>
+                  <button type="button" class="btn btn-primary" id="btn-run-ai-trip-analysis" style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 50%, #0ea5e9 100%); border: none; font-weight: 800; padding: 10px 18px; font-size: 13.5px; box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);">
+                    ✨ Analyze My Balances for This Trip
+                  </button>
+                </div>
+              </div>
+
+              <!-- Optional Gemini / OpenAI API Key Collapsible Drawer -->
+              <div id="ai-key-config-drawer" style="display: none; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
+                  <div>
+                    <div style="font-size: 13px; font-weight: 700;">🤖 Hybrid AI Mode: Built-In Strategy Engine + Optional Live LLM (Gemini / OpenAI)</div>
+                    <div style="font-size: 11.5px; color: var(--text-secondary);">
+                      The built-in strategy engine works immediately with zero setup. Optionally save a Google Gemini or OpenAI API key below to also generate live custom LLM deep-dive narratives.
+                    </div>
+                  </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 160px 1fr auto; gap: 8px; align-items: center;">
+                  <select id="ai-provider-select" class="form-select" style="padding: 7px 10px; font-size: 12.5px;">
+                    <option value="gemini">Google Gemini (2.5 Flash)</option>
+                    <option value="openai">OpenAI (GPT-4o-mini)</option>
+                  </select>
+                  <input type="password" id="ai-api-key-input" class="form-input mono" placeholder="Paste Gemini (AIza...) or OpenAI (sk-...) API key (saved securely on server)" style="padding: 7px 10px; font-size: 12.5px;" />
+                  <button type="button" class="btn btn-sm btn-primary" id="btn-save-ai-api-key">Save Key</button>
+                </div>
+              </div>
+
+              <!-- Quick Destination Preset Chips -->
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-right: 4px;">Quick Pick Trip:</span>
+                <div class="category-chips" id="advisor-preset-chips" style="margin: 0;">
+                  <button type="button" class="chip-btn active" data-advisor-preset="argentina">🇦🇷 Argentina (Buenos Aires &amp; Patagonia)</button>
+                  <button type="button" class="chip-btn" data-advisor-preset="brazil">🇧🇷 Brazil (São Paulo &amp; Rio)</button>
+                  <button type="button" class="chip-btn" data-advisor-preset="japan">🇯🇵 Japan (Tokyo &amp; Kyoto)</button>
+                  <button type="button" class="chip-btn" data-advisor-preset="europe">🇪🇺 Europe (London / Paris / Rome)</button>
+                  <button type="button" class="chip-btn" data-advisor-preset="mexico">🇲🇽 Mexico (CDMX &amp; Riviera)</button>
+                  <button type="button" class="chip-btn" data-advisor-preset="domestic">🇺🇸 Domestic US Trip</button>
+                </div>
+              </div>
+
+              <!-- Trip Parameters Form Grid -->
+              <div class="ai-advisor-inputs-grid">
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" for="advisor-trip-select">Load From Your Wander Wallet Trips</label>
+                  <select id="advisor-trip-select" class="form-select">
+                    <option value="custom">🌍 Custom Destination / Manual Entry</option>
+                  </select>
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" for="advisor-destination-input">Target Destination / Cities</label>
+                  <input type="text" id="advisor-destination-input" class="form-input" value="Buenos Aires &amp; Patagonia, Argentina (EZE / AEP / BRC)" placeholder="e.g. Buenos Aires &amp; Bariloche, Argentina" />
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" for="advisor-nights-input">Total Nights</label>
+                  <input type="number" id="advisor-nights-input" class="form-input mono" value="8" min="1" max="60" />
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" for="advisor-origin-input">Origin Gateway</label>
+                  <input type="text" id="advisor-origin-input" class="form-input" value="US Gateway (MIA / JFK / DFW / IAH)" placeholder="e.g. MIA, JFK, LAX" />
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label class="form-label" for="advisor-style-select">Optimization Goal</label>
+                  <select id="advisor-style-select" class="form-select">
+                    <option value="stretch">🎯 Max Point Stretch (4th Night Free + Sweet Spots)</option>
+                    <option value="luxury">✨ Flagship Luxury (Park Hyatt + Premium Cabin)</option>
+                    <option value="zero_cash">💰 Zero Out-of-Pocket Cash (Burn Credits + Points First)</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <!-- Dynamic AI Trip Analysis Output Container -->
+            <div id="ai-trip-advisor-results">
+              <!-- Populated dynamically by renderAiTripAdvisor() -->
+            </div>
+          </div>
+
+          <!-- UPCOMING RESETS & "USE YOUR REWARDS BY" REMINDER HUB (BOTTOM OF SCREEN) -->
+          <section class="panel-card rewards-reminders-panel" id="rewards-reminders-panel" style="margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span style="font-size: 18px;">⏰</span>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <h3 class="panel-title" style="font-size: 15px; margin: 0;">Upcoming Resets &amp; "Use Your Rewards By" Reminders</h3>
+                    <span class="kpi-tag warning" id="reminders-avail-summary-badge">$0.00 Unused Credits Available</span>
+                  </div>
+                  <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">
+                    Tracks remaining statement credits (auto-resets back to full amount on each credit's Reset Date), expiring Free Night Certificates, and SUB deadlines so you never leave money on the table.
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <div class="category-chips" id="rewards-reminders-filter-chips" style="margin: 0;">
+                  <button type="button" class="chip-btn active" data-rem-filter="all" style="padding: 3px 9px; font-size: 11px;">All Active</button>
+                  <button type="button" class="chip-btn" data-rem-filter="credits" style="padding: 3px 9px; font-size: 11px;">💰 Unused Credits</button>
+                  <button type="button" class="chip-btn" data-rem-filter="certs" style="padding: 3px 9px; font-size: 11px;">🎟️ Free Nights &amp; Perks</button>
+                  <button type="button" class="chip-btn" data-rem-filter="urgent" style="padding: 3px 9px; font-size: 11px;">🔴 Urgent (&lt;90d)</button>
+                </div>
+                <button type="button" class="btn btn-sm" id="btn-toggle-reminders-body" style="padding: 3px 9px; font-size: 11px;">Hide / Show</button>
+              </div>
+            </div>
+            <div id="rewards-reminders-body">
+              <div class="reminders-grid" id="rewards-reminders-grid">
+                <!-- Populated dynamically by renderRewardsRemindersHub() -->
+              </div>
+            </div>
+          </section>
         </div>
 
         <!-- VIEW 7: ADMIN WORKSPACE -->
@@ -738,7 +948,7 @@
               <div class="kpi-card">
                 <span class="kpi-label">100% Deductible</span>
                 <span class="kpi-value mono" id="admin-kpi-full-ded-cats" style="color: var(--accent-primary);">0</span>
-                <span class="kpi-subtext">Standard production write-offs</span>
+                <span class="kpi-subtext">Standard travel write-offs</span>
               </div>
               <div class="kpi-card">
                 <span class="kpi-label">Special Rules (e.g. Meals)</span>
@@ -751,6 +961,27 @@
                 <span class="kpi-subtext">Expenses in current active trips</span>
               </div>
             </div>
+
+            <!-- Quick Feature Toggle Bar: Sponsors & AdSense (Standalone) -->
+            <div id="admin-sponsors-feature-bar" style="margin-top: 14px; padding: 12px 16px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🎬</span>
+                <div>
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-size: 13.5px; font-weight: 700;">Optional Feature: Sponsors &amp; AdSense Tracker</span>
+                    <span class="kpi-tag" id="admin-sponsors-status-pill">OFF (Hidden)</span>
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                    Keep your app focused purely on <strong>Rewards &amp; Loyalty</strong> and <strong>Trip Expenses</strong>, or toggle this on to show the standalone <em>Sponsors &amp; AdSense</em> tab in the sidebar (never tied to your expense or trip totals).
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <button type="button" class="btn btn-sm" id="btn-admin-toggle-sponsors">
+                  Enable Sponsors Tab
+                </button>
+              </div>
+            </div>
           
             <!-- Admin Sub-Navigation Tabs -->
             <div class="rewards-subnav" id="admin-subnav" role="tablist" aria-label="Admin Sections" style="margin-top: 14px; padding-top: 14px;">
@@ -760,7 +991,7 @@
               </button>
               <button type="button" class="rewards-tab-btn" data-admin-tab="rules">
                 <span>⚙️</span>
-                <span>Production &amp; Channel Rules</span>
+                <span>Workspace &amp; Feature Rules</span>
               </button>
               <button type="button" class="rewards-tab-btn" data-admin-tab="help">
                 <span>🎓</span>
@@ -770,8 +1001,28 @@
 </section>
 
           
-          <!-- SUB-PANE 1: TAX CATEGORIES -->
+          <!-- SUB-PANE 1: TAX CATEGORIES & COLOR CODING -->
           <div id="admin-subpane-categories" class="admin-tab-pane">
+            <!-- Loyalty & Ecosystem Category Color Coding Panel -->
+            <section class="panel-card" style="margin-bottom: 20px;">
+              <div class="panel-header">
+                <div>
+                  <h3 class="panel-title">🎨 Loyalty &amp; Rewards Category Color Coding</h3>
+                  <p class="panel-subtitle">
+                    Set the top banner bar, border outline, and badge pill colors for each loyalty category (Hotels, Airlines, Bank Points, and Other). You can also click the <strong>✏️</strong> icon directly on any loyalty card.
+                  </p>
+                </div>
+                <div class="panel-actions">
+                  <button type="button" class="btn btn-sm" id="btn-admin-reset-eco-colors" title="Restore default loyalty category colors">
+                    ↺ Reset Loyalty Colors
+                  </button>
+                </div>
+              </div>
+              <div class="eco-color-admin-grid" id="admin-eco-colors-grid">
+                <!-- Populated dynamically -->
+              </div>
+            </section>
+
             <!-- Tax Categories Management Panel -->
           <section class="panel-card" style="margin-bottom: 20px;">
             <div class="panel-header">
@@ -811,24 +1062,32 @@
           <section class="panel-card">
             <div class="panel-header">
               <div>
-                <h3 class="panel-title">Production &amp; Accounting Rules</h3>
-                <p class="panel-subtitle">Fine-tune global accounting parameters applied across all trips.</p>
+                <h3 class="panel-title">Workspace, Tax &amp; Feature Rules</h3>
+                <p class="panel-subtitle">Fine-tune global parameters and optional features across all trips.</p>
               </div>
             </div>
-            <div class="form-grid-2" style="margin-top: 14px;">
+            <div class="form-grid-3" style="margin-top: 14px;">
               <div class="form-group">
-                <label class="form-label" for="admin-setting-channel-name">Channel / Production Entity Name</label>
-                <input type="text" id="admin-setting-channel-name" class="form-input" placeholder="e.g. Wander Wallet Productions" />
+                <label class="form-label" for="admin-setting-channel-name">Workspace / Account Name</label>
+                <input type="text" id="admin-setting-channel-name" class="form-input" placeholder="e.g. Wander Wallet" />
                 <span style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px; display: block;">Appears in the header and accountant export files.</span>
               </div>
               <div class="form-group">
                 <label class="form-label" for="admin-setting-meal-rate">IRS Business Meal Deduction Rate</label>
                 <select id="admin-setting-meal-rate" class="form-select">
-                  <option value="100">100% Deductible (Temporary Travel / Special Rule)</option>
+                  <option value="100">100% Deductible (Full Travel Meal Tracking)</option>
                   <option value="50">50% Deductible (Standard IRS Schedule C Rule)</option>
                   <option value="0">0% Deductible (Non-Deductible)</option>
                 </select>
                 <span style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px; display: block;">Applies automatically to all meal and dining categories.</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="admin-setting-sponsors-enabled">🎬 Sponsors &amp; AdSense Feature</label>
+                <select id="admin-setting-sponsors-enabled" class="form-select">
+                  <option value="false">OFF — Hidden (Focus on Rewards &amp; Trip Expenses)</option>
+                  <option value="true">ON — Show Standalone Sponsors &amp; AdSense Tab</option>
+                </select>
+                <span style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px; display: block;">Separate feature; never mixed into Trip or Expense totals.</span>
               </div>
             </div>
             <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
@@ -846,11 +1105,11 @@
             <div class="panel-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 16px;">
               <div>
                 <div style="font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-primary); margin-bottom: 4px;">
-                  CREATOR ONBOARDING &amp; ROAD HANDBOOK
+                  TRAVEL REWARDS &amp; EXPENSE HANDBOOK
                 </div>
                 <h2 class="panel-title" style="font-size: 20px;">Welcome to Wander Wallet — How Everything Works</h2>
                 <p class="panel-subtitle" style="margin-top: 4px;">
-                  Step-by-step video walkthrough, live interactive dashboard tour, phone installation guide, and YouTube production tax rules.
+                  Step-by-step walkthrough, live interactive dashboard tour, phone installation guide, and travel expense &amp; rewards tips.
                 </p>
               </div>
               <div style="display: flex; gap: 10px; flex-wrap: wrap;">
@@ -859,27 +1118,14 @@
               </div>
             </div>
 
-            <!-- Interactive Video / Walkthrough Player + Custom Video Embed -->
+            <!-- Interactive Walkthrough Player -->
             <div class="help-player-grid">
               <div class="walkthrough-stage" id="walkthrough-stage">
                 <div class="walkthrough-top-bar">
                   <span class="walkthrough-pill" id="wt-step-pill">CHAPTER 1 OF 5</span>
                   <div style="display: flex; gap: 8px; align-items: center;">
                     <button type="button" class="btn btn-sm" id="btn-wt-autoplay">▶ Auto-Play Walkthrough</button>
-                    <button type="button" class="btn btn-sm" id="btn-wt-custom-video-toggle">🎬 Embed Custom Video URL</button>
                   </div>
-                </div>
-
-                <!-- Custom Video URL Bar (collapsible) -->
-                <div id="wt-custom-video-bar" style="display: none; padding: 10px 14px; background: var(--bg-canvas); border-bottom: 1px solid var(--border-subtle); gap: 8px; align-items: center; flex-wrap: wrap;">
-                  <input type="url" id="input-custom-video-url" class="form-input" style="flex: 1; min-width: 220px;" placeholder="Paste YouTube or Loom URL (e.g. https://www.youtube.com/watch?v=...)" />
-                  <button type="button" class="btn btn-sm btn-primary" id="btn-save-custom-video">Load Video</button>
-                  <button type="button" class="btn btn-sm" id="btn-clear-custom-video">Use Built-In Animated Guide</button>
-                </div>
-
-                <!-- Custom iframe container (when user pastes a YouTube/Loom link) -->
-                <div id="wt-custom-iframe-wrap" style="display: none; aspect-ratio: 16 / 9; width: 100%; background: #000;">
-                  <iframe id="wt-custom-iframe" src="" style="width: 100%; height: 100%; border: 0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="Getting Started Video"></iframe>
                 </div>
 
                 <!-- Built-in Animated Visual Storyboard -->
@@ -909,56 +1155,56 @@
                 <button type="button" class="wt-chapter-btn active" data-wt-step="0">
                   <span class="wt-chap-num">01</span>
                   <div>
-                    <div class="wt-chap-title">Create a Production Trip &amp; Budget</div>
-                    <div class="wt-chap-desc">Set destination, shoot dates, video count &amp; default currency</div>
+                    <div class="wt-chap-title">Create a Trip &amp; Budget</div>
+                    <div class="wt-chap-desc">Set destination, travel dates, target budget &amp; local currency</div>
                   </div>
                 </button>
                 <button type="button" class="wt-chapter-btn" data-wt-step="1">
                   <span class="wt-chap-num">02</span>
                   <div>
                     <div class="wt-chap-title">Snap Receipts &amp; Multi-Currency FX</div>
-                    <div class="wt-chap-desc">Log JPY, EUR, ISK, CHF or USD &amp; attach phone camera receipts</div>
+                    <div class="wt-chap-desc">Log local currencies &amp; attach phone camera receipts</div>
                   </div>
                 </button>
                 <button type="button" class="wt-chapter-btn" data-wt-step="2">
                   <span class="wt-chap-num">03</span>
                   <div>
-                    <div class="wt-chap-title">Monitor Daily Burn &amp; Cost Per Video</div>
-                    <div class="wt-chap-desc">Track remaining budget runway and daily spend spikes</div>
+                    <div class="wt-chap-title">Monitor Daily Burn &amp; Budget Runway</div>
+                    <div class="wt-chap-desc">Track remaining budget runway and daily spend timeline</div>
                   </div>
                 </button>
                 <button type="button" class="wt-chapter-btn" data-wt-step="3">
                   <span class="wt-chap-num">04</span>
                   <div>
-                    <div class="wt-chap-title">Log Sponsors &amp; AdSense ROI</div>
-                    <div class="wt-chap-desc">Compare brand integrations against shoot costs for Net ROI</div>
+                    <div class="wt-chap-title">Maximize Loyalty Points &amp; Perks</div>
+                    <div class="wt-chap-desc">Track cards, statement credits, free nights &amp; trip savings</div>
                   </div>
                 </button>
                 <button type="button" class="wt-chapter-btn" data-wt-step="4">
                   <span class="wt-chap-num">05</span>
                   <div>
-                    <div class="wt-chap-title">Export Schedule C Tax CSV &amp; PDF</div>
-                    <div class="wt-chap-desc">One-click accountant spreadsheet + 100% vs. 50% meal rules</div>
+                    <div class="wt-chap-title">Export Expense CSV &amp; PDF Reports</div>
+                    <div class="wt-chap-desc">One-click spreadsheet export for expenses &amp; reimbursements</div>
                   </div>
                 </button>
               </div>
             </div>
           </section>
 
-          <!-- 4-Step Road Workflow Cards -->
+          <!-- 4-Step Travel Workflow Cards -->
           <section class="panel-card" style="margin-bottom: 20px;">
             <div class="panel-header">
               <div>
-                <h2 class="panel-title">Step-by-Step Road Workflow</h2>
-                <p class="panel-subtitle">Follow this 4-step routine before, during, and after every travel shoot</p>
+                <h2 class="panel-title">Step-by-Step Travel Workflow</h2>
+                <p class="panel-subtitle">Follow this 4-step routine before, during, and after every trip</p>
               </div>
             </div>
             <div class="help-steps-grid">
               <div class="help-step-card">
-                <div class="help-step-badge">STEP 1 • PRE-PRODUCTION</div>
-                <h3 class="help-step-title">✈️ Set Up Your Shoot Trip</h3>
+                <div class="help-step-badge">STEP 1 • TRIP PLANNING</div>
+                <h3 class="help-step-title">✈️ Set Up Your Trip</h3>
                 <p class="help-step-text">
-                  Before flying out, click <strong>+ New Trip</strong>. Enter the trip name (e.g., <em>Japan Shoot - Nov 2026</em>), target budget in USD, number of planned YouTube episodes, and the local currency (e.g., <code>JPY</code>).
+                  Before traveling, click <strong>+ New Trip</strong>. Enter the trip name (e.g., <em>South America 2026</em>), target budget in USD, travel dates, and the local currency (e.g., <code>ARS</code>, <code>JPY</code>, or <code>EUR</code>).
                 </p>
                 <button type="button" class="btn btn-sm" id="btn-help-step-trip" style="margin-top: auto;">+ Create a Trip Now</button>
               </div>
@@ -967,32 +1213,32 @@
                 <div class="help-step-badge">STEP 2 • ON THE ROAD</div>
                 <h3 class="help-step-title">📸 Log Expenses &amp; Snap Receipts</h3>
                 <p class="help-step-text">
-                  Whenever you pay for a hotel, Shinkansen ticket, or crew meal, tap <strong>+ Add Expense</strong> on your phone. Pick the category, type the local amount, and tap the receipt box to snap the paper receipt with your camera.
+                  Whenever you pay for a hotel, flight, train ticket, or meal, tap <strong>+ Add Expense</strong>. Pick the category, type the local amount, and tap the receipt box to attach the receipt photo.
                 </p>
                 <button type="button" class="btn btn-sm" id="btn-help-step-expense" style="margin-top: auto;">+ Add an Expense</button>
               </div>
 
               <div class="help-step-card">
-                <div class="help-step-badge">STEP 3 • POST-PRODUCTION</div>
-                <h3 class="help-step-title">🎬 Track Sponsor &amp; AdSense ROI</h3>
+                <div class="help-step-badge">STEP 3 • REWARDS &amp; LOYALTY</div>
+                <h3 class="help-step-title">🏆 Maximize Points &amp; Perks</h3>
                 <p class="help-step-text">
-                  As videos go live, click <strong>+ Log Revenue</strong> to record mid-roll sponsor integrations, dedicated brand deals, and 30-day YouTube AdSense payouts. Wander Wallet calculates your exact <strong>ROI multiple</strong> and net profit.
+                  Use the <strong>Rewards &amp; Loyalty</strong> hub to track your airline miles, hotel points, credit card statement credits, free night certificates, and log how much cash your points saved on each trip.
                 </p>
-                <button type="button" class="btn btn-sm" id="btn-help-step-revenue" style="margin-top: auto;">+ Log Video Revenue</button>
+                <button type="button" class="btn btn-sm" id="btn-help-step-rewards" style="margin-top: auto;">Open Rewards Hub</button>
               </div>
 
               <div class="help-step-card">
-                <div class="help-step-badge">STEP 4 • TAX TIME</div>
-                <h3 class="help-step-title">🧾 Export Schedule C CSV &amp; Reimburse</h3>
+                <div class="help-step-badge">STEP 4 • REPORTS &amp; EXPORTS</div>
+                <h3 class="help-step-title">🧾 Export CSV &amp; Reimburse</h3>
                 <p class="help-step-text">
-                  Filter by trip or view all trips, check for any <strong>Crew Reimbursable</strong> items paid on personal cards, and click <strong>⬇ Export Tax CSV</strong> to hand a clean spreadsheet to your CPA.
+                  Filter by trip or view all trips, check for any <strong>Reimbursable</strong> items, and click <strong>⬇ Export Tax CSV</strong> to download a clean spreadsheet of all your expenses.
                 </p>
-                <button type="button" class="btn btn-sm" id="btn-help-step-tax" style="margin-top: auto;">Open Tax &amp; CSV Hub</button>
+                <button type="button" class="btn btn-sm" id="btn-help-step-tax" style="margin-top: auto;">Open Export Hub</button>
               </div>
             </div>
           </section>
 
-          <!-- Phone Installation + Creator Tax Cheat Sheet (2-Column Grid) -->
+          <!-- Phone Installation + Travel Expense Cheat Sheet (2-Column Grid) -->
           <div class="analytics-grid">
             <!-- Phone App Installation Guide -->
             <section class="panel-card">
@@ -1033,46 +1279,46 @@
                     ☁️ How Cross-Device Cloud Sync Works
                   </div>
                   <div style="font-size: 12.5px; color: var(--text-secondary);">
-                    When hosted on Railway, your desktop, laptop, and phone all read and write to the same live SQLite database (indicated by the green <strong>Cloud SQLite Synced</strong> badge in the top-left). If you lose cell service in a tunnel or flight, Wander Wallet falls back to local device cache until you reconnect.
+                    When hosted on Railway, your desktop, laptop, and phone all read and write to the same live SQLite database (indicated by the green <strong>Cloud SQLite Synced</strong> badge in the top-left). If you lose cell service on a flight, Wander Wallet falls back to local device cache until you reconnect.
                   </div>
                 </div>
               </div>
             </section>
 
-            <!-- YouTube Creator Tax & Accounting Cheat Sheet -->
+            <!-- Travel Expense & Receipt Cheat Sheet -->
             <section class="panel-card">
               <div class="panel-header">
                 <div>
-                  <h2 class="panel-title">🧾 YouTube Creator Tax &amp; Receipt Cheat Sheet</h2>
-                  <p class="panel-subtitle">Built-in rules to maximize your production deductions and stay audit-proof</p>
+                  <h2 class="panel-title">🧾 Travel Expense &amp; Receipt Cheat Sheet</h2>
+                  <p class="panel-subtitle">Built-in tools to keep your trip expenses, receipts, and reimbursements organized</p>
                 </div>
               </div>
 
               <div class="help-info-stack">
                 <div class="help-callout-box">
                   <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 4px; color: var(--accent-primary);">
-                    🍜 100% On-Camera Food vs. 50% Travel Meals
+                    🍜 Dining &amp; Travel Meals Tracking
                   </div>
                   <div style="font-size: 12.5px; color: var(--text-secondary);">
-                    Food, restaurants, or street food challenges featured <strong>on camera as the subject of a YouTube video</strong> are generally treated as 100% deductible Production / Cost of Goods Sold (COGS). Standard off-camera crew travel meals are typically subject to the 50% IRS limit. You can toggle between <strong>100%</strong> and <strong>50%</strong> anytime in the <strong>Tax &amp; CSV Export Hub</strong>.
+                    Track all restaurant, cafe, and dining expenses in local currency with automatic USD conversion. In the <strong>Tax &amp; CSV Export Hub</strong>, you can toggle dining deduction calculation between <strong>100%</strong> full tracking and the <strong>50%</strong> standard business meal limit anytime.
                   </div>
                 </div>
 
                 <div class="help-callout-box">
                   <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 4px; color: var(--accent-amber);">
-                    📸 The IRS $75 Receipt Rule &amp; Hotel Folios
+                    📸 The $75 Receipt Rule &amp; Hotel Folios
                   </div>
                   <div style="font-size: 12.5px; color: var(--text-secondary);">
-                    The IRS requires documentary receipts for any lodging expense (regardless of amount) and for any other travel/production expense of <strong>$75 USD or more</strong>. Use the <strong>Missing Receipt (&gt;$75)</strong> filter in the Dashboard Ledger before wrapping a trip to make sure no big receipts are missing.
+                    Keep digital folios attached for all hotel stays and any expense of <strong>$75 USD or more</strong>. Use the <strong>Missing Receipt (&gt;$75)</strong> filter in the Dashboard Ledger at the end of a trip to verify no major receipts are missing.
                   </div>
                 </div>
 
                 <div class="help-callout-box">
                   <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 4px; color: var(--accent-sky);">
-                    💳 Crew Reimbursements (Accountable Plan)
+                    💳 Reimbursements &amp; Shared Trip Costs
                   </div>
                   <div style="font-size: 12.5px; color: var(--text-secondary);">
-                    If a camera operator, editor, or host pays for a train ticket or meal on a personal card or cash, check <strong>Needs Crew Reimbursement</strong> when logging the expense. Filter by <strong>Crew Reimbursable</strong> in the ledger to see the exact USD total to reimburse them tax-free.
+                    If a travel companion or family member pays for a ticket or hotel on a separate card or cash, check <strong>Needs Reimbursement</strong> when logging the expense. Filter by <strong>Reimbursable</strong> in the ledger to see the exact USD total to settle up.
                   </div>
                 </div>
               </div>
@@ -1128,7 +1374,7 @@
   <div class="modal-backdrop" id="modal-expense" role="dialog" aria-modal="true" aria-labelledby="modal-expense-title">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 class="modal-title" id="modal-expense-title">Quick Add Road Expense</h3>
+        <h3 class="modal-title" id="modal-expense-title">Quick Add Trip Expense</h3>
         <button type="button" class="modal-close" data-close-modal="modal-expense" aria-label="Close">&times;</button>
       </div>
       <form id="form-expense">
@@ -1138,18 +1384,18 @@
             <label class="form-label">Quick Category Tap</label>
             <div class="quick-cat-grid" id="exp-quick-cat-grid">
               <button type="button" class="quick-cat-btn selected" data-cat="Hotels & Lodging">🏨 Hotels &amp; Lodging</button>
-              <button type="button" class="quick-cat-btn" data-cat="Meals & Craft">🍜 Meals &amp; Craft</button>
+              <button type="button" class="quick-cat-btn" data-cat="Dining & Meals">🍜 Dining &amp; Meals</button>
               <button type="button" class="quick-cat-btn" data-cat="Flights & Transit">🚄 Flights &amp; Transit</button>
-              <button type="button" class="quick-cat-btn" data-cat="Gear & Rentals">📷 Gear &amp; Rentals</button>
-              <button type="button" class="quick-cat-btn" data-cat="Permits & Locations">🎟️ Permits &amp; Locations</button>
-              <button type="button" class="quick-cat-btn" data-cat="Crew & Talent">🎥 Crew &amp; Talent</button>
+              <button type="button" class="quick-cat-btn" data-cat="Tours & Activities">🎟️ Tours &amp; Activities</button>
+              <button type="button" class="quick-cat-btn" data-cat="Shopping & Gear">🛍️ Shopping &amp; Gear</button>
+              <button type="button" class="quick-cat-btn" data-cat="Other Travel">🧳 Other Travel</button>
             </div>
             <input type="hidden" id="exp-category" value="Hotels & Lodging" />
           </div>
 
           <div class="form-grid-2">
             <div class="form-group">
-              <label class="form-label" for="exp-trip-id">Production Trip</label>
+              <label class="form-label" for="exp-trip-id">Trip</label>
               <select id="exp-trip-id" class="form-select" required></select>
             </div>
             <div class="form-group">
@@ -1161,11 +1407,11 @@
           <div class="form-grid-2">
             <div class="form-group">
               <label class="form-label" for="exp-title">Expense Description</label>
-              <input type="text" id="exp-title" class="form-input" placeholder="e.g., Shibuya Hotel (3 Nights) or Crew Ramen" required />
+              <input type="text" id="exp-title" class="form-input" placeholder="e.g., Buenos Aires Hotel (3 Nights) or Dinner" required />
             </div>
             <div class="form-group">
               <label class="form-label" for="exp-vendor">Hotel / Airline / Merchant</label>
-              <input type="text" id="exp-vendor" class="form-input" placeholder="e.g., JR East, Shibuya Stream, B&H" />
+              <input type="text" id="exp-vendor" class="form-input" placeholder="e.g., Park Hyatt, Delta, Uber" />
             </div>
           </div>
 
@@ -1207,27 +1453,27 @@
             <div class="form-group">
               <label class="form-label" for="exp-payment-method">Card / Payment Method</label>
               <select id="exp-payment-method" class="form-select">
-                <option value="Amex Business Platinum">Amex Business Platinum</option>
-                <option value="Chase Ink Business">Chase Ink Business</option>
+                <option value="Capital One Venture X">Capital One Venture X</option>
+                <option value="Chase Sapphire Reserve">Chase Sapphire Reserve</option>
+                <option value="Amex Platinum">Amex Platinum</option>
                 <option value="Personal Card (Reimburse)">Personal Card (Reimburse)</option>
-                <option value="Personal Cash (Reimburse)">Personal Cash (Reimburse)</option>
-                <option value="Wise Business Transfer">Wise Business Transfer</option>
+                <option value="Cash">Cash</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" for="exp-paid-by">Paid By (Team Member)</label>
-              <input type="text" id="exp-paid-by" class="form-input" value="Channel Card" placeholder="e.g., Channel Card, Alex (Host), Sam (DP)" />
+              <label class="form-label" for="exp-paid-by">Paid By</label>
+              <input type="text" id="exp-paid-by" class="form-input" value="Primary Card" placeholder="e.g., Primary Card, Jim, Karen" />
             </div>
           </div>
 
           <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
             <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
               <input type="checkbox" id="exp-tax-deductible" checked />
-              <span>Tax-Deductible Production Expense</span>
+              <span>Track as Deductible Expense</span>
             </label>
             <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;">
               <input type="checkbox" id="exp-reimbursable" />
-              <span>Needs Crew Reimbursement</span>
+              <span>Needs Reimbursement</span>
             </label>
           </div>
 
@@ -1240,8 +1486,8 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="exp-notes">Production / Episode Notes</label>
-            <input type="text" id="exp-notes" class="form-input" placeholder="Which video or segment was this for?" />
+            <label class="form-label" for="exp-notes">Trip / Expense Notes</label>
+            <input type="text" id="exp-notes" class="form-input" placeholder="e.g., Hotel confirmation #, flight details, or dining note" />
           </div>
         </div>
         <div class="modal-footer">
@@ -1256,20 +1502,21 @@
   <div class="modal-backdrop" id="modal-trip" role="dialog" aria-modal="true" aria-labelledby="modal-trip-title">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 class="modal-title" id="modal-trip-title">Create Production Trip</h3>
+        <h3 class="modal-title" id="modal-trip-title">Create Trip</h3>
         <button type="button" class="modal-close" data-close-modal="modal-trip" aria-label="Close">&times;</button>
       </div>
       <form id="form-trip">
         <input type="hidden" id="trip-id" />
+        <input type="hidden" id="trip-videos" value="1" />
         <div class="modal-body">
           <div class="form-grid-2">
             <div class="form-group">
-              <label class="form-label" for="trip-name">Trip / Series Name</label>
-              <input type="text" id="trip-name" class="form-input" placeholder="e.g., Argentina Shoot - Dec 2026" required />
+              <label class="form-label" for="trip-name">Trip Name</label>
+              <input type="text" id="trip-name" class="form-input" placeholder="e.g., Argentina Trip - Dec 2026" required />
             </div>
             <div class="form-group">
               <label class="form-label" for="trip-destination">Cities / Locations</label>
-              <input type="text" id="trip-destination" class="form-input" placeholder="e.g., Buenos Aires, Mendoza & Patagonia" required />
+              <input type="text" id="trip-destination" class="form-input" placeholder="e.g., Buenos Aires, Mendoza &amp; Patagonia" required />
             </div>
           </div>
 
@@ -1302,33 +1549,29 @@
             </div>
           </div>
 
-          <div class="form-grid-3">
+          <div class="form-grid-2">
             <div class="form-group">
               <label class="form-label" for="trip-budget">Target Trip Budget (USD)</label>
               <input type="number" step="50" min="0" id="trip-budget" class="form-input mono" value="6500" required />
             </div>
             <div class="form-group">
-              <label class="form-label" for="trip-videos">Planned Videos</label>
-              <input type="number" min="1" id="trip-videos" class="form-input mono" value="2" required />
-            </div>
-            <div class="form-group">
               <label class="form-label" for="trip-status">Trip Status</label>
               <select id="trip-status" class="form-select">
                 <option value="active">Active (On the Road)</option>
-                <option value="planned">Planned / Pre-Prod</option>
-                <option value="completed">Wrapped / Completed</option>
+                <option value="planned">Planned / Upcoming</option>
+                <option value="completed">Completed</option>
               </select>
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="trip-notes">Production Scope &amp; Episode Notes</label>
-            <input type="text" id="trip-notes" class="form-input" placeholder="e.g., 2 main channel episodes + 4 shorts" />
+            <label class="form-label" for="trip-notes">Trip Notes</label>
+            <input type="text" id="trip-notes" class="form-input" placeholder="e.g., Hotels, flights, dining &amp; itinerary notes" />
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn" data-close-modal="modal-trip">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="btn-submit-trip">Save Production Trip</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-trip">Save Trip</button>
         </div>
       </form>
     </div>
@@ -1517,7 +1760,7 @@
 
   <!-- MODAL 7: ADD / EDIT LOYALTY PROGRAM & STATUS -->
   <div class="modal-backdrop" id="modal-reward-program" role="dialog" aria-modal="true" aria-labelledby="modal-reward-program-title">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg" style="max-width: 760px;">
       <div class="modal-header">
         <h3 class="modal-title" id="modal-reward-program-title">Add / Edit Loyalty Program</h3>
         <button type="button" class="modal-close" data-close-modal="modal-reward-program" aria-label="Close">&times;</button>
@@ -1525,15 +1768,45 @@
       <form id="form-reward-program">
         <input type="hidden" id="rprog-id" />
         <div class="modal-body">
-          <div class="form-grid-2">
+          <!-- Instant Loyalty Database Lookup & Auto-Fill -->
+          <div class="db-lookup-box" id="rprog-db-lookup-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+              <div>
+                <div style="font-size: 12px; font-weight: 800; color: var(--accent-sky); text-transform: uppercase; letter-spacing: 0.05em;">
+                  ⚡ Instant Loyalty Program Database Auto-Fill
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-secondary);">
+                  Search &amp; select any bank, hotel, or airline program below to auto-populate valuations, status targets, transfer partners, and rules.
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-toggle-rprog-db-list" style="font-size: 11px;">▼ Browse All Programs</button>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <input type="text" id="rprog-db-search" class="form-input" style="flex: 1; min-width: 220px;" placeholder="🔍 Search database (e.g., NCL, Royal Caribbean, Carnival, Capital One, Hyatt, Hilton, United)..." autocomplete="off" />
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="rprog-db-filter-pills">
+                <button type="button" class="chip-btn active" data-rprog-db-cat="all" style="padding: 3px 8px; font-size: 11px;">All</button>
+                <button type="button" class="chip-btn" data-rprog-db-cat="bank" style="padding: 3px 8px; font-size: 11px;">🏦 Bank</button>
+                <button type="button" class="chip-btn" data-rprog-db-cat="hotel" style="padding: 3px 8px; font-size: 11px;">🏨 Hotel</button>
+                <button type="button" class="chip-btn" data-rprog-db-cat="airline" style="padding: 3px 8px; font-size: 11px;">✈️ Airline</button>
+                <button type="button" class="chip-btn" data-rprog-db-cat="other" style="padding: 3px 8px; font-size: 11px;">🚢 Cruise / Rail</button>
+              </div>
+            </div>
+            <div id="rprog-db-results" class="db-lookup-results" style="display: none;"></div>
+          </div>
+
+          <div class="form-grid-3">
             <div class="form-group">
               <label class="form-label" for="rprog-name">Program Name</label>
               <input type="text" id="rprog-name" class="form-input" placeholder="e.g., World of Hyatt, Chase Ultimate Rewards, United" required />
             </div>
             <div class="form-group">
+              <label class="form-label" for="rprog-owner">👤 Account Owner</label>
+              <input type="text" id="rprog-owner" class="form-input" list="reward-owner-datalist" placeholder="e.g., Jim or Karen" />
+            </div>
+            <div class="form-group">
               <label class="form-label" for="rprog-ecosystem">Ecosystem Category</label>
               <select id="rprog-ecosystem" class="form-select">
-                <option value="bank">🏦 Transferable Bank Points (Chase, Amex, CapOne, Bilt, Citi)</option>
+                <option value="bank">🏦 Bank Points (Chase, Amex, CapOne, Bilt, Citi)</option>
                 <option value="hotel">🏨 Hotel Loyalty Program (Hyatt, Marriott, Hilton, IHG)</option>
                 <option value="airline">✈️ Airline Frequent Flyer (United, Aeroplan, Delta, ANA, etc.)</option>
                 <option value="other">🚢 Rail / Cruise / Cash Back / Other</option>
@@ -1583,13 +1856,55 @@
           </div>
 
           <div class="form-group">
+            <label class="form-label" for="rprog-website">🌐 Website / Account Login URL (Auto-detected if left blank)</label>
+            <input type="url" id="rprog-website" class="form-input" placeholder="https://www.ihg.com/rewardsclub/us/en/account-mgmt/home" />
+          </div>
+
+          <div class="form-group">
             <label class="form-label" for="rprog-partners">Key Transfer Partners &amp; Ratio Notes</label>
-            <input type="text" id="rprog-partners" class="form-input" placeholder="e.g., 1:1 from Chase UR & Bilt • 5th Night Free on awards" />
+            <textarea id="rprog-partners" class="form-textarea" rows="2" placeholder="e.g., 1:1 from Chase UR &amp; Bilt • 5th Night Free on awards"></textarea>
           </div>
 
           <div class="form-group">
             <label class="form-label" for="rprog-notes">Perks &amp; Strategy Notes</label>
-            <input type="text" id="rprog-notes" class="form-input" placeholder="e.g., Free breakfast for 2, 4pm late checkout, waived resort fees" />
+            <textarea id="rprog-notes" class="form-textarea" rows="2" placeholder="e.g., Free breakfast for 2, 4pm late checkout, waived resort fees"></textarea>
+          </div>
+
+          <div class="form-group" style="padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+              <label class="form-label" style="margin: 0;">🎨 Banner &amp; Outline Color</label>
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 12px;">
+                <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                  <input type="radio" name="rprog-color-scope" id="rprog-color-scope-eco" value="ecosystem" checked />
+                  <span>Category Color (All in Category)</span>
+                </label>
+                <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                  <input type="radio" name="rprog-color-scope" id="rprog-color-scope-card" value="card" />
+                  <span>This Card Only</span>
+                </label>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+              <div class="color-swatch-grid" id="rprog-color-swatches"></div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="color" id="rprog-color-input" value="#f59e0b" style="width: 34px; height: 30px; padding: 0; border: 1px solid var(--border-subtle); border-radius: 6px; background: transparent; cursor: pointer;" title="Pick any custom color" />
+                <span class="mono" id="rprog-color-hex-label" style="font-size: 11.5px; color: var(--text-secondary);">#f59e0b</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Custom Fields Repeater -->
+          <div class="custom-fields-section" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div>
+                <label class="form-label" style="margin: 0; font-weight: 700;">🏷️ Custom Fields &amp; Tracking Details</label>
+                <div style="font-size: 11px; color: var(--text-muted);">Track custom items like Security PIN, Account Rep, Retention Offers, or Companion details</div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-rprog-add-custom-field" style="font-size: 11.5px; padding: 3px 10px;">+ Add Custom Field</button>
+            </div>
+            <div id="rprog-custom-fields-container" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamic custom field rows -->
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -1602,7 +1917,7 @@
 
   <!-- MODAL 8: ADD / EDIT FREE NIGHT CERTIFICATE, COMPANION PASS OR PERK -->
   <div class="modal-backdrop" id="modal-reward-cert" role="dialog" aria-modal="true" aria-labelledby="modal-reward-cert-title">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg" style="max-width: 740px;">
       <div class="modal-header">
         <h3 class="modal-title" id="modal-reward-cert-title">Add Free Night Certificate / Travel Perk</h3>
         <button type="button" class="modal-close" data-close-modal="modal-reward-cert" aria-label="Close">&times;</button>
@@ -1610,6 +1925,23 @@
       <form id="form-reward-cert">
         <input type="hidden" id="rcert-id" />
         <div class="modal-body">
+          <!-- Instant Certificate / Perk Database Lookup -->
+          <div class="db-lookup-box" id="rcert-db-lookup-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+              <div>
+                <div style="font-size: 12px; font-weight: 800; color: var(--accent-amber); text-transform: uppercase; letter-spacing: 0.05em;">
+                  ⚡ Instant Certificate &amp; Travel Perk Database Auto-Fill
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-secondary);">
+                  Pick a popular hotel Free Night Certificate, Companion Pass, Suite Upgrade, or Lounge Perk to auto-fill rules and values.
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-toggle-rcert-db-list" style="font-size: 11px;">▼ Browse Perks Database</button>
+            </div>
+            <input type="text" id="rcert-db-search" class="form-input" placeholder="🔍 Search perks (e.g., Hyatt Cat 1-4, Hilton Uncapped Free Night, Marriott 85k, Companion Fare, Priority Pass)..." autocomplete="off" />
+            <div id="rcert-db-results" class="db-lookup-results" style="display: none;"></div>
+          </div>
+
           <div class="form-grid-2">
             <div class="form-group">
               <label class="form-label" for="rcert-title">Certificate / Perk Name</label>
@@ -1626,14 +1958,18 @@
             </div>
           </div>
 
-          <div class="form-grid-2">
+          <div class="form-grid-3">
             <div class="form-group">
               <label class="form-label" for="rcert-program">Loyalty Program</label>
-              <input type="text" id="rcert-program" class="form-input" placeholder="e.g., World of Hyatt, Marriott Bonvoy, Hilton Honors" />
+              <input type="text" id="rcert-program" class="form-input" placeholder="e.g., World of Hyatt" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcert-owner">👤 Account Holder</label>
+              <input type="text" id="rcert-owner" class="form-input" list="reward-owner-datalist" placeholder="e.g., Jim or Karen" />
             </div>
             <div class="form-group">
               <label class="form-label" for="rcert-card">Earned From Card / Milestone</label>
-              <input type="text" id="rcert-card" class="form-input" placeholder="e.g., Amex Hilton Aspire or 60-Night Milestone" />
+              <input type="text" id="rcert-card" class="form-input" placeholder="e.g., Chase World of Hyatt" />
             </div>
           </div>
 
@@ -1664,6 +2000,20 @@
             <label class="form-label" for="rcert-notes">Target Redemption / Notes</label>
             <input type="text" id="rcert-notes" class="form-input" placeholder="e.g., Save for Tokyo arrival night or Kyoto shoot" />
           </div>
+
+          <!-- Custom Fields Repeater -->
+          <div class="custom-fields-section" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div>
+                <label class="form-label" style="margin: 0; font-weight: 700;">🏷️ Custom Fields &amp; Tracking Details</label>
+                <div style="font-size: 11px; color: var(--text-muted);">Track booking codes, reservation links, or restrictions</div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-rcert-add-custom-field" style="font-size: 11.5px; padding: 3px 10px;">+ Add Custom Field</button>
+            </div>
+            <div id="rcert-custom-fields-container" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamic custom field rows -->
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn" data-close-modal="modal-reward-cert">Cancel</button>
@@ -1675,7 +2025,7 @@
 
   <!-- MODAL 9: ADD / EDIT TRAVEL CREDIT CARD, STATEMENT CREDITS & SUB TRACKER -->
   <div class="modal-backdrop" id="modal-reward-card" role="dialog" aria-modal="true" aria-labelledby="modal-reward-card-title">
-    <div class="modal-dialog" style="max-width: 640px;">
+    <div class="modal-dialog modal-lg" style="max-width: 780px;">
       <div class="modal-header">
         <h3 class="modal-title" id="modal-reward-card-title">Add / Edit Travel Credit Card &amp; Perks</h3>
         <button type="button" class="modal-close" data-close-modal="modal-reward-card" aria-label="Close">&times;</button>
@@ -1683,18 +2033,115 @@
       <form id="form-reward-card">
         <input type="hidden" id="rcard-id" />
         <div class="modal-body">
-          <div class="form-grid-3">
+          <!-- Instant Credit Card Database Lookup & Auto-Fill -->
+          <div class="db-lookup-box" id="rcard-db-lookup-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px;">
+              <div>
+                <div style="font-size: 12px; font-weight: 800; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.05em;">
+                  ⚡ Instant Credit Card Database Lookup (Auto-Fills Card Art, Credits &amp; Perks)
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-secondary);">
+                  Select any card (e.g., <strong>Capital One Venture X</strong>, <strong>Chase Sapphire Reserve</strong>, <strong>Amex Platinum</strong>, <strong>Hilton Aspire</strong>) to auto-populate its card image, $300+ statement credits, multipliers, and free nights.
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-toggle-rcard-db-list" style="font-size: 11px;">▼ Browse 45+ Cards</button>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+              <input type="text" id="rcard-db-search" class="form-input" style="flex: 1; min-width: 220px;" placeholder="🔍 Type card name (e.g., NCL, Norwegian, Royal Caribbean, United Explorer, Venture X, Sapphire, Amex)..." autocomplete="off" />
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="rcard-db-filter-pills">
+                <button type="button" class="chip-btn active" data-rcard-db-issuer="all" style="padding: 3px 8px; font-size: 11px;">All</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Capital One" style="padding: 3px 8px; font-size: 11px;">Capital One</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Chase" style="padding: 3px 8px; font-size: 11px;">Chase</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="American Express" style="padding: 3px 8px; font-size: 11px;">Amex</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Hotel" style="padding: 3px 8px; font-size: 11px;">🏨 Hotels</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Airline" style="padding: 3px 8px; font-size: 11px;">✈️ Airlines</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Cruise" style="padding: 3px 8px; font-size: 11px;">🚢 Cruises</button>
+                <button type="button" class="chip-btn" data-rcard-db-issuer="Other" style="padding: 3px 8px; font-size: 11px;">Bilt / Citi / Wells</button>
+              </div>
+            </div>
+            <div id="rcard-db-results" class="db-lookup-results" style="display: none;"></div>
+          </div>
+
+          <!-- Card Art Preview + Custom Image Upload / URL -->
+          <div style="display: flex; gap: 16px; align-items: center; padding: 12px 14px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-bottom: 12px; flex-wrap: wrap;">
+            <div id="rcard-art-preview-box" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+              <!-- Populated dynamically with realistic credit card graphic -->
+            </div>
+            <div style="flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <label class="form-label" style="margin: 0; font-weight: 700;">🖼️ Credit Card Image (Shown on Loyalty &amp; Cards Pages)</label>
+                <div style="display: flex; gap: 6px;">
+                  <label class="btn btn-sm" style="cursor: pointer; font-size: 11px; padding: 3px 9px; margin: 0;">
+                    📷 Upload Card Photo
+                    <input type="file" id="rcard-image-file" accept="image/*" style="display: none;" />
+                  </label>
+                  <button type="button" class="btn btn-sm" id="btn-rcard-clear-image" style="font-size: 11px; padding: 3px 9px;" title="Use built-in realistic card graphic">↺ Use Built-In Card Art</button>
+                </div>
+              </div>
+              <div class="form-grid-2">
+                <div>
+                  <select id="rcard-style-preset" class="form-select" style="font-size: 12px; padding: 6px 8px;">
+                    <option value="">✨ Auto-Match Built-In Card Design</option>
+                    <option value="venture-x">Capital One Venture X (Midnight Navy Metal)</option>
+                    <option value="sapphire-reserve">Chase Sapphire Reserve (Faceted Sapphire)</option>
+                    <option value="sapphire-preferred">Chase Sapphire Preferred (Cobalt Blue)</option>
+                    <option value="chase-ink">Chase Ink Business Preferred (Slate Navy)</option>
+                    <option value="amex-platinum">Amex Platinum / Biz Platinum (Brushed Silver)</option>
+                    <option value="amex-gold">Amex Gold / Biz Gold (18k Metallic Gold)</option>
+                    <option value="hilton-aspire">Amex Hilton Honors Aspire (Obsidian Royal)</option>
+                    <option value="hyatt">Chase World of Hyatt (Emerald Teal)</option>
+                    <option value="marriott-brilliant">Marriott Bonvoy Brilliant (Polished Onyx)</option>
+                    <option value="bilt">Bilt Mastercard (Matte Jet Black)</option>
+                    <option value="citi-strata">Citi Strata Premier (Deep Citi Blue)</option>
+                    <option value="airline-united">United MileagePlus (Rhapsody Blue)</option>
+                    <option value="airline-delta">Delta SkyMiles Amex (Reserve Burgundy)</option>
+                    <option value="airline-alaska">Alaska Airlines Visa (Deep Pacific Teal)</option>
+                    <option value="airline-aa">Citi AAdvantage Mastercard (Silver Eagle)</option>
+                    <option value="airline-southwest">Southwest Rapid Rewards (Heart Blue &amp; Gold)</option>
+                    <option value="cruise-ncl">Norwegian Cruise Line / HAL (Ocean Teal)</option>
+                    <option value="cruise-royal">Royal Caribbean / Celebrity / Princess (Crown Navy &amp; Gold)</option>
+                    <option value="cruise-carnival">Carnival Cruise Line (FunPoints Crimson &amp; Navy)</option>
+                  </select>
+                </div>
+                <div>
+                  <input type="text" id="rcard-image-url" class="form-input" style="font-size: 12px; padding: 6px 8px;" placeholder="Or paste custom card image URL..." />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
             <div class="form-group">
               <label class="form-label" for="rcard-name">Card Name</label>
-              <input type="text" id="rcard-name" class="form-input" placeholder="e.g., Capital One Venture X" required />
+              <input type="text" id="rcard-name" class="form-input" placeholder="e.g., Chase World of Hyatt or Venture X" required />
             </div>
+            <div class="form-group">
+              <label class="form-label" for="rcard-owner">👤 Cardholder / Account Owner</label>
+              <input type="text" id="rcard-owner" class="form-input" list="reward-owner-datalist" placeholder="e.g., Jim or Karen" />
+            </div>
+          </div>
+
+          <div class="form-grid-2">
             <div class="form-group">
               <label class="form-label" for="rcard-issuer">Bank / Issuer</label>
               <input type="text" id="rcard-issuer" class="form-input" placeholder="e.g., Chase, Amex, Capital One" />
             </div>
             <div class="form-group">
-              <label class="form-label" for="rcard-ecosystem">Points Ecosystem</label>
-              <input type="text" id="rcard-ecosystem" class="form-input" placeholder="e.g., Chase Ultimate Rewards" />
+              <label class="form-label" for="rcard-ecosystem">Linked Loyalty Program</label>
+              <input type="text" id="rcard-ecosystem" class="form-input" list="rcard-ecosystem-datalist" placeholder="e.g., Capital One Miles, World of Hyatt" />
+              <datalist id="rcard-ecosystem-datalist"></datalist>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label" for="rcard-number">💳 Card Number (Last 4 Digits)</label>
+              <input type="text" id="rcard-number" class="form-input mono" placeholder="e.g., 9042" maxlength="4" autocomplete="off" />
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">Safe &amp; recommended: keep full card numbers &amp; PINs in LastPass.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rcard-exp">📅 Expiration Date</label>
+              <input type="text" id="rcard-exp" class="form-input mono" placeholder="MM/YY (e.g., 08/29)" maxlength="7" autocomplete="off" />
             </div>
           </div>
 
@@ -1716,12 +2163,59 @@
           <div class="form-grid-2">
             <div class="form-group">
               <label class="form-label" for="rcard-multipliers">Earning Multipliers (2x, 3x, 4x, 5x)</label>
-              <input type="text" id="rcard-multipliers" class="form-input" placeholder="e.g., 4x Dining • 3x Flights • 2x Transit" />
+              <input type="text" id="rcard-multipliers" class="form-input" placeholder="e.g., 2x Everything • 10x Portal Hotels/Cars • 5x Flights" />
             </div>
             <div class="form-group">
               <label class="form-label" for="rcard-best-for">Best Road Category to Swipe For</label>
-              <input type="text" id="rcard-best-for" class="form-input" placeholder="e.g., Crew Meals & Overseas Trains" />
+              <input type="text" id="rcard-best-for" class="form-input" placeholder="e.g., 2x Catch-All Foreign Vendors &amp; Portal Hotels" />
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="rcard-website">🌐 Card Issuer Login / Portal Website URL (Auto-detected if left blank)</label>
+            <input type="url" id="rcard-website" class="form-input" placeholder="https://secure.chase.com or https://myaccounts.capitalone.com" />
+          </div>
+
+          <!-- Tight Integration Options (Auto-Link Loyalty Program + Bundled Perks) -->
+          <div style="padding: 10px 12px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: var(--radius-sm); margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="font-size: 11.5px; font-weight: 800; color: var(--accent-primary); text-transform: uppercase; letter-spacing: 0.04em;">
+              🔗 Tight Loyalty Ecosystem Integration
+            </div>
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer;">
+              <input type="checkbox" id="rcard-auto-link-prog" checked />
+              <span>Automatically link (or create) matching <strong>Loyalty Program</strong> on the main Loyalty page with this card's image &amp; benefits</span>
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; cursor: pointer;">
+              <input type="checkbox" id="rcard-auto-add-certs" checked />
+              <span>Automatically add bundled <strong>Free Night Certificates / Lounge &amp; Companion Perks</strong> for this card</span>
+            </label>
+          </div>
+
+          <!-- Visual Statement Credits & Annual Benefits Editor -->
+          <div style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+              <div>
+                <label class="form-label" style="margin: 0; font-weight: 700;">💰 Annual Statement Credits &amp; Card Benefits</label>
+                <div style="font-size: 11px; color: var(--text-muted);">
+                  Automatically populated from the database (e.g. Venture X $300 Travel Credit) — edit amounts or add custom credits below.
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-rcard-add-credit-row" style="font-size: 11.5px; padding: 3px 10px;">+ Add Credit / Benefit</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1.4fr 84px 84px 105px 128px 115px auto; gap: 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; padding: 0 4px;">
+              <span>Credit / Benefit Name</span>
+              <span>Total ($)</span>
+              <span>Used ($)</span>
+              <span>Reward Available</span>
+              <span>Resets On (Mo/Yr)</span>
+              <span>Reset Cycle</span>
+              <span>Actions</span>
+            </div>
+            <div id="rcard-credits-visual-list" style="display: flex; flex-direction: column; gap: 6px;">
+              <!-- Populated dynamically with visual rows -->
+            </div>
+            <!-- Hidden legacy textarea kept in sync for compatibility -->
+            <textarea id="rcard-credits-text" style="display: none;"></textarea>
           </div>
 
           <!-- Welcome Bonus (SUB) Minimum Spend Tracker Config -->
@@ -1733,7 +2227,7 @@
             <div class="form-grid-2" style="margin-bottom: 8px;">
               <div class="form-group">
                 <label class="form-label" for="rcard-sub-bonus">Welcome Bonus Reward</label>
-                <input type="text" id="rcard-sub-bonus" class="form-input" placeholder="e.g., 100,000 Chase UR pts ($2,000 value)" />
+                <input type="text" id="rcard-sub-bonus" class="form-input" placeholder="e.g., 75,000 Capital One Miles ($1,385 value)" />
               </div>
               <div class="form-group">
                 <label class="form-label" for="rcard-sub-deadline">Minimum Spend Deadline</label>
@@ -1755,17 +2249,26 @@
             </div>
           </div>
 
-          <!-- Statement Credits Editor (1 per line: Name | Total $ | Used $) -->
-          <div class="form-group">
-            <label class="form-label" for="rcard-credits-text">
-              Annual Statement Credits &amp; Perks Checklist (One per line: <code>Perk Name | Total $ | Used $</code>)
-            </label>
-            <textarea id="rcard-credits-text" class="form-textarea mono" rows="4" style="font-size: 12px;" placeholder="$300 Annual Travel Credit | 300 | 300&#10;$120 Uber Cash ($10/mo) | 120 | 80&#10;$100 Global Entry Credit | 100 | 100"></textarea>
+          <!-- Custom Fields Repeater -->
+          <div class="custom-fields-section" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div>
+                <label class="form-label" style="margin: 0; font-weight: 700;">🏷️ Custom Fields &amp; Tracking Details</label>
+                <div style="font-size: 11px; color: var(--text-muted);">Track Authorized Users, Statement Closing Day, Priority Pass, Retention Spend, etc.</div>
+              </div>
+              <button type="button" class="btn btn-sm" id="btn-rcard-add-custom-field" style="font-size: 11.5px; padding: 3px 10px;">+ Add Custom Field</button>
+            </div>
+            <div id="rcard-custom-fields-container" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Dynamic custom field rows -->
+            </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn" data-close-modal="modal-reward-card">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="btn-submit-reward-card">Save Credit Card</button>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+          <button type="button" class="btn btn-danger-ghost" id="btn-rcard-delete-modal" style="display: none;">🗑️ Delete Card</button>
+          <div style="display: flex; gap: 8px; margin-left: auto;">
+            <button type="button" class="btn" data-close-modal="modal-reward-card">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-reward-card">Save Credit Card &amp; Sync Perks</button>
+          </div>
         </div>
       </form>
     </div>
@@ -1773,7 +2276,7 @@
 
   <!-- MODAL 10: LOG POINT OR FREE NIGHT REDEMPTION (LINKED TO TRIP) -->
   <div class="modal-backdrop" id="modal-reward-redemption" role="dialog" aria-modal="true" aria-labelledby="modal-reward-redemption-title">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg" style="max-width: 720px;">
       <div class="modal-header">
         <h3 class="modal-title" id="modal-reward-redemption-title">Log Point / Free Night Redemption</h3>
         <button type="button" class="modal-close" data-close-modal="modal-reward-redemption" aria-label="Close">&times;</button>
@@ -1784,7 +2287,7 @@
         <div class="modal-body">
           <div class="form-grid-2">
             <div class="form-group">
-              <label class="form-label" for="rred-trip-id">Production Trip</label>
+              <label class="form-label" for="rred-trip-id">Trip</label>
               <select id="rred-trip-id" class="form-select" required></select>
             </div>
             <div class="form-group">
@@ -1849,17 +2352,17 @@
     </div>
   </div>
 
-  <!-- MODAL 11: POPULAR TRAVEL CREDIT CARD & LOYALTY PROGRAM TEMPLATE LIBRARY -->
+  <!-- MODAL 11: MASTER TRAVEL CREDIT CARD & LOYALTY PROGRAM DATABASE -->
   <div class="modal-backdrop" id="modal-reward-templates" role="dialog" aria-modal="true" aria-labelledby="modal-reward-templates-title">
-    <div class="modal-dialog" style="max-width: 720px;">
+    <div class="modal-dialog modal-lg" style="max-width: 860px;">
       <div class="modal-header">
-        <h3 class="modal-title" id="modal-reward-templates-title">⚡ One-Click Travel Card &amp; Loyalty Program Templates</h3>
+        <h3 class="modal-title" id="modal-reward-templates-title">⚡ Smart Travel Card, Loyalty Program &amp; Perks Database</h3>
         <button type="button" class="modal-close" data-close-modal="modal-reward-templates" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
           <p style="font-size: 12.5px; color: var(--text-secondary);">
-            Click any popular travel card or loyalty program below to add it to your Rewards Command Center with pre-configured multipliers, statement credits, and point valuations — or reset/clear sample data.
+            Search or click any travel credit card or loyalty program below. Adding a card <strong>automatically brings in its card image, annual statement credits ($300 Venture X credit, resort credits, etc.), multipliers, AND links/creates its Loyalty Program &amp; Free Nights</strong> in one click!
           </p>
           <div style="display: flex; gap: 8px;">
             <button type="button" class="btn btn-sm" id="btn-rewards-reset-defaults">↺ Restore Sample Lineup</button>
@@ -1867,17 +2370,30 @@
           </div>
         </div>
 
-        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-amber); margin-top: 6px;">
-          Popular Travel Credit Cards (Pre-Loaded Statement Credits &amp; Multipliers)
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0;">
+          <input type="text" id="tpl-modal-search" class="form-input" style="flex: 1; min-width: 240px;" placeholder="🔍 Filter database by card, cruise, bank, hotel, or airline (e.g., NCL, Royal Caribbean, United Explorer, Venture X)..." autocomplete="off" />
+          <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="tpl-modal-filter-pills">
+            <button type="button" class="chip-btn active" data-tpl-filter="all" style="font-size: 11px; padding: 4px 10px;">All</button>
+            <button type="button" class="chip-btn" data-tpl-filter="Capital One" style="font-size: 11px; padding: 4px 10px;">Capital One</button>
+            <button type="button" class="chip-btn" data-tpl-filter="Chase" style="font-size: 11px; padding: 4px 10px;">Chase</button>
+            <button type="button" class="chip-btn" data-tpl-filter="American Express" style="font-size: 11px; padding: 4px 10px;">Amex</button>
+            <button type="button" class="chip-btn" data-tpl-filter="Hotel" style="font-size: 11px; padding: 4px 10px;">🏨 Hotels</button>
+            <button type="button" class="chip-btn" data-tpl-filter="Airline" style="font-size: 11px; padding: 4px 10px;">✈️ Airlines</button>
+            <button type="button" class="chip-btn" data-tpl-filter="Cruise" style="font-size: 11px; padding: 4px 10px;">🚢 Cruises</button>
+          </div>
         </div>
-        <div id="template-cards-list" class="template-picker-grid">
+
+        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-amber); margin-top: 6px;">
+          💳 Travel Credit Cards (Auto-Integrates Card Image + Statement Credits + Loyalty Program + Perks)
+        </div>
+        <div id="template-cards-list" class="template-picker-grid" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));">
           <!-- Populated dynamically -->
         </div>
 
-        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-sky); margin-top: 8px;">
-          Popular Airline, Hotel &amp; Bank Loyalty Programs
+        <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-sky); margin-top: 12px;">
+          💎 Airline, Hotel &amp; Bank Loyalty Programs
         </div>
-        <div id="template-programs-list" class="template-picker-grid">
+        <div id="template-programs-list" class="template-picker-grid" style="grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));">
           <!-- Populated dynamically -->
         </div>
       </div>
@@ -1926,18 +2442,25 @@
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" for="taxcat-color">Chart / Badge Color</label>
-              <select id="taxcat-color" class="form-select">
-                <option value="#38bdf8">Sky Blue (#38bdf8)</option>
-                <option value="#f59e0b">Amber Gold (#f59e0b)</option>
-                <option value="#10b981">Emerald Green (#10b981)</option>
-                <option value="#a855f7">Purple (#a855f7)</option>
-                <option value="#ec4899">Pink (#ec4899)</option>
-                <option value="#f97316">Orange (#f97316)</option>
-                <option value="#64748b">Slate Gray (#64748b)</option>
-                <option value="#14b8a6">Teal (#14b8a6)</option>
-                <option value="#ef4444">Rose Red (#ef4444)</option>
-              </select>
+              <label class="form-label" for="taxcat-color">Banner / Outline / Badge Color</label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <select id="taxcat-color" class="form-select" style="flex: 1;">
+                  <option value="#0ea5e9">Sky Blue (#0ea5e9)</option>
+                  <option value="#38bdf8">Light Sky (#38bdf8)</option>
+                  <option value="#f59e0b">Amber Gold (#f59e0b)</option>
+                  <option value="#10b981">Emerald Green (#10b981)</option>
+                  <option value="#a855f7">Royal Purple (#a855f7)</option>
+                  <option value="#8b5cf6">Violet (#8b5cf6)</option>
+                  <option value="#ec4899">Rose Pink (#ec4899)</option>
+                  <option value="#f97316">Sunset Orange (#f97316)</option>
+                  <option value="#14b8a6">Ocean Teal (#14b8a6)</option>
+                  <option value="#ef4444">Crimson Red (#ef4444)</option>
+                  <option value="#6366f1">Indigo (#6366f1)</option>
+                  <option value="#eab308">Citrine Yellow (#eab308)</option>
+                  <option value="#64748b">Slate Gray (#64748b)</option>
+                </select>
+                <input type="color" id="taxcat-color-custom" value="#0ea5e9" style="width: 38px; height: 38px; padding: 0; border: 1px solid var(--border-subtle); border-radius: 6px; background: transparent; cursor: pointer;" title="Pick custom hex color" />
+              </div>
             </div>
           </div>
 
@@ -1952,6 +2475,281 @@
           <button type="submit" class="btn btn-primary" id="btn-submit-admin-tax-category">Save Tax Category</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: QUICK CATEGORY & CARD COLOR CUSTOMIZER -->
+  <div class="modal-backdrop" id="modal-color-customizer" role="dialog" aria-modal="true" aria-labelledby="modal-color-customizer-title">
+    <div class="modal-dialog" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-color-customizer-title">🎨 Customize Category &amp; Card Colors</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-color-customizer" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-color-customizer">
+        <input type="hidden" id="ccust-target-type" value="ecosystem" />
+        <input type="hidden" id="ccust-target-id" value="hotel" />
+        <input type="hidden" id="ccust-prog-id" value="" />
+        <div class="modal-body">
+          <!-- Live Card Preview Banner + Outline + Pill -->
+          <div id="ccust-preview-card" class="reward-item-card color-coded" style="padding: 20px 16px 14px 16px; gap: 8px;">
+            <div class="reward-card-banner" id="ccust-preview-banner" style="background: #f59e0b;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+              <span class="reward-ecosystem-pill" id="ccust-preview-pill">🏨 HOTEL LOYALTY</span>
+              <span class="mono" id="ccust-preview-hex" style="font-size: 11.5px; font-weight: 700;">#f59e0b</span>
+            </div>
+            <div style="font-size: 15px; font-weight: 700; color: var(--text-primary);" id="ccust-preview-title">World of Hyatt (Karen)</div>
+            <div style="font-size: 12px; color: var(--text-secondary);">Live preview of top banner bar, card border outline, and category badge pill</div>
+          </div>
+
+          <!-- Scope choice when opened from a specific Loyalty Program card -->
+          <div id="ccust-scope-group" class="form-group" style="display: none; padding: 10px 12px; background: var(--bg-elevated); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+            <label class="form-label" style="margin-bottom: 4px;">Apply This Color To:</label>
+            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12.5px;">
+              <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="ccust-scope" id="ccust-scope-eco" value="ecosystem" checked />
+                <span id="ccust-scope-eco-label">All programs in this category (Recommended)</span>
+              </label>
+              <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="radio" name="ccust-scope" id="ccust-scope-card" value="card" />
+                <span id="ccust-scope-card-label">Only this specific card</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Swatch Picker + Custom Color Input -->
+          <div class="form-group">
+            <label class="form-label">Select Preset Color or Pick Any Custom Shade</label>
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 12px; background: var(--bg-elevated); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+              <div class="color-swatch-grid" id="ccust-swatch-grid"></div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="color" id="ccust-color-input" value="#f59e0b" style="width: 38px; height: 34px; padding: 0; border: 1px solid var(--border-subtle); border-radius: 6px; background: transparent; cursor: pointer;" />
+                <span style="font-size: 12px; color: var(--text-secondary);">Custom</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Switcher for All Loyalty & Expense Categories -->
+          <div class="form-group">
+            <label class="form-label">Quick-Select Any Category to Color-Code:</label>
+            <div id="ccust-all-categories-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; max-height: 190px; overflow-y: auto; padding: 2px;">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn btn-sm" id="btn-ccust-reset-default" title="Reset to default category color">↺ Reset Default</button>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn" data-close-modal="modal-color-customizer">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Color</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: INDIVIDUAL REWARD / CARD UPDATE & PERK SYNC -->
+  <div class="modal-backdrop" id="modal-update-reward" role="dialog" aria-modal="true" aria-labelledby="modal-update-reward-title">
+    <div class="modal-dialog modal-lg" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-update-reward-title">🔄 Update Reward Perks &amp; Rules</h3>
+        <button type="button" class="modal-close" data-close-modal="modal-update-reward" aria-label="Close">&times;</button>
+      </div>
+      <form id="form-update-reward">
+        <input type="hidden" id="urew-id" />
+        <input type="hidden" id="urew-type" />
+        <div class="modal-body">
+          <div style="padding: 12px 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: var(--radius-sm); font-size: 12.5px; color: var(--text-primary);">
+            <div style="font-weight: 700; color: var(--accent-primary); margin-bottom: 3px;">
+              🛡️ Safe Update Guarantee
+            </div>
+            <div>
+              Your current point balances, member account IDs, custom fields, and personal notes are <strong>100% preserved</strong>. Only official statement credits, multipliers, fees, and transfer partners will be updated from current best data.
+            </div>
+          </div>
+
+          <div id="urew-diff-container" style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px;">
+            <!-- Populated dynamically with diff comparison -->
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn" data-close-modal="modal-update-reward">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-update-reward">✓ Apply Latest Perks to This Reward</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: MASTER "UPDATE ALL REWARDS" HUB -->
+  <div class="modal-backdrop" id="modal-update-all-rewards" role="dialog" aria-modal="true" aria-labelledby="modal-update-all-rewards-title">
+    <div class="modal-dialog modal-lg" style="max-width: 840px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">🔄</span>
+          <div>
+            <h3 class="modal-title" id="modal-update-all-rewards-title" style="margin: 0;">Update All Rewards Hub</h3>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Keep perks, credits, and point balances fresh across your entire travel rewards portfolio</div>
+          </div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-update-all-rewards" aria-label="Close">&times;</button>
+      </div>
+
+      <!-- Update Hub Subnav Tabs -->
+      <div style="display: flex; gap: 8px; padding: 12px 20px 0; border-bottom: 1px solid var(--border-subtle); background: var(--bg-surface);">
+        <button type="button" class="rewards-tab-btn active" id="btn-uall-tab-perks" style="padding: 8px 16px; border-bottom-width: 2px;">
+          🔄 Bulk Refresh Card Perks &amp; Credits
+        </button>
+        <button type="button" class="rewards-tab-btn" id="btn-uall-tab-balances" style="padding: 8px 16px; border-bottom-width: 2px;">
+          ⚡ Monthly Fast Balance Check-In
+        </button>
+      </div>
+
+      <!-- Pane A: Bulk Refresh Perks -->
+      <div id="uall-pane-perks" style="display: block;">
+        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+          <div style="padding: 12px 14px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: var(--radius-sm); font-size: 12.5px; margin-bottom: 12px;">
+            <strong style="color: var(--accent-sky);">How Bulk Perk Refresh Works:</strong>
+            We match your current travel cards (Amex, Chase, Capital One, Hyatt, etc.) with our verified 2026 benefit catalog. We update annual fees, new statement credits (like Resy, Uber, travel credits), and multiplier categories <em>without altering your private account numbers, balances, or custom fields</em>.
+          </div>
+
+          <div id="uall-perks-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn" data-close-modal="modal-update-all-rewards">Close</button>
+          <button type="button" class="btn btn-primary" id="btn-apply-bulk-perks" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none;">
+            ✓ Refresh All Perks &amp; Credits Now
+          </button>
+        </div>
+      </div>
+
+      <!-- Pane B: Fast Balance Check-In -->
+      <div id="uall-pane-balances" style="display: none;">
+        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+          <div style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 12px;">
+            Quickly update point balances, elite status nights, and member IDs across all your programs in one single screen:
+          </div>
+          <div class="table-responsive">
+            <table class="ledger-table" style="font-size: 13px;">
+              <thead>
+                <tr>
+                  <th>Program / Card</th>
+                  <th>Ecosystem</th>
+                  <th style="width: 170px;">Point / Mile Balance</th>
+                  <th style="width: 130px;">Valuation (¢/pt)</th>
+                  <th style="width: 150px;">Status Progress / Nights</th>
+                  <th style="width: 140px;">Member ID</th>
+                </tr>
+              </thead>
+              <tbody id="uall-balances-tbody">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer" style="justify-content: space-between;">
+          <button type="button" class="btn" data-close-modal="modal-update-all-rewards">Cancel</button>
+          <button type="button" class="btn btn-primary" id="btn-save-bulk-balances">💾 Save All Updated Balances</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: QUICK REWARDS AT-A-GLANCE SUMMARY HUB
+       ========================================================================= -->
+  <div class="modal-backdrop" id="modal-quick-rewards">
+    <div class="modal-dialog" style="max-width: 960px;">
+      <div class="modal-header" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(56, 189, 248, 0.08));">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">⚡</span>
+          <div>
+            <h3 class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+              Quick Rewards — At-A-Glance Summary
+              <span class="kpi-tag positive" id="qr-modal-header-badge" style="font-size: 11px;">Live Snapshot</span>
+            </h3>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              All your unused statement credits (<strong>Reward Available</strong>), point &amp; mile balances, free nights, reset dates, use-by reminders, and best card to swipe in one view.
+            </p>
+          </div>
+        </div>
+        <button class="modal-close" data-close-modal="modal-quick-rewards">&times;</button>
+      </div>
+      <div class="modal-body" id="qr-modal-body" style="max-height: 76vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+        <!-- Household Owner Filter Bar inside Quick Rewards -->
+        <div class="owner-filter-bar" id="qr-owner-filter-bar"></div>
+        <!-- Populated dynamically by renderQuickRewardsModalContent() -->
+      </div>
+      <div class="modal-footer" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-sm btn-primary" id="btn-qr-open-ai-advisor" style="background: linear-gradient(135deg, #8b5cf6 0%, #0ea5e9 100%); border: none; font-weight: 700;">✨ AI Trip Advisor</button>
+          <button type="button" class="btn btn-sm" id="btn-qr-add-card">💳 + Add Card</button>
+          <button type="button" class="btn btn-sm" id="btn-qr-add-prog">💎 + Add Program</button>
+          <button type="button" class="btn btn-sm" id="btn-qr-add-cert">🎟️ + Free Night / Perk</button>
+          <button type="button" class="btn btn-sm" id="btn-qr-update-all">🔄 Update All Balances</button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" class="btn" data-close-modal="modal-quick-rewards">Close</button>
+          <button type="button" class="btn btn-primary" id="btn-qr-open-full-hub">🏆 Open Full Rewards Command Center &rarr;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: PROGRAM & CREDIT CARD MINI-DASHBOARD FLYOUT
+       ========================================================================= -->
+  <div class="modal-backdrop" id="modal-reward-mini-dashboard">
+    <div class="modal-dialog" style="max-width: 900px;">
+      <div class="modal-header" id="md-modal-header" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(56, 189, 248, 0.08));">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;" id="md-modal-icon">💎</span>
+          <div>
+            <h3 class="modal-title" id="md-modal-title" style="display: flex; align-items: center; gap: 8px;">
+              Reward Mini-Dashboard
+            </h3>
+            <p id="md-modal-subtitle" style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              Full interactive statement credits, reset dates, free night perks, earning multipliers &amp; program rules.
+            </p>
+          </div>
+        </div>
+        <button class="modal-close" data-close-modal="modal-reward-mini-dashboard">&times;</button>
+      </div>
+      <div class="modal-body" id="md-modal-body" style="max-height: 76vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;">
+        <!-- Populated dynamically by renderRewardMiniDashboard() -->
+      </div>
+      <div class="modal-footer" id="md-modal-footer" style="justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       MODAL: REWARDS PORTFOLIO SUMMARY (5 KPI TOTALS POPUP)
+       ========================================================================= -->
+  <div class="modal-backdrop" id="modal-rewards-summary">
+    <div class="modal-dialog" style="max-width: 980px;">
+      <div class="modal-header" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(56, 189, 248, 0.08));">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">📊</span>
+          <div>
+            <h3 class="modal-title">Rewards &amp; Loyalty Portfolio Summary</h3>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+              Total points &amp; miles valuation, available free nights, statement credits, and cash saved across your accounts.
+            </p>
+          </div>
+        </div>
+        <button class="modal-close" data-close-modal="modal-rewards-summary">&times;</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="owner-filter-bar" id="summary-modal-owner-filter-bar" style="margin-top: 0;"></div>
+        <div class="rewards-kpi-grid" id="rewards-kpi-grid" style="margin: 0;">
+          <!-- Populated dynamically by renderRewardsDashboard() -->
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: flex-end;">
+        <button type="button" class="btn btn-primary" data-close-modal="modal-rewards-summary">Done</button>
+      </div>
     </div>
   </div>
 
@@ -1981,6 +2779,32 @@
   </div>
 
 
+  <!-- REWARD / CARD NOTES MODAL -->
+  <div class="modal-backdrop" id="modal-reward-notes" role="dialog" aria-modal="true" aria-labelledby="modal-rnotes-title">
+    <div class="modal-dialog" style="max-width: 560px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="modal-rnotes-title">📄 Card &amp; Loyalty Notes</h3>
+          <div id="modal-rnotes-subtitle" style="font-size: 12px; color: var(--text-muted); margin-top: 2px;"></div>
+        </div>
+        <button type="button" class="modal-close" data-close-modal="modal-reward-notes" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 14px;">
+        <div id="reward-notes-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto;"></div>
+        <div style="border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+          <label class="form-label" for="rnote-new-text" style="font-weight: 700; margin-bottom: 6px;">Add a Note</label>
+          <textarea id="rnote-new-text" class="form-input" rows="3" placeholder="Write retention offers, card rules, phone numbers, companion pass reminders, or anything else..."></textarea>
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-rnote-add">+ Add Note</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-close-modal="modal-reward-notes">Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- FULL-SCREEN LOGIN & FIRST-TIME ADMIN SETUP SCREEN -->
   <div id="auth-gate-overlay" class="auth-gate-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="auth-gate-title">
     <div class="auth-gate-card">
@@ -1988,7 +2812,7 @@
         <img src="icon.svg" alt="Wander Wallet" class="brand-logo" style="width: 44px; height: 44px;" />
         <div>
           <div style="font-size: 18px; font-weight: 800; letter-spacing: -0.02em;">Wander Wallet</div>
-          <div style="font-size: 12px; color: var(--text-muted);">Creator Road Finance &amp; Expense Vault</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Travel Rewards, Loyalty &amp; Trip Expense Vault</div>
         </div>
       </div>
 
@@ -2051,8 +2875,11 @@
     </div>
   </div>
 
+  <!-- Shared Datalist for Household Owners (Jim, Karen, etc.) -->
+  <datalist id="reward-owner-datalist"></datalist>
+
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

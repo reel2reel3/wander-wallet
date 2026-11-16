@@ -1133,6 +1133,7 @@ function getSettingsMap() {
     channel_name: 'Wander Wallet',
     home_currency: 'USD',
     meal_deduction_rate: '100',
+    sponsors_enabled: false,
     exchange_rates: DEFAULT_RATES,
     tax_categories: null,
     ecosystem_colors: null,
@@ -1145,6 +1146,10 @@ function getSettingsMap() {
       if (r.value && String(r.value).trim()) {
         map.ai_key_configured = true;
       }
+      continue;
+    }
+    if (r.key === 'sponsors_enabled') {
+      map.sponsors_enabled = r.value === 'true' || r.value === '1';
       continue;
     }
     if (r.key === 'exchange_rates') {
@@ -1770,6 +1775,9 @@ const server = http.createServer(async (req, res) => {
         if (body.settings.channel_name) upsert.run('channel_name', String(body.settings.channel_name));
         if (body.settings.home_currency) upsert.run('home_currency', String(body.settings.home_currency));
         if (body.settings.meal_deduction_rate) upsert.run('meal_deduction_rate', String(body.settings.meal_deduction_rate));
+        if (body.settings.sponsors_enabled !== undefined) {
+          upsert.run('sponsors_enabled', body.settings.sponsors_enabled === true || body.settings.sponsors_enabled === 'true' ? 'true' : 'false');
+        }
         if (body.settings.exchange_rates) upsert.run('exchange_rates', JSON.stringify(body.settings.exchange_rates));
         if (body.settings.tax_categories) upsert.run('tax_categories', JSON.stringify(body.settings.tax_categories));
         if (body.settings.ecosystem_colors) upsert.run('ecosystem_colors', JSON.stringify(body.settings.ecosystem_colors));
@@ -1984,6 +1992,9 @@ const server = http.createServer(async (req, res) => {
       if (body.channel_name !== undefined) upsert.run('channel_name', String(body.channel_name));
       if (body.home_currency !== undefined) upsert.run('home_currency', String(body.home_currency));
       if (body.meal_deduction_rate !== undefined) upsert.run('meal_deduction_rate', String(body.meal_deduction_rate));
+      if (body.sponsors_enabled !== undefined) {
+        upsert.run('sponsors_enabled', body.sponsors_enabled === true || body.sponsors_enabled === 'true' ? 'true' : 'false');
+      }
       if (body.exchange_rates !== undefined) upsert.run('exchange_rates', JSON.stringify(body.exchange_rates));
       if (body.tax_categories !== undefined) upsert.run('tax_categories', JSON.stringify(body.tax_categories));
       if (body.ecosystem_colors !== undefined) upsert.run('ecosystem_colors', JSON.stringify(body.ecosystem_colors));

@@ -34,13 +34,25 @@
   };
 
   const DEFAULT_TAX_CATEGORIES = [
-    { name: 'Hotels & Lodging', icon: '🏨', color: '#0ea5e9', schedule_c: 'Line 24a (Travel / Lodging)', deductible: '1', notes: 'Deductible lodging while away from tax home overnight' },
-    { name: 'Meals & Craft', icon: '🍜', color: '#f59e0b', schedule_c: 'Line 24b (Deductible Meals)', deductible: 'meal', notes: 'Subject to IRS business meal percentage (50% or 100%)' },
-    { name: 'Flights & Transit', icon: '🚄', color: '#10b981', schedule_c: 'Line 24a (Travel / Airfare / Transit)', deductible: '1', notes: 'Airfare, trains, ferries, taxis & rideshares' },
-    { name: 'Gear & Rentals', icon: '📷', color: '#f97316', schedule_c: 'Line 20a (Equipment Rent & Leases)', deductible: '1', notes: 'Cameras, lenses, lighting, audio & grip rentals' },
-    { name: 'Permits & Locations', icon: '🎟️', color: '#14b8a6', schedule_c: 'Line 27a (Other Expenses - Filming Permits)', deductible: '1', notes: 'National park, drone, and city location fees' },
-    { name: 'Crew & Talent', icon: '🎥', color: '#8b5cf6', schedule_c: 'Line 11 (Contract Labor / 1099)', deductible: '1', notes: 'Camera operators, fixers, editors, guides & talent' }
+    { name: 'Hotels & Lodging', icon: '🏨', color: '#0ea5e9', schedule_c: 'Line 24a (Travel / Lodging)', deductible: '1', notes: 'Hotel stays, resorts, Airbnbs & lodging' },
+    { name: 'Dining & Meals', icon: '🍜', color: '#f59e0b', schedule_c: 'Line 24b (Deductible Meals)', deductible: 'meal', notes: 'Restaurants, cafes, groceries & travel dining' },
+    { name: 'Flights & Transit', icon: '🚄', color: '#10b981', schedule_c: 'Line 24a (Travel / Airfare / Transit)', deductible: '1', notes: 'Airfare, trains, ferries, rental cars, taxis & rideshares' },
+    { name: 'Tours & Activities', icon: '🎟️', color: '#14b8a6', schedule_c: 'Line 27a (Other Travel Expenses)', deductible: '1', notes: 'Excursions, museum tickets, park passes & activities' },
+    { name: 'Shopping & Gear', icon: '🛍️', color: '#f97316', schedule_c: 'Line 22 (Supplies & Travel Gear)', deductible: '1', notes: 'Luggage, travel accessories, electronics & supplies' },
+    { name: 'Other Travel', icon: '🧳', color: '#8b5cf6', schedule_c: 'Line 27a (Other Travel Expenses)', deductible: '1', notes: 'Visas, travel insurance, tips, laundry & misc expenses' }
   ];
+
+  const LEGACY_CATEGORY_RENAME_MAP = {
+    'Meals & Craft': { name: 'Dining & Meals', icon: '🍜', notes: 'Restaurants, cafes, groceries & travel dining' },
+    'Gear & Rentals': { name: 'Shopping & Gear', icon: '🛍️', schedule_c: 'Line 22 (Supplies & Travel Gear)', notes: 'Luggage, travel accessories, electronics & supplies' },
+    'Permits & Locations': { name: 'Tours & Activities', icon: '🎟️', schedule_c: 'Line 27a (Other Travel Expenses)', notes: 'Excursions, museum tickets, park passes & activities' },
+    'Crew & Talent': { name: 'Other Travel', icon: '🧳', schedule_c: 'Line 27a (Other Travel Expenses)', notes: 'Visas, travel insurance, tips, laundry & misc expenses' }
+  };
+
+  function normalizeCategoryName(catName) {
+    if (!catName) return 'Other Travel';
+    return LEGACY_CATEGORY_RENAME_MAP[catName] ? LEGACY_CATEGORY_RENAME_MAP[catName].name : catName;
+  }
 
   const DEFAULT_ECOSYSTEM_COLORS = {
     hotel: '#f59e0b',   // Amber Gold
@@ -135,10 +147,14 @@
 
   function getTaxCategories() {
     if (state && state.settings && Array.isArray(state.settings.tax_categories) && state.settings.tax_categories.length > 0) {
-      return state.settings.tax_categories.map(c => ({
-        ...c,
-        color: resolveHexColor(c.color, '#0ea5e9')
-      }));
+      return state.settings.tax_categories.map(c => {
+        const mapped = LEGACY_CATEGORY_RENAME_MAP[c.name];
+        return {
+          ...c,
+          ...(mapped || {}),
+          color: resolveHexColor(c.color, '#0ea5e9')
+        };
+      });
     }
     return DEFAULT_TAX_CATEGORIES;
   }
@@ -217,6 +233,7 @@
         channel_name: 'Wander Wallet',
         home_currency: 'USD',
         meal_deduction_rate: '100',
+        sponsors_enabled: false,
         exchange_rates: { ...DEFAULT_FX_RATES }
       },
       trips: [
@@ -1122,6 +1139,7 @@
       channel_name: 'Wander Wallet',
       home_currency: 'USD',
       meal_deduction_rate: '100',
+      sponsors_enabled: false,
       exchange_rates: { ...DEFAULT_FX_RATES }
     },
     trips: [],
@@ -2452,8 +2470,14 @@
   function applyBootstrapData(data) {
     if (!data) return;
     state.settings = data.settings || state.settings;
-    state.trips = data.trips || [];
-    state.expenses = data.expenses || [];
+    state.trips = (data.trips || []).map(t => ({
+      ...t,
+      notes: (!t.notes || t.notes === 'Production expense tracking & budget burn rate.') ? '' : t.notes
+    }));
+    state.expenses = (data.expenses || []).map(e => ({
+      ...e,
+      category: normalizeCategoryName(e.category)
+    }));
     state.revenues = data.revenues || [];
     if (data.rewards && Array.isArray(data.rewards.programs)) {
       state.rewards = data.rewards;
@@ -2534,7 +2558,60 @@
 
   function getScopedRevenues() {
     if (state.selectedTripId === 'all') return state.revenues;
-    return state.revenues.filter(r => r.trip_id === state.selectedTripId);
+    return state.revenues.filter(r => r.trip_id === state.selectedTripId || r.trip_id === 'all');
+  }
+
+  function isSponsorsEnabled() {
+    if (!state || !state.settings) return false;
+    const val = state.settings.sponsors_enabled;
+    return val === true || val === 'true' || val === '1' || val === 1;
+  }
+
+  function applySponsorsFeatureVisibility() {
+    const enabled = isSponsorsEnabled();
+    const navItemRev = document.getElementById('nav-item-revenue');
+    if (navItemRev) navItemRev.style.display = enabled ? '' : 'none';
+    const topRevBtn = document.getElementById('btn-open-new-revenue');
+    if (topRevBtn) topRevBtn.style.display = enabled ? '' : 'none';
+
+    const statusPill = document.getElementById('admin-sponsors-status-pill');
+    const toggleBtn = document.getElementById('btn-admin-toggle-sponsors');
+    const selectEl = document.getElementById('admin-setting-sponsors-enabled');
+    if (statusPill) {
+      statusPill.textContent = enabled ? 'ON (Standalone Tab Active)' : 'OFF (Hidden)';
+      statusPill.className = enabled ? 'kpi-tag positive' : 'kpi-tag';
+    }
+    if (toggleBtn) {
+      toggleBtn.textContent = enabled ? 'Disable Sponsors Tab' : 'Enable Sponsors Tab';
+      toggleBtn.className = enabled ? 'btn btn-sm' : 'btn btn-sm btn-primary';
+    }
+    if (selectEl) {
+      selectEl.value = enabled ? 'true' : 'false';
+    }
+
+    if (!enabled && state.activeView === 'revenue') {
+      switchView('dashboard');
+    }
+  }
+
+  async function setSponsorsEnabled(enabled, toastMsg) {
+    const boolVal = Boolean(enabled);
+    state.settings.sponsors_enabled = boolVal;
+    const backup = getLocalStore();
+    backup.settings = backup.settings || {};
+    backup.settings.sponsors_enabled = boolVal;
+    backup.user_modified = true;
+    backup.updated_at = Date.now();
+    saveLocalStore(backup);
+
+    applySponsorsFeatureVisibility();
+
+    const updated = await apiRequest('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ sponsors_enabled: boolVal })
+    });
+    if (updated) applyBootstrapData(updated);
+    if (toastMsg) showToast(toastMsg);
   }
 
   function renderAll() {
@@ -2549,6 +2626,7 @@
     const revBadge = document.getElementById('badge-revenue-count');
     if (revBadge) revBadge.textContent = state.revenues.length;
 
+    applySponsorsFeatureVisibility();
     renderTripSelectors();
     renderTripContextBanner();
     renderDashboardKpis();
@@ -2567,7 +2645,7 @@
     const globalSelect = document.getElementById('global-trip-select');
     if (globalSelect) {
       const currentVal = state.selectedTripId;
-      globalSelect.innerHTML = `<option value="all">All Production Trips (${state.trips.length})</option>` +
+      globalSelect.innerHTML = `<option value="all">All Trips (${state.trips.length})</option>` +
         state.trips.map(t =>
           `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} (${escapeHtml(t.default_currency)})</option>`
         ).join('');
@@ -2602,9 +2680,11 @@
       `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} — ${escapeHtml(t.destination)}</option>`
     ).join('');
     if (expTripSelect) expTripSelect.innerHTML = tripOptionsHtml;
-    if (revTripSelect) revTripSelect.innerHTML = tripOptionsHtml;
+    if (revTripSelect) {
+      revTripSelect.innerHTML = `<option value="all">General / Not Tied to a Trip</option>` + tripOptionsHtml;
+    }
     if (rredTripSelect) {
-      rredTripSelect.innerHTML = `<option value="all">General Travel / Unassigned Shoot</option>` + tripOptionsHtml;
+      rredTripSelect.innerHTML = `<option value="all">General Travel / Unassigned Trip</option>` + tripOptionsHtml;
     }
 
     // Ensure any custom cards from Rewards wallet also appear in Expense Payment Method selector
@@ -2629,26 +2709,26 @@
     if (!banner) return;
     if (state.selectedTripId === 'all') {
       const totalDays = state.trips.reduce((acc, t) => acc + computeDaysBetween(t.start_date, t.end_date), 0);
-      const totalVideos = state.trips.reduce((acc, t) => acc + (Number(t.video_count) || 1), 0);
+      const totalReceipts = state.expenses.filter(e => e.receipt_data).length;
       banner.innerHTML = `
         <div class="trip-context-info">
           <div class="trip-context-eyebrow">
-            <span class="status-badge active">CHANNEL PORTFOLIO</span>
-            <span>${state.trips.length} Production Trips</span>
+            <span class="status-badge active">TRAVEL PORTFOLIO</span>
+            <span>${state.trips.length} Trips</span>
             <span>•</span>
             <span>Multi-Currency Consolidated (USD)</span>
           </div>
-          <h2 class="trip-context-title">All YouTube Travel Productions</h2>
-          <p class="trip-context-notes">Viewing consolidated expenses, hotel folios, crew meals, and sponsor revenue across all active and wrapped shoots.</p>
+          <h2 class="trip-context-title">All Trips &amp; Travel Expenses</h2>
+          <p class="trip-context-notes">Viewing consolidated trip expenses, hotel folios, dining, transit, and loyalty redemptions across all active and completed trips.</p>
         </div>
         <div class="trip-context-meta">
           <div class="meta-stat">
-            <span class="meta-stat-label">Total Shoot Days</span>
+            <span class="meta-stat-label">Total Trip Days</span>
             <span class="meta-stat-val tabular">${totalDays} Days</span>
           </div>
           <div class="meta-stat">
-            <span class="meta-stat-label">Target Episodes</span>
-            <span class="meta-stat-val tabular">${totalVideos} Videos</span>
+            <span class="meta-stat-label">Receipts Attached</span>
+            <span class="meta-stat-val tabular">${totalReceipts} Folios</span>
           </div>
           <div class="meta-stat">
             <span class="meta-stat-label">Home Currency</span>
@@ -2672,7 +2752,7 @@
           <span class="mono">${escapeHtml(trip.start_date)} → ${escapeHtml(trip.end_date)} (${days} days)</span>
         </div>
         <h2 class="trip-context-title">${escapeHtml(trip.name)}</h2>
-        <p class="trip-context-notes">${escapeHtml(trip.notes || 'Production expense tracking & budget burn rate.')}</p>
+        <p class="trip-context-notes">${escapeHtml(trip.notes || 'Trip expense tracking, receipts & budget burn rate.')}</p>
       </div>
       <div class="trip-context-meta">
         <div class="meta-stat">
@@ -2680,8 +2760,8 @@
           <span class="meta-stat-val mono">${escapeHtml(trip.default_currency)} (${fxRate === 1 ? '1.00' : fxRate})</span>
         </div>
         <div class="meta-stat">
-          <span class="meta-stat-label">Deliverables</span>
-          <span class="meta-stat-val tabular">${trip.video_count} YouTube Episodes</span>
+          <span class="meta-stat-label">Trip Budget</span>
+          <span class="meta-stat-val tabular">${fmtUsdCompact(trip.budget_usd)}</span>
         </div>
         <button type="button" class="btn btn-sm" data-trip-ai-advisor="${escapeHtml(trip.id)}" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(14, 165, 233, 0.16)); border: 1px solid rgba(139, 92, 246, 0.4); font-weight: 700; color: var(--text-primary);" title="Generate AI hotel, flight & rewards plan for this trip">✨ AI Rewards Plan</button>
         <button type="button" class="btn btn-sm" id="btn-banner-edit-trip" data-edit-trip="${escapeHtml(trip.id)}">✎ Edit Trip</button>
@@ -2692,16 +2772,13 @@
   function renderDashboardKpis() {
     const trips = getScopedTrips();
     const expenses = getScopedExpenses();
-    const revenues = getScopedRevenues();
 
     const totalSpend = expenses.reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
     const deductibleSpend = expenses
       .filter(e => e.tax_deductible)
       .reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
     const taxPct = totalSpend > 0 ? Math.round((deductibleSpend / totalSpend) * 100) : 100;
-
-    const totalVideos = Math.max(1, trips.reduce((s, t) => s + (Number(t.video_count) || 1), 0));
-    const costPerVideo = totalSpend / totalVideos;
+    const receiptsCount = expenses.filter(e => e.receipt_data).length;
 
     const totalBudget = trips.reduce((s, t) => s + (Number(t.budget_usd) || 0), 0);
     const budgetRemaining = totalBudget - totalSpend;
@@ -2714,12 +2791,17 @@
       .filter(e => e.category === 'Hotels & Lodging')
       .reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
     const mealSpend = expenses
-      .filter(e => e.category === 'Meals & Craft')
+      .filter(e => e.category === 'Dining & Meals' || e.category === 'Meals & Craft')
       .reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
 
-    const totalRev = revenues.reduce((s, r) => s + (Number(r.amount_usd) || 0), 0);
-    const netProfit = totalRev - totalSpend;
-    const roiMultiple = totalSpend > 0 ? (totalRev / totalSpend).toFixed(1) : '0.0';
+    const allRedemptions = (state.rewards && Array.isArray(state.rewards.redemptions)) ? state.rewards.redemptions : [];
+    const scopedRedemptions = state.selectedTripId === 'all'
+      ? allRedemptions
+      : allRedemptions.filter(r => r.trip_id === state.selectedTripId);
+    const tripRewardsSaved = scopedRedemptions.reduce((s, r) => s + (Number(r.net_saved_usd) || 0), 0);
+    const allRewardsSaved = allRedemptions.reduce((s, r) => s + (Number(r.net_saved_usd) || 0), 0);
+    const pointsUsed = scopedRedemptions.reduce((s, r) => s + (Number(r.points_used) || 0), 0);
+
     const reimbursableTotal = expenses
       .filter(e => e.reimbursable)
       .reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
@@ -2727,7 +2809,7 @@
     document.getElementById('kpi-total-spend').textContent = fmtUsd(totalSpend);
     document.getElementById('kpi-tax-pct-tag').textContent = `${taxPct}% Tax Deductible`;
     document.getElementById('kpi-expense-items-sub').textContent = `${expenses.length} itemized entries`;
-    document.getElementById('kpi-cost-per-video').textContent = `${fmtUsdCompact(costPerVideo)} / video`;
+    document.getElementById('kpi-cost-per-video').textContent = `🧾 ${receiptsCount}/${expenses.length} receipts`;
 
     const remEl = document.getElementById('kpi-budget-remaining');
     const statusTag = document.getElementById('kpi-budget-status-tag');
@@ -2757,15 +2839,19 @@
 
     document.getElementById('kpi-daily-burn').innerHTML =
       `${fmtUsd(dailyBurn)}<span style="font-size: 13px; font-weight: 500; color: var(--text-muted);"> / day</span>`;
-    document.getElementById('kpi-burn-days-tag').textContent = `${totalShootDays} Shoot Days`;
+    document.getElementById('kpi-burn-days-tag').textContent = `${totalShootDays} Trip Days`;
     document.getElementById('kpi-hotel-share').textContent = `Hotels: ${fmtUsdCompact(hotelSpend)}`;
     document.getElementById('kpi-meal-share').textContent = `Meals: ${fmtUsdCompact(mealSpend)}`;
 
     const netEl = document.getElementById('kpi-net-profit');
-    netEl.textContent = (netProfit >= 0 ? '+' : '') + fmtUsd(netProfit);
-    netEl.style.color = netProfit >= 0 ? 'var(--accent-primary)' : 'var(--accent-danger)';
-    document.getElementById('kpi-roi-multiple-tag').textContent = `${roiMultiple}x ROI`;
-    document.getElementById('kpi-total-revenue-sub').textContent = `Sponsor+AdSense: ${fmtUsdCompact(totalRev)}`;
+    netEl.textContent = fmtUsd(tripRewardsSaved);
+    netEl.style.color = 'var(--accent-primary)';
+    document.getElementById('kpi-roi-multiple-tag').textContent = scopedRedemptions.length > 0
+      ? `🏆 ${scopedRedemptions.length} Redemption${scopedRedemptions.length === 1 ? '' : 's'}`
+      : '🏆 Loyalty Value';
+    document.getElementById('kpi-total-revenue-sub').textContent = pointsUsed > 0
+      ? `Pts Used: ${pointsUsed.toLocaleString()} pts`
+      : (allRewardsSaved > 0 ? `Portfolio Saved: ${fmtUsdCompact(allRewardsSaved)}` : 'Pts Used: 0');
     document.getElementById('kpi-reimbursable-sub').textContent = `Reimburse: ${fmtUsdCompact(reimbursableTotal)}`;
   }
 
@@ -2875,6 +2961,11 @@
   }
 
   function renderExpenseLedger() {
+    const searchEl = document.getElementById('input-ledger-search');
+    if (searchEl && document.activeElement !== searchEl && state.searchQuery.includes('@')) {
+      state.searchQuery = '';
+      searchEl.value = '';
+    }
     const expenses = getScopedExpenses();
     const tripMap = new Map(state.trips.map(t => [t.id, t]));
     const q = state.searchQuery.trim().toLowerCase();
@@ -2969,12 +3060,13 @@
   function renderTripsView() {
     const grid = document.getElementById('trips-cards-grid');
     if (!grid) return;
+    const allRedemptions = (state.rewards && Array.isArray(state.rewards.redemptions)) ? state.rewards.redemptions : [];
     grid.innerHTML = state.trips.map(t => {
       const exps = state.expenses.filter(e => e.trip_id === t.id);
-      const revs = state.revenues.filter(r => r.trip_id === t.id);
       const spend = exps.reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
-      const rev = revs.reduce((s, r) => s + (Number(r.amount_usd) || 0), 0);
-      const net = rev - spend;
+      const tripReds = allRedemptions.filter(r => r.trip_id === t.id);
+      const rewardsSaved = tripReds.reduce((s, r) => s + (Number(r.net_saved_usd) || 0), 0);
+      const budgetLeft = (Number(t.budget_usd) || 0) - spend;
       const days = computeDaysBetween(t.start_date, t.end_date);
       const pct = t.budget_usd > 0 ? Math.min(100, Math.round((spend / t.budget_usd) * 100)) : 0;
 
@@ -2993,7 +3085,7 @@
           </div>
 
           <div class="mono" style="font-size: 12px; color: var(--text-muted);">
-            ${escapeHtml(t.start_date)} → ${escapeHtml(t.end_date)} (${days} days • ${t.video_count} videos)
+            ${escapeHtml(t.start_date)} → ${escapeHtml(t.end_date)} (${days} days • ${exps.length} expense${exps.length === 1 ? '' : 's'})
           </div>
 
           <div>
@@ -3012,13 +3104,13 @@
               <div class="tabular" style="font-weight: 600;">${fmtUsdCompact(spend / days)}/d</div>
             </div>
             <div>
-              <div style="color: var(--text-muted);">Sponsor + AdSense</div>
-              <div class="tabular" style="font-weight: 600;">${fmtUsdCompact(rev)}</div>
+              <div style="color: var(--text-muted);">Rewards Saved</div>
+              <div class="tabular" style="font-weight: 600; color: var(--accent-primary);">${fmtUsdCompact(rewardsSaved)}</div>
             </div>
             <div>
-              <div style="color: var(--text-muted);">Net Profit</div>
-              <div class="tabular" style="font-weight: 700; color: ${net >= 0 ? 'var(--accent-primary)' : 'var(--accent-danger)'};">
-                ${(net >= 0 ? '+' : '') + fmtUsdCompact(net)}
+              <div style="color: var(--text-muted);">Budget Left</div>
+              <div class="tabular" style="font-weight: 700; color: ${budgetLeft >= 0 ? 'var(--accent-primary)' : 'var(--accent-danger)'};">
+                ${budgetLeft >= 0 ? fmtUsdCompact(budgetLeft) : '-' + fmtUsdCompact(Math.abs(budgetLeft))}
               </div>
             </div>
           </div>
@@ -3039,6 +3131,48 @@
   function renderRevenueView() {
     const revenues = getScopedRevenues();
     const tripMap = new Map(state.trips.map(t => [t.id, t]));
+    const kpiContainer = document.getElementById('revenue-standalone-kpis');
+    if (kpiContainer) {
+      const totalRev = revenues.reduce((s, r) => s + (Number(r.amount_usd) || 0), 0);
+      const paidRev = revenues.filter(r => r.status === 'paid').reduce((s, r) => s + (Number(r.amount_usd) || 0), 0);
+      const invoicedRev = revenues.filter(r => r.status === 'invoiced').reduce((s, r) => s + (Number(r.amount_usd) || 0), 0);
+      const projectedRev = revenues.filter(r => r.status === 'projected').reduce((s, r) => s + (Number(r.amount_usd) || 0), 0);
+      kpiContainer.innerHTML = `
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Total Logged Revenue</span>
+            <span class="kpi-tag positive">${revenues.length} Entries</span>
+          </div>
+          <div class="kpi-value tabular" style="color: var(--accent-primary);">${fmtUsd(totalRev)}</div>
+          <div class="kpi-subtext"><span>Standalone Sponsor &amp; AdSense total</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Paid Payouts</span>
+            <span class="kpi-tag positive">Cleared</span>
+          </div>
+          <div class="kpi-value tabular">${fmtUsd(paidRev)}</div>
+          <div class="kpi-subtext"><span>Received in bank</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Invoiced / Net-30</span>
+            <span class="kpi-tag warning">Pending</span>
+          </div>
+          <div class="kpi-value tabular">${fmtUsd(invoicedRev)}</div>
+          <div class="kpi-subtext"><span>Awaiting sponsor payment</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Projected Revenue</span>
+            <span class="kpi-tag">Forecast</span>
+          </div>
+          <div class="kpi-value tabular">${fmtUsd(projectedRev)}</div>
+          <div class="kpi-subtext"><span>Estimated upcoming payouts</span></div>
+        </div>
+      `;
+    }
+
     const tbody = document.getElementById('revenue-table-body');
     if (!tbody) return;
 
@@ -3061,7 +3195,7 @@
             <span class="cat-badge">${escapeHtml(r.source_type)}</span>
             <span style="font-size: 12.5px; margin-left: 6px; color: var(--text-secondary);">${escapeHtml(r.sponsor_name)}</span>
           </td>
-          <td style="font-size: 12.5px;">${trip ? escapeHtml(trip.name) : escapeHtml(r.trip_id)}</td>
+          <td style="font-size: 12.5px;">${trip ? escapeHtml(trip.name) : (r.trip_id === 'all' ? 'General / Unassigned' : escapeHtml(r.trip_id))}</td>
           <td><span class="status-badge ${badgeClass}">${escapeHtml(r.status)}</span></td>
           <td class="mono" style="text-align: right; font-weight: 700; color: var(--accent-primary);">${fmtUsd(r.amount_usd)}</td>
           <td>
@@ -3096,7 +3230,7 @@
     for (const e of expenses) {
       const amt = Number(e.amount_usd) || 0;
       const catConfig = catMap.get(e.category);
-      const isMeal = catConfig ? catConfig.deductible === 'meal' : (e.category === 'Meals & Craft');
+      const isMeal = catConfig ? catConfig.deductible === 'meal' : (e.category === 'Dining & Meals' || e.category === 'Meals & Craft');
       const isDeductible = e.tax_deductible && (!catConfig || catConfig.deductible !== '0');
       const ded = isDeductible ? amt * (isMeal ? mealRate : 1.0) : 0;
 
@@ -3118,19 +3252,19 @@
     if (kpiContainer) {
       kpiContainer.innerHTML = `
         <div class="kpi-card">
-          <span class="kpi-label">Gross Production Spend</span>
+          <span class="kpi-label">Gross Trip Spend</span>
           <div class="kpi-value tabular">${fmtUsd(grossTotal)}</div>
           <span class="kpi-subtext">${expenses.length} total transactions</span>
         </div>
         <div class="kpi-card">
-          <span class="kpi-label">Estimated Tax-Deductible Total</span>
+          <span class="kpi-label">Estimated Deductible Total</span>
           <div class="kpi-value tabular" style="color: var(--accent-primary);">${fmtUsd(deductibleTotal)}</div>
-          <span class="kpi-subtext">Schedule C / Production Write-Off</span>
+          <span class="kpi-subtext">Schedule C / Travel Expense Total</span>
         </div>
         <div class="kpi-card">
-          <span class="kpi-label">Pending Crew Reimbursements</span>
+          <span class="kpi-label">Pending Reimbursements</span>
           <div class="kpi-value tabular" style="color: var(--accent-amber);">${fmtUsd(reimbursableTotal)}</div>
-          <span class="kpi-subtext">Paid out-of-pocket by host/crew</span>
+          <span class="kpi-subtext">Paid out-of-pocket to reimburse</span>
         </div>
         <div class="kpi-card">
           <span class="kpi-label">Verified Receipt Vault</span>
@@ -3160,31 +3294,31 @@
   const WALKTHROUGH_SLIDES = [
     {
       step: 1,
-      title: '1. Create a Production Trip & Set Your Budget',
-      subtitle: 'Organize every shoot by destination so you always know how much each trip and video episode costs.',
+      title: '1. Create a Trip & Set Your Budget',
+      subtitle: 'Organize every trip by destination, travel dates, target budget, and local currency.',
       ctaLabel: '+ Open New Trip Form',
       ctaAction: 'new-trip',
       html: `
         <div class="wt-demo-box">
           <div class="wt-demo-row">
             <div>
-              <div style="font-weight: 700; color: var(--text-primary);">✈️ Japan Shoot - Nov 2026</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Tokyo, Kyoto &amp; Hokkaido • Default Currency: JPY (¥)</div>
+              <div style="font-weight: 700; color: var(--text-primary);">✈️ South America 2026</div>
+              <div style="font-size: 12px; color: var(--text-muted);">Buenos Aires &amp; Patagonia • Default Currency: USD / ARS</div>
             </div>
-            <span class="kpi-tag positive">Active Shoot</span>
+            <span class="kpi-tag positive">Active Trip</span>
           </div>
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
             <div style="padding: 10px; background: var(--bg-elevated); border-radius: 6px; border: 1px solid var(--border-subtle);">
               <div style="font-size: 11px; color: var(--text-muted);">TARGET BUDGET</div>
-              <div class="mono" style="font-size: 15px; font-weight: 700;">$9,500 USD</div>
+              <div class="mono" style="font-size: 15px; font-weight: 700;">$10,000 USD</div>
             </div>
             <div style="padding: 10px; background: var(--bg-elevated); border-radius: 6px; border: 1px solid var(--border-subtle);">
-              <div style="font-size: 11px; color: var(--text-muted);">PLANNED VIDEOS</div>
-              <div class="mono" style="font-size: 15px; font-weight: 700;">3 Episodes</div>
+              <div style="font-size: 11px; color: var(--text-muted);">DURATION</div>
+              <div class="mono" style="font-size: 15px; font-weight: 700;">71 Days</div>
             </div>
             <div style="padding: 10px; background: var(--bg-elevated); border-radius: 6px; border: 1px solid var(--border-subtle);">
-              <div style="font-size: 11px; color: var(--text-muted);">TARGET / VIDEO</div>
-              <div class="mono" style="font-size: 15px; font-weight: 700; color: var(--accent-sky);">$3,167 / ep</div>
+              <div style="font-size: 11px; color: var(--text-muted);">REWARDS PLAN</div>
+              <div class="mono" style="font-size: 15px; font-weight: 700; color: var(--accent-sky);">AI Optimized</div>
             </div>
           </div>
         </div>
@@ -3193,14 +3327,14 @@
     {
       step: 2,
       title: '2. Snap Receipts & Auto-Convert Foreign Currencies',
-      subtitle: 'Enter local prices (JPY, EUR, ISK, CHF, GBP, etc.) on the road — Wander Wallet converts to USD and compresses your camera receipt photo.',
+      subtitle: 'Enter local prices (ARS, BRL, JPY, EUR, GBP, etc.) on the road — Wander Wallet converts to USD and compresses your camera receipt photo.',
       ctaLabel: '📸 Try Quick Add Expense',
       ctaAction: 'new-expense',
       html: `
         <div class="wt-demo-box">
           <div class="wt-demo-row">
             <div>
-              <div style="font-weight: 700;">🏨 Shibuya Stream Excel Hotel (4 Nights)</div>
+              <div style="font-weight: 700;">🏨 Boutique Hotel Stay (4 Nights)</div>
               <div style="font-size: 12px; color: var(--text-muted);">Paid in Local Currency: <span class="mono">¥242,000 JPY</span> (Rate: 0.00658)</div>
             </div>
             <div style="text-align: right;">
@@ -3209,7 +3343,7 @@
             </div>
           </div>
           <div style="font-size: 12px; color: var(--text-secondary); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-            <span>✓ Supports 11 road currencies with live FX preview</span>
+            <span>✓ Supports 13 currencies with live FX preview</span>
             <span>✓ Auto-compresses phone camera photos into SQLite</span>
           </div>
         </div>
@@ -3217,42 +3351,41 @@
     },
     {
       step: 3,
-      title: '3. Monitor Daily Burn Rate & Remaining Runway',
-      subtitle: 'Watch your real-time Trip Budget progress bar, daily burn rate ($/day), and category breakdown while shooting.',
+      title: '3. Monitor Daily Burn Rate & Remaining Budget Runway',
+      subtitle: 'Watch your real-time Trip Budget progress bar, daily burn rate ($/day), and category breakdown while traveling.',
       ctaLabel: '📊 View Live Dashboard',
       ctaAction: 'goto-dashboard',
       html: `
         <div class="wt-demo-box">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 12.5px; font-weight: 600;">Japan Shoot Budget Runway ($5,635 of $9,500 used)</span>
-            <span class="mono" style="font-size: 12.5px; font-weight: 700; color: var(--accent-primary);">$3,865.00 left (59%)</span>
+            <span style="font-size: 12.5px; font-weight: 600;">Trip Budget Runway ($820 of $10,000 used)</span>
+            <span class="mono" style="font-size: 12.5px; font-weight: 700; color: var(--accent-primary);">$9,179.52 left (8%)</span>
           </div>
           <div class="progress-track" style="height: 10px;">
-            <div class="progress-fill" style="width: 59%;"></div>
+            <div class="progress-fill" style="width: 8%;"></div>
           </div>
           <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
-            <span>Daily Burn: <strong style="color: var(--text-primary);">$469.59/day</strong></span>
-            <span>Cost Per Episode: <strong style="color: var(--text-primary);">$1,878 / video</strong></span>
+            <span>Daily Burn: <strong style="color: var(--text-primary);">$11.56/day</strong></span>
+            <span>Rewards Saved: <strong style="color: var(--accent-primary);">Tracked per trip</strong></span>
           </div>
         </div>
       `
     },
     {
       step: 4,
-      title: '4. Log Brand Sponsors & YouTube AdSense ROI',
-      subtitle: 'Connect sponsor integrations and AdSense payouts to each trip to see your true Net Profit and ROI multiple.',
-      ctaLabel: '🎬 Log Sponsor / AdSense',
-      ctaAction: 'new-revenue',
+      title: '4. Maximize Loyalty Points, Credits & Free Nights',
+      subtitle: 'Track airline miles, hotel points, credit card statement credits, use-by reminders, and redemptions linked to your trips.',
+      ctaLabel: '🏆 Open Rewards Hub',
+      ctaAction: 'goto-rewards',
       html: `
         <div class="wt-demo-box">
           <div class="wt-demo-row">
             <div>
-              <div style="font-weight: 700;">🎬 60s Mid-Roll Sponsor + AdSense Payout</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Japan Shoot Revenue: $12,350.00 vs. Spend: $5,635.02</div>
+              <div style="font-weight: 700;">🏆 Loyalty Points, Statement Credits &amp; Free Nights</div>
+              <div style="font-size: 12px; color: var(--text-muted);">Auto-tracks unused card credits, reset dates, and CPP redemption value</div>
             </div>
             <div style="text-align: right;">
-              <div class="mono" style="font-weight: 700; font-size: 15px; color: var(--accent-primary);">+$6,714.98 Profit</div>
-              <span class="kpi-tag positive">2.2x Trip ROI</span>
+              <span class="kpi-tag positive">Rewards Command Center</span>
             </div>
           </div>
         </div>
@@ -3260,18 +3393,18 @@
     },
     {
       step: 5,
-      title: '5. One-Click Schedule C Tax CSV & Crew Reimbursements',
-      subtitle: 'Toggle 100% On-Camera Food vs. 50% Travel Meals, check missing receipts >$75, and export your CPA-ready CSV.',
-      ctaLabel: '⬇ Export Tax CSV Now',
+      title: '5. One-Click Expense CSV & PDF Reports',
+      subtitle: 'Check missing receipts >$75, review reimbursements, and export a clean CSV spreadsheet anytime.',
+      ctaLabel: '⬇ Export CSV Now',
       ctaAction: 'export-csv',
       html: `
         <div class="wt-demo-box">
           <div class="wt-demo-row">
             <div>
-              <div style="font-weight: 700;">🧾 Accountant Schedule C Export (.CSV &amp; PDF)</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Includes Date, Trip, Category, Local FX, USD Total, Deductible % &amp; Reimbursements</div>
+              <div style="font-weight: 700;">🧾 Trip Expense Export (.CSV &amp; PDF)</div>
+              <div style="font-size: 12px; color: var(--text-muted);">Includes Date, Trip, Category, Local FX, USD Total &amp; Reimbursements</div>
             </div>
-            <span class="kpi-tag positive">CPA Ready</span>
+            <span class="kpi-tag positive">Export Ready</span>
           </div>
         </div>
       `
@@ -3340,32 +3473,32 @@
     {
       selector: '.trip-pill-selector',
       view: 'dashboard',
-      title: '1. Filter by Production Trip',
-      body: 'Switch between "All Production Trips" or a specific shoot (like Japan Shoot - Nov 2026) to scope all KPIs, charts, and ledger items.'
+      title: '1. Filter by Trip',
+      body: 'Switch between "All Trips" or a specific trip (like South America 2026) to scope all KPIs, charts, and ledger items.'
     },
     {
       selector: '#btn-topbar-quick-add',
       view: 'dashboard',
-      title: '2. Quick Add Road Expenses',
-      body: 'Click "+ Add Expense" anytime to log hotels, crew meals, flights, or gear in 11 currencies and attach a photo of your receipt.'
+      title: '2. Quick Add Trip Expenses',
+      body: 'Click "+ Add Expense" anytime to log hotels, dining, flights, or activities in 13 currencies and attach a photo of your receipt.'
     },
     {
       selector: '.kpi-grid',
       view: 'dashboard',
-      title: '3. Live Burn Rate, Runway & ROI KPIs',
-      body: 'Track Total Production Spend, remaining Trip Budget Runway, Daily Road Burn Rate ($/day), and Net Trip Profit at a glance.'
+      title: '3. Live Spend, Budget Runway & Rewards Savings',
+      body: 'Track Total Trip Spend, remaining Trip Budget Runway, Daily Burn Rate ($/day), and Rewards & Points Savings at a glance.'
     },
     {
-      selector: '.filter-bar',
+      selector: '#btn-topbar-rewards',
       view: 'dashboard',
-      title: '4. Search & Audit Missing Receipts',
-      body: 'Search by vendor or filter by "Missing Receipt (>$75)" and "Crew Reimbursable" before wrapping a shoot.'
+      title: '4. Travel Rewards & Loyalty Command Center',
+      body: 'Click "🏆 Rewards" to manage your loyalty points, credit card statement credits, free night certificates, and AI Trip Advisor.'
     },
     {
       selector: '#btn-export-csv-top',
       view: 'dashboard',
-      title: '5. One-Click Accountant Tax CSV',
-      body: 'Click "⬇ Export Tax CSV" whenever you need an IRS Schedule C spreadsheet with local FX conversions and deduction totals.'
+      title: '5. One-Click Expense CSV Export',
+      body: 'Click "⬇ Export Tax CSV" whenever you need a clean spreadsheet with local FX conversions and trip expense totals.'
     }
   ];
 
@@ -3437,15 +3570,15 @@
     }
 
     const titles = {
-      dashboard: 'Road Finance Dashboard',
-      trips: 'Trips',
-      revenue: 'Sponsors & AdSense ROI',
+      dashboard: 'Trip Expense & Rewards Dashboard',
+      trips: 'Trips & Budgets',
+      revenue: 'Sponsors & AdSense',
       rewards: 'Rewards & Loyalty Command Center',
-      tax: 'Tax & Accountant Export Hub',
+      tax: 'Tax & CSV Export Hub',
       admin: 'Workspace Administration'
     };
     const heading = document.getElementById('main-page-heading');
-    if (heading) heading.textContent = titles[viewName] || 'Road Finance Dashboard';
+    if (heading) heading.textContent = titles[viewName] || 'Trip Expense & Rewards Dashboard';
     if (viewName === 'rewards') {
       renderRewardsDashboard();
     }
@@ -3583,7 +3716,7 @@
   function openTripModal(editTrip = null) {
     const titleEl = document.getElementById('modal-trip-title');
     if (editTrip) {
-      titleEl.textContent = 'Edit Production Trip';
+      titleEl.textContent = 'Edit Trip';
       document.getElementById('trip-id').value = editTrip.id;
       document.getElementById('trip-name').value = editTrip.name;
       document.getElementById('trip-destination').value = editTrip.destination;
@@ -3591,11 +3724,11 @@
       document.getElementById('trip-end').value = editTrip.end_date;
       document.getElementById('trip-currency').value = editTrip.default_currency;
       document.getElementById('trip-budget').value = editTrip.budget_usd;
-      document.getElementById('trip-videos').value = editTrip.video_count;
+      document.getElementById('trip-videos').value = editTrip.video_count || 1;
       document.getElementById('trip-status').value = editTrip.status;
       document.getElementById('trip-notes').value = editTrip.notes || '';
     } else {
-      titleEl.textContent = 'Create Production Trip';
+      titleEl.textContent = 'Create Trip';
       document.getElementById('trip-id').value = '';
       document.getElementById('trip-name').value = '';
       document.getElementById('trip-destination').value = '';
@@ -3604,7 +3737,7 @@
       document.getElementById('trip-end').value = today;
       document.getElementById('trip-currency').value = 'USD';
       document.getElementById('trip-budget').value = 7500;
-      document.getElementById('trip-videos').value = 2;
+      document.getElementById('trip-videos').value = 1;
       document.getElementById('trip-status').value = 'active';
       document.getElementById('trip-notes').value = '';
     }
@@ -3962,14 +4095,14 @@
       detail: 'Counts trains, subways, ferries, parking, and tolls globally as 3X Ultimate Rewards (~6.15% return).'
     },
     {
-      cat: '🎥 Camera Gear, Drones, Permits & General Spend',
+      cat: '🛍️ Tours, Shopping, Activities & General Spend',
       winner: 'Capital One Venture X (2X Everything)',
       detail: 'Unlimited 2X transferable miles on every non-category expense with zero foreign transaction fees.'
     },
     {
-      cat: '💻 YouTube Ads, Shipping & Production Software',
+      cat: '💻 Business Travel, Shipping & Online Spend',
       winner: 'Chase Ink Business Preferred (3X)',
-      detail: '3X Ultimate Rewards on travel, shipping, internet/phone, and social media advertising up to $150k/yr.'
+      detail: '3X Ultimate Rewards on travel, shipping, internet/phone, and online advertising up to $150k/yr.'
     }
   ];
 
@@ -7239,7 +7372,7 @@
       <div class="qr-section-box">
         <div class="qr-section-header">
           <h4>🎯 Quick Cheat Sheet — Best Card to Swipe by Spend Category</h4>
-          <span style="font-size: 11px; color: var(--text-muted);">Maximize points on every shoot</span>
+          <span style="font-size: 11px; color: var(--text-muted);">Maximize points on every trip</span>
         </div>
         <div style="padding: 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 8px;">
           <div style="padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
@@ -7251,11 +7384,11 @@
             <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">Venture X (10x Portal) / Hilton Aspire (14x)</div>
           </div>
           <div style="padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
-            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🍽️ Crew Dining &amp; Restaurants</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🍽️ Dining &amp; Restaurants</div>
             <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">Amex Gold (4x) / Bilt (3x) / CSR (3x)</div>
           </div>
           <div style="padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg-elevated); border: 1px solid var(--border-subtle);">
-            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🎥 Gear, Permits &amp; Catch-All</div>
+            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🛍️ Tours, Shopping &amp; Catch-All</div>
             <div style="font-size: 12px; font-weight: 700; color: var(--text-primary); margin-top: 2px;">Capital One Venture X (2x Everywhere)</div>
           </div>
         </div>
@@ -7403,7 +7536,7 @@
             <span class="kpi-tag positive">Points + Certs</span>
           </div>
           <div class="kpi-value tabular" style="color: var(--accent-amber);">${fmtUsdCompact(metrics.totalPortfolioValueUsd)}</div>
-          <span class="kpi-subtext">Purchasing power ready for upcoming shoots</span>
+          <span class="kpi-subtext">Purchasing power ready for upcoming trips</span>
         </div>
 
         <div class="kpi-card">
@@ -7423,7 +7556,7 @@
             <span class="kpi-tag positive">${metrics.avgRedemptionCpp.toFixed(2)}¢ / pt avg</span>
           </div>
           <div class="kpi-value tabular" style="color: var(--accent-primary);">${fmtUsdCompact(metrics.totalRedemptionSavedUsd)}</div>
-          <span class="kpi-subtext">${state.rewards.redemptions.length} award bookings logged on shoots</span>
+          <span class="kpi-subtext">${state.rewards.redemptions.length} award bookings logged on trips</span>
         </div>
       `;
     }
@@ -9458,7 +9591,7 @@
       style: 'zero_cash'
     },
     domestic: {
-      dest: 'Domestic Production Shoot (LAX / JFK / LAS / MIA)',
+      dest: 'Domestic US Trip (LAX / JFK / LAS / MIA)',
       nights: 4,
       origin: 'Home Base',
       style: 'zero_cash'
@@ -9478,7 +9611,7 @@
         <option value="custom">🌍 Custom Destination / Manual Entry</option>
         ${state.trips.map(t => `
           <option value="${escapeHtml(t.id)}" ${t.id === state.selectedTripId ? 'selected' : ''}>
-            ${escapeHtml(t.name)} (${escapeHtml(t.destination || 'Shoot')})
+            ${escapeHtml(t.name)} (${escapeHtml(t.destination || 'Trip')})
           </option>
         `).join('')}
       `;
@@ -11333,11 +11466,12 @@
     if (mappedEl) mappedEl.textContent = expenses.length;
     if (mealSubtext) mealSubtext.textContent = `Governed by current ${mealRate}% meal write-off rule`;
 
-    // Populate channel and meal rate inputs
+    // Populate channel, meal rate, and sponsors feature inputs
     const chanInput = document.getElementById('admin-setting-channel-name');
     if (chanInput) chanInput.value = state.settings.channel_name || 'Wander Wallet';
     const mealInput = document.getElementById('admin-setting-meal-rate');
     if (mealInput) mealInput.value = String(state.settings.meal_deduction_rate || '100');
+    applySponsorsFeatureVisibility();
 
     // Populate Loyalty & Rewards Category Color Coding Grid in Admin
     const ecoGrid = document.getElementById('admin-eco-colors-grid');
@@ -11734,6 +11868,19 @@
       globalSelect.addEventListener('change', e => {
         state.selectedTripId = e.target.value;
         renderAll();
+      });
+    }
+
+    const adminSponsorsSelect = document.getElementById('admin-setting-sponsors-enabled');
+    if (adminSponsorsSelect) {
+      adminSponsorsSelect.addEventListener('change', e => {
+        const nextVal = e.target.value === 'true';
+        setSponsorsEnabled(
+          nextVal,
+          nextVal
+            ? '🎬 Enabled standalone Sponsors & AdSense tab'
+            : 'Hidden Sponsors & AdSense feature'
+        );
       });
     }
 
@@ -12267,6 +12414,11 @@
     const searchEl = document.getElementById('input-ledger-search');
     if (searchEl) {
       searchEl.addEventListener('input', e => {
+        if (document.activeElement !== searchEl && e.target.value && e.target.value.includes('@')) {
+          searchEl.value = '';
+          state.searchQuery = '';
+          return;
+        }
         state.searchQuery = e.target.value;
         renderExpenseLedger();
       });
@@ -13821,13 +13973,31 @@
       if (e.target.closest('#btn-admin-reset-categories')) {
         e.preventDefault();
         const ok = await confirmDelete({
-          title: 'Restore Default Tax Categories',
-          message: 'Reset your tax categories back to the 6 default creator production categories?',
-          extra: 'Hotels, Meals, Flights, Gear Rentals, Permits, and Crew categories will be restored.',
+          title: 'Restore Default Categories',
+          message: 'Reset your expense categories back to the 6 default travel categories?',
+          extra: 'Hotels & Lodging, Dining & Meals, Flights & Transit, Tours & Activities, Shopping & Gear, and Other Travel will be restored.',
           confirmText: 'Restore Defaults'
         });
         if (!ok) return;
-        await saveTaxCategoriesList(DEFAULT_TAX_CATEGORIES, 'Restored default tax categories lineup');
+        await saveTaxCategoriesList(DEFAULT_TAX_CATEGORIES, 'Restored default travel categories');
+        return;
+      }
+
+      if (e.target.closest('#btn-admin-toggle-sponsors')) {
+        e.preventDefault();
+        const nextVal = !isSponsorsEnabled();
+        await setSponsorsEnabled(
+          nextVal,
+          nextVal
+            ? '🎬 Enabled standalone Sponsors & AdSense tab'
+            : 'Hidden Sponsors & AdSense feature'
+        );
+        return;
+      }
+
+      if (e.target.closest('#btn-rev-view-hide-feature')) {
+        e.preventDefault();
+        await setSponsorsEnabled(false, 'Hidden Sponsors & AdSense feature (can re-enable anytime in Admin)');
         return;
       }
 
@@ -13835,14 +14005,29 @@
         e.preventDefault();
         const newChan = (document.getElementById('admin-setting-channel-name') || {}).value || 'Wander Wallet';
         const newMeal = (document.getElementById('admin-setting-meal-rate') || {}).value || '100';
+        const sponsorsEl = document.getElementById('admin-setting-sponsors-enabled');
+        const newSponsors = sponsorsEl ? sponsorsEl.value === 'true' : isSponsorsEnabled();
         state.settings.channel_name = newChan;
         state.settings.meal_deduction_rate = newMeal;
+        state.settings.sponsors_enabled = newSponsors;
+
+        const backup = getLocalStore();
+        backup.settings = backup.settings || {};
+        backup.settings.channel_name = newChan;
+        backup.settings.meal_deduction_rate = newMeal;
+        backup.settings.sponsors_enabled = newSponsors;
+        backup.user_modified = true;
+        backup.updated_at = Date.now();
+        saveLocalStore(backup);
+
+        applySponsorsFeatureVisibility();
 
         const updated = await apiRequest('/api/settings', {
           method: 'PUT',
           body: JSON.stringify({
             channel_name: newChan,
-            meal_deduction_rate: newMeal
+            meal_deduction_rate: newMeal,
+            sponsors_enabled: newSponsors
           })
         });
         if (updated) applyBootstrapData(updated);
@@ -13903,10 +14088,17 @@
         if (act === 'new-trip') openTripModal(null);
         else if (act === 'new-expense') openExpenseModal(null);
         else if (act === 'goto-dashboard') switchView('dashboard');
+        else if (act === 'goto-rewards') switchView('rewards');
         else if (act === 'new-revenue') {
           document.getElementById('rev-date').value = new Date().toISOString().slice(0, 10);
           openModal('modal-revenue');
         } else if (act === 'export-csv') triggerCsvExport();
+        return;
+      }
+
+      if (e.target.closest('#btn-help-step-rewards')) {
+        e.preventDefault();
+        switchView('rewards');
         return;
       }
 
@@ -14198,14 +14390,13 @@
         e.preventDefault();
         const tripId = delTripBtn.getAttribute('data-delete-trip');
         const tr = state.trips.find(x => x.id === tripId);
-        const name = tr ? tr.name : 'this production trip';
+        const name = tr ? tr.name : 'this trip';
         const linkedExps = state.expenses.filter(x => x.trip_id === tripId).length;
-        const linkedRevs = state.revenues.filter(x => x.trip_id === tripId).length;
-        const extraNote = (linkedExps > 0 || linkedRevs > 0)
-          ? `⚠️ Deleting this trip will also remove its ${linkedExps} logged expense(s) and ${linkedRevs} revenue item(s).`
+        const extraNote = linkedExps > 0
+          ? `⚠️ Deleting this trip will also remove its ${linkedExps} logged expense(s).`
           : 'This action cannot be undone.';
         const ok = await confirmDelete({
-          title: 'Delete Production Trip',
+          title: 'Delete Trip',
           message: `Are you sure you want to delete "${name}"?`,
           extra: extraNote
         });
