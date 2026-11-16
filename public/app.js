@@ -2546,6 +2546,18 @@
     }
   }
 
+  function getExpenseCreditUsd(e) {
+    if (!e) return 0;
+    return Math.max(0, Number(e.credit_usd) || 0);
+  }
+
+  function getExpenseNetUsd(e) {
+    if (!e) return 0;
+    const gross = Number(e.amount_usd) || 0;
+    const cred = getExpenseCreditUsd(e);
+    return Math.max(0, Number((gross - cred).toFixed(2)));
+  }
+
   function getScopedTrips() {
     if (state.selectedTripId === 'all') return state.trips;
     return state.trips.filter(t => t.id === state.selectedTripId);
@@ -2657,7 +2669,7 @@
       sidebarList.innerHTML = state.trips.map(t => {
         const tripSpend = state.expenses
           .filter(e => e.trip_id === t.id)
-          .reduce((sum, e) => sum + (Number(e.amount_usd) || 0), 0);
+          .reduce((sum, e) => sum + getExpenseNetUsd(e), 0);
         const isSelected = state.selectedTripId === t.id;
         return `
           <li>
@@ -2773,10 +2785,12 @@
     const trips = getScopedTrips();
     const expenses = getScopedExpenses();
 
-    const totalSpend = expenses.reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
+    const grossSpend = expenses.reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
+    const totalCredits = expenses.reduce((s, e) => s + getExpenseCreditUsd(e), 0);
+    const totalSpend = expenses.reduce((s, e) => s + getExpenseNetUsd(e), 0);
     const deductibleSpend = expenses
       .filter(e => e.tax_deductible)
-      .reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
+      .reduce((s, e) => s + getExpenseNetUsd(e), 0);
     const taxPct = totalSpend > 0 ? Math.round((deductibleSpend / totalSpend) * 100) : 100;
     const receiptsCount = expenses.filter(e => e.receipt_data).length;
 
@@ -2789,10 +2803,10 @@
 
     const hotelSpend = expenses
       .filter(e => e.category === 'Hotels & Lodging')
-      .reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
+      .reduce((s, e) => s + getExpenseNetUsd(e), 0);
     const mealSpend = expenses
       .filter(e => e.category === 'Dining & Meals' || e.category === 'Meals & Craft')
-      .reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
+      .reduce((s, e) => s + getExpenseNetUsd(e), 0);
 
     const allRedemptions = (state.rewards && Array.isArray(state.rewards.redemptions)) ? state.rewards.redemptions : [];
     const scopedRedemptions = state.selectedTripId === 'all'
@@ -2802,13 +2816,24 @@
     const allRewardsSaved = allRedemptions.reduce((s, r) => s + (Number(r.net_saved_usd) || 0), 0);
     const pointsUsed = scopedRedemptions.reduce((s, r) => s + (Number(r.points_used) || 0), 0);
 
+    const creditItems = expenses.filter(e => getExpenseCreditUsd(e) > 0);
+    const unverifiedCreditItems = creditItems.filter(e => !e.credit_verified);
+    const verifiedCreditsUsd = creditItems
+      .filter(e => e.credit_verified)
+      .reduce((s, e) => s + getExpenseCreditUsd(e), 0);
+    const totalRewardsAndCreditsSaved = tripRewardsSaved + totalCredits;
+
     const reimbursableTotal = expenses
       .filter(e => e.reimbursable)
-      .reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
+      .reduce((s, e) => s + getExpenseNetUsd(e), 0);
 
     document.getElementById('kpi-total-spend').textContent = fmtUsd(totalSpend);
-    document.getElementById('kpi-tax-pct-tag').textContent = `${taxPct}% Tax Deductible`;
-    document.getElementById('kpi-expense-items-sub').textContent = `${expenses.length} itemized entries`;
+    document.getElementById('kpi-tax-pct-tag').textContent = totalCredits > 0
+      ? `💳 -${fmtUsdCompact(totalCredits)} Credit`
+      : `${taxPct}% Deductible`;
+    document.getElementById('kpi-expense-items-sub').textContent = totalCredits > 0
+      ? `Gross: ${fmtUsd(grossSpend)}`
+      : `${expenses.length} itemized entries`;
     document.getElementById('kpi-cost-per-video').textContent = `🧾 ${receiptsCount}/${expenses.length} receipts`;
 
     const remEl = document.getElementById('kpi-budget-remaining');
@@ -2844,20 +2869,36 @@
     document.getElementById('kpi-meal-share').textContent = `Meals: ${fmtUsdCompact(mealSpend)}`;
 
     const netEl = document.getElementById('kpi-net-profit');
-    netEl.textContent = fmtUsd(tripRewardsSaved);
+    netEl.textContent = fmtUsd(totalRewardsAndCreditsSaved);
     netEl.style.color = 'var(--accent-primary)';
-    document.getElementById('kpi-roi-multiple-tag').textContent = scopedRedemptions.length > 0
-      ? `🏆 ${scopedRedemptions.length} Redemption${scopedRedemptions.length === 1 ? '' : 's'}`
-      : '🏆 Loyalty Value';
-    document.getElementById('kpi-total-revenue-sub').textContent = pointsUsed > 0
-      ? `Pts Used: ${pointsUsed.toLocaleString()} pts`
-      : (allRewardsSaved > 0 ? `Portfolio Saved: ${fmtUsdCompact(allRewardsSaved)}` : 'Pts Used: 0');
-    document.getElementById('kpi-reimbursable-sub').textContent = `Reimburse: ${fmtUsdCompact(reimbursableTotal)}`;
+    const roiTagEl = document.getElementById('kpi-roi-multiple-tag');
+    if (roiTagEl) {
+      if (unverifiedCreditItems.length > 0) {
+        roiTagEl.className = 'kpi-tag warning';
+        roiTagEl.textContent = `⏳ ${unverifiedCreditItems.length} Unverified Credit${unverifiedCreditItems.length === 1 ? '' : 's'}`;
+      } else if (creditItems.length > 0) {
+        roiTagEl.className = 'kpi-tag positive';
+        roiTagEl.textContent = `✅ Credits Verified`;
+      } else {
+        roiTagEl.className = 'kpi-tag positive';
+        roiTagEl.textContent = scopedRedemptions.length > 0
+          ? `🏆 ${scopedRedemptions.length} Redemption${scopedRedemptions.length === 1 ? '' : 's'}`
+          : '🏆 Loyalty Value';
+      }
+    }
+    document.getElementById('kpi-total-revenue-sub').textContent = totalCredits > 0
+      ? `Card Credits: ${fmtUsd(totalCredits)}${tripRewardsSaved > 0 ? ` • Pts: ${fmtUsdCompact(tripRewardsSaved)}` : ''}`
+      : (pointsUsed > 0
+        ? `Pts Used: ${pointsUsed.toLocaleString()} pts`
+        : (allRewardsSaved > 0 ? `Portfolio Saved: ${fmtUsdCompact(allRewardsSaved)}` : 'Card Credits: $0'));
+    document.getElementById('kpi-reimbursable-sub').textContent = totalCredits > 0
+      ? `Verified: ${fmtUsd(verifiedCreditsUsd)} / ${fmtUsd(totalCredits)}`
+      : `Reimburse: ${fmtUsdCompact(reimbursableTotal)}`;
   }
 
   function renderCategoryBreakdown() {
     const expenses = getScopedExpenses();
-    const totalSpend = expenses.reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
+    const totalSpend = expenses.reduce((s, e) => s + getExpenseNetUsd(e), 0);
 
     const clearBtn = document.getElementById('btn-clear-cat-filter');
     if (clearBtn) clearBtn.style.display = state.categoryFilter === 'all' ? 'none' : 'inline-flex';
@@ -2867,7 +2908,7 @@
       totalsByCat[cat] = 0;
     }
     for (const exp of expenses) {
-      totalsByCat[exp.category] = (totalsByCat[exp.category] || 0) + (Number(exp.amount_usd) || 0);
+      totalsByCat[exp.category] = (totalsByCat[exp.category] || 0) + getExpenseNetUsd(exp);
     }
 
     const sortedCats = Object.entries(totalsByCat).sort((a, b) => b[1] - a[1]);
@@ -2915,7 +2956,7 @@
     const mapByDate = new Map();
     for (const e of expenses) {
       const d = e.expense_date;
-      mapByDate.set(d, (mapByDate.get(d) || 0) + (Number(e.amount_usd) || 0));
+      mapByDate.set(d, (mapByDate.get(d) || 0) + getExpenseNetUsd(e));
     }
 
     const sortedDates = Array.from(mapByDate.entries())
@@ -2973,11 +3014,13 @@
     const filtered = expenses.filter(e => {
       if (state.categoryFilter !== 'all' && e.category !== state.categoryFilter) return false;
       if (state.currencyFilter !== 'all' && e.currency !== state.currencyFilter) return false;
+      if (state.specialFilter === 'with_credit' && getExpenseCreditUsd(e) <= 0) return false;
+      if (state.specialFilter === 'unverified_credit' && (getExpenseCreditUsd(e) <= 0 || e.credit_verified)) return false;
       if (state.specialFilter === 'receipts' && !e.receipt_data) return false;
       if (state.specialFilter === 'missing_receipt' && (e.receipt_data || e.amount_usd < 75)) return false;
       if (state.specialFilter === 'reimbursable' && !e.reimbursable) return false;
       if (q) {
-        const hay = `${e.title} ${e.vendor} ${e.category} ${e.notes} ${e.currency} ${e.paid_by}`.toLowerCase();
+        const hay = `${e.title} ${e.vendor} ${e.category} ${e.notes} ${e.credit_note || ''} ${e.currency} ${e.paid_by}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -3000,6 +3043,10 @@
       const trip = tripMap.get(e.trip_id);
       const meta = CATEGORY_META[e.category] || { color: 'var(--accent-sky)', icon: '📌' };
       const isForeign = e.currency !== 'USD';
+      const grossUsd = Number(e.amount_usd) || 0;
+      const creditUsd = getExpenseCreditUsd(e);
+      const netUsd = getExpenseNetUsd(e);
+      const isVerified = Boolean(e.credit_verified);
 
       return `
         <tr>
@@ -3012,6 +3059,7 @@
               <span class="expense-vendor">
                 ${escapeHtml(e.vendor || 'Direct Vendor')}
                 ${e.notes ? ` • <em>${escapeHtml(e.notes)}</em>` : ''}
+                ${e.credit_note ? ` • <span style="color: var(--accent-emerald); font-weight: 600;">💳 ${escapeHtml(e.credit_note)}</span>` : ''}
               </span>
             </div>
           </td>
@@ -3031,7 +3079,15 @@
             }
           </td>
           <td class="mono" style="text-align: right; font-weight: 700; font-size: 14px; white-space: nowrap;">
-            ${fmtUsd(e.amount_usd)}
+            <div>${fmtUsd(netUsd)}</div>
+            ${creditUsd > 0 ? `
+              <div style="font-size: 11px; color: var(--text-muted); text-decoration: line-through; font-weight: 500; margin-top: 1px;">Gross: ${fmtUsd(grossUsd)}</div>
+              <div style="margin-top: 3px;">
+                <button type="button" class="kpi-tag ${isVerified ? 'positive' : 'warning'}" data-toggle-exp-credit-verified="${escapeHtml(e.id)}" style="cursor: pointer; border: 1px solid ${isVerified ? 'rgba(16,185,129,0.45)' : 'rgba(245,158,11,0.5)'}; font-size: 10.5px; padding: 2px 7px;" title="${isVerified ? 'Verified on credit card statement (Click to unverify)' : 'Click once you check your credit card statement & confirm you received this credit'}">
+                  ${isVerified ? `✅ -${fmtUsd(creditUsd)} Verified` : `⏳ -${fmtUsd(creditUsd)} Unverified`}
+                </button>
+              </div>
+            ` : ''}
           </td>
           <td style="font-size: 12.5px; white-space: nowrap;">
             <div>${escapeHtml(e.payment_method)}</div>
@@ -3063,9 +3119,10 @@
     const allRedemptions = (state.rewards && Array.isArray(state.rewards.redemptions)) ? state.rewards.redemptions : [];
     grid.innerHTML = state.trips.map(t => {
       const exps = state.expenses.filter(e => e.trip_id === t.id);
-      const spend = exps.reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
+      const spend = exps.reduce((s, e) => s + getExpenseNetUsd(e), 0);
+      const tripCredits = exps.reduce((s, e) => s + getExpenseCreditUsd(e), 0);
       const tripReds = allRedemptions.filter(r => r.trip_id === t.id);
-      const rewardsSaved = tripReds.reduce((s, r) => s + (Number(r.net_saved_usd) || 0), 0);
+      const rewardsSaved = tripReds.reduce((s, r) => s + (Number(r.net_saved_usd) || 0), 0) + tripCredits;
       const budgetLeft = (Number(t.budget_usd) || 0) - spend;
       const days = computeDaysBetween(t.start_date, t.end_date);
       const pct = t.budget_usd > 0 ? Math.min(100, Math.round((spend / t.budget_usd) * 100)) : 0;
@@ -3228,7 +3285,7 @@
     }
 
     for (const e of expenses) {
-      const amt = Number(e.amount_usd) || 0;
+      const amt = getExpenseNetUsd(e);
       const catConfig = catMap.get(e.category);
       const isMeal = catConfig ? catConfig.deductible === 'meal' : (e.category === 'Dining & Meals' || e.category === 'Meals & Craft');
       const isDeductible = e.tax_deductible && (!catConfig || catConfig.deductible !== '0');
@@ -3630,6 +3687,20 @@
     const usd = amt * rate;
     const prev = document.getElementById('exp-usd-preview');
     if (prev) prev.textContent = `${fmtUsd(usd)} USD`;
+
+    const credEl = document.getElementById('exp-credit-usd');
+    const netWrap = document.getElementById('exp-net-cost-preview-wrap');
+    const netPrev = document.getElementById('exp-net-usd-preview');
+    const credUsd = Math.max(0, Number(credEl ? credEl.value : 0) || 0);
+    const netUsd = Math.max(0, usd - credUsd);
+    if (netWrap && netPrev) {
+      if (credUsd > 0) {
+        netWrap.style.display = 'block';
+        netPrev.textContent = `${fmtUsd(netUsd)} USD (Saved ${fmtUsd(credUsd)})`;
+      } else {
+        netWrap.style.display = 'none';
+      }
+    }
   }
 
   function openExpenseModal(editExpense = null) {
@@ -3642,6 +3713,9 @@
     const amtInput = document.getElementById('exp-amount-original');
     const currSelect = document.getElementById('exp-currency');
     const rateInput = document.getElementById('exp-rate');
+    const creditUsdInput = document.getElementById('exp-credit-usd');
+    const creditNoteInput = document.getElementById('exp-credit-note');
+    const creditVerifiedCheck = document.getElementById('exp-credit-verified');
     const catInput = document.getElementById('exp-category');
     const paySelect = document.getElementById('exp-payment-method');
     const paidByInput = document.getElementById('exp-paid-by');
@@ -3651,7 +3725,7 @@
     const receiptStatus = document.getElementById('exp-receipt-status');
 
     if (editExpense) {
-      titleEl.textContent = 'Edit Road Expense';
+      titleEl.textContent = 'Edit Trip Expense';
       idInput.value = editExpense.id;
       tripSelect.value = editExpense.trip_id;
       dateInput.value = editExpense.expense_date;
@@ -3660,6 +3734,9 @@
       amtInput.value = editExpense.amount_original;
       currSelect.value = editExpense.currency;
       rateInput.value = editExpense.exchange_rate;
+      if (creditUsdInput) creditUsdInput.value = Number(editExpense.credit_usd) || 0;
+      if (creditNoteInput) creditNoteInput.value = editExpense.credit_note || '';
+      if (creditVerifiedCheck) creditVerifiedCheck.checked = Boolean(editExpense.credit_verified);
       catInput.value = editExpense.category;
       paySelect.value = editExpense.payment_method;
       paidByInput.value = editExpense.paid_by;
@@ -3672,7 +3749,7 @@
         ? `✓ Receipt attached (${state.pendingReceiptName || 'image'}) — tap to replace`
         : '📸 Tap to snap receipt photo on phone or upload invoice image';
     } else {
-      titleEl.textContent = 'Quick Add Road Expense';
+      titleEl.textContent = 'Quick Add Trip Expense';
       idInput.value = '';
       const defaultTripId = state.selectedTripId !== 'all'
         ? state.selectedTripId
@@ -3688,9 +3765,12 @@
       amtInput.value = '';
       currSelect.value = defaultCurr;
       rateInput.value = defaultRate;
+      if (creditUsdInput) creditUsdInput.value = 0;
+      if (creditNoteInput) creditNoteInput.value = '';
+      if (creditVerifiedCheck) creditVerifiedCheck.checked = false;
       catInput.value = 'Hotels & Lodging';
-      paySelect.value = 'Amex Business Platinum';
-      paidByInput.value = 'Channel Card';
+      paySelect.value = 'Capital One Venture X';
+      paidByInput.value = 'Primary Card';
       taxCheck.checked = true;
       reimbCheck.checked = false;
       notesInput.value = '';
@@ -3760,15 +3840,18 @@
 
     const headers = [
       'Expense Date',
-      'Trip / Shoot',
+      'Trip',
       'Destination',
-      'Category (IRS Schedule C)',
+      'Category',
       'Item Description',
       'Vendor / Merchant',
       'Original Amount',
       'Original Currency',
       'FX Rate to USD',
-      'Amount (USD)',
+      'Gross Amount (USD)',
+      'Card Credit (USD)',
+      'Credit Verified?',
+      'Net Amount (USD)',
       'Tax Deductible?',
       'Deductible Amount (USD)',
       'Payment Method',
@@ -3783,10 +3866,12 @@
     for (const exp of filtered) {
       const trip = tripMap.get(exp.trip_id);
       const catConfig = catMap.get(exp.category);
-      const isMeal = catConfig ? catConfig.deductible === 'meal' : (exp.category === 'Meals & Craft');
+      const isMeal = catConfig ? catConfig.deductible === 'meal' : (exp.category === 'Dining & Meals' || exp.category === 'Meals & Craft');
       const isDeductible = exp.tax_deductible && (!catConfig || catConfig.deductible !== '0');
       const dedMultiplier = isDeductible ? (isMeal ? mealRate : 1.0) : 0.0;
-      const deductibleUsd = (exp.amount_usd * dedMultiplier).toFixed(2);
+      const netUsd = getExpenseNetUsd(exp);
+      const credUsd = getExpenseCreditUsd(exp);
+      const deductibleUsd = (netUsd * dedMultiplier).toFixed(2);
       const schedLine = catConfig && catConfig.schedule_c ? `${exp.category} [${catConfig.schedule_c}]` : exp.category;
       const row = [
         exp.expense_date,
@@ -3798,22 +3883,25 @@
         exp.amount_original,
         exp.currency,
         exp.exchange_rate,
-        Number(exp.amount_usd).toFixed(2),
+        Number(exp.amount_usd || 0).toFixed(2),
+        credUsd.toFixed(2),
+        credUsd > 0 ? (exp.credit_verified ? 'Verified' : 'Unverified') : 'N/A',
+        netUsd.toFixed(2),
         exp.tax_deductible ? 'Yes' : 'No',
         deductibleUsd,
         exp.payment_method,
         exp.paid_by,
         exp.reimbursable ? 'Yes' : 'No',
         exp.receipt_data ? 'Yes' : 'No',
-        exp.notes
+        [exp.notes, exp.credit_note ? `[Credit: ${exp.credit_note}]` : ''].filter(Boolean).join(' ')
       ];
       rows.push(row.map(escapeCsvCell).join(','));
     }
 
     const csvContent = rows.join('\n');
     const filename = state.selectedTripId === 'all'
-      ? 'creator-tax-expenses-all-trips.csv'
-      : `creator-tax-expenses-${state.selectedTripId}.csv`;
+      ? 'wander-wallet-trip-expenses-all.csv'
+      : `wander-wallet-trip-expenses-${state.selectedTripId}.csv`;
 
     const textarea = document.getElementById('csv-export-textarea');
     const dlBtn = document.getElementById('btn-direct-csv-download');
@@ -3837,7 +3925,7 @@
       URL.revokeObjectURL(url);
     } catch (e) {}
 
-    showToast('Generated Accountant Tax CSV');
+    showToast('Generated Trip Expense CSV');
   }
 
   async function saveExpenseFromModal() {
@@ -3850,6 +3938,13 @@
     }
     const id = document.getElementById('exp-id').value;
     const rate = Number(document.getElementById('exp-rate').value) || 1;
+    const creditUsdEl = document.getElementById('exp-credit-usd');
+    const creditNoteEl = document.getElementById('exp-credit-note');
+    const creditVerifiedEl = document.getElementById('exp-credit-verified');
+    const grossUsd = Number((amtOrig * rate).toFixed(2));
+    const creditUsd = Math.max(0, Number(((Number(creditUsdEl ? creditUsdEl.value : 0) || 0)).toFixed(2)));
+    const netUsd = Math.max(0, Number((grossUsd - creditUsd).toFixed(2)));
+
     const payload = {
       trip_id: document.getElementById('exp-trip-id').value,
       expense_date: document.getElementById('exp-date').value || new Date().toISOString().slice(0, 10),
@@ -3859,9 +3954,12 @@
       amount_original: amtOrig,
       currency: document.getElementById('exp-currency').value,
       exchange_rate: rate,
-      amount_usd: Number((amtOrig * rate).toFixed(2)),
+      amount_usd: grossUsd,
+      credit_usd: creditUsd,
+      credit_verified: creditVerifiedEl && creditVerifiedEl.checked ? 1 : 0,
+      credit_note: creditNoteEl ? creditNoteEl.value.trim() : '',
       payment_method: document.getElementById('exp-payment-method').value,
-      paid_by: document.getElementById('exp-paid-by').value.trim() || 'Channel Card',
+      paid_by: document.getElementById('exp-paid-by').value.trim() || 'Primary Card',
       tax_deductible: document.getElementById('exp-tax-deductible').checked ? 1 : 0,
       reimbursable: document.getElementById('exp-reimbursable').checked ? 1 : 0,
       receipt_data: state.pendingReceiptData,
@@ -3874,7 +3972,11 @@
     const updated = await apiRequest(url, { method, body: JSON.stringify(payload) });
     if (updated) applyBootstrapData(updated);
     closeModal('modal-expense');
-    showToast(id ? 'Expense updated' : `Saved ${payload.title} (${fmtUsd(payload.amount_usd)})`);
+    if (creditUsd > 0) {
+      showToast(`${id ? 'Updated' : 'Saved'} ${payload.title}: Net ${fmtUsd(netUsd)} (Saved ${fmtUsd(creditUsd)} credit)`);
+    } else {
+      showToast(id ? 'Expense updated' : `Saved ${payload.title} (${fmtUsd(payload.amount_usd)})`);
+    }
   }
 
   async function saveTripFromModal() {
@@ -11898,6 +12000,8 @@
     if (amtEl) amtEl.addEventListener('input', updateExpenseConversionPreview);
     const rateEl = document.getElementById('exp-rate');
     if (rateEl) rateEl.addEventListener('input', updateExpenseConversionPreview);
+    const creditUsdEl = document.getElementById('exp-credit-usd');
+    if (creditUsdEl) creditUsdEl.addEventListener('input', updateExpenseConversionPreview);
 
     const expTripEl = document.getElementById('exp-trip-id');
     if (expTripEl) {
@@ -14343,6 +14447,34 @@
           dl.href = exp.receipt_data;
           dl.download = exp.receipt_name || `receipt-${exp.id}.png`;
           openModal('modal-receipt-preview');
+        }
+        return;
+      }
+
+      // Toggle Expense Card / Statement Credit Verification directly from Ledger row
+      const toggleExpCredBtn = e.target.closest('[data-toggle-exp-credit-verified]');
+      if (toggleExpCredBtn) {
+        e.preventDefault();
+        const expId = toggleExpCredBtn.getAttribute('data-toggle-exp-credit-verified');
+        const exp = state.expenses.find(x => x.id === expId);
+        if (exp) {
+          const nextVerified = exp.credit_verified ? 0 : 1;
+          exp.credit_verified = nextVerified;
+          const payload = {
+            ...exp,
+            credit_verified: nextVerified
+          };
+          const updated = await apiRequest(`/api/expenses/${encodeURIComponent(expId)}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+          });
+          if (updated) applyBootstrapData(updated);
+          else renderAll();
+          showToast(
+            nextVerified
+              ? `✅ Verified ${fmtUsd(getExpenseCreditUsd(exp))} credit on statement for "${exp.title}"!`
+              : `⏳ Marked ${fmtUsd(getExpenseCreditUsd(exp))} credit as unverified`
+          );
         }
         return;
       }

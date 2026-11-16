@@ -77,6 +77,9 @@ db.exec(`
     receipt_data TEXT DEFAULT '',
     receipt_name TEXT DEFAULT '',
     notes TEXT DEFAULT '',
+    credit_usd REAL NOT NULL DEFAULT 0,
+    credit_verified INTEGER NOT NULL DEFAULT 0,
+    credit_note TEXT DEFAULT '',
     created_at TEXT NOT NULL,
     FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE
   );
@@ -96,6 +99,11 @@ db.exec(`
     FOREIGN KEY (trip_id) REFERENCES trips(id) ON DELETE CASCADE
   );
 `);
+
+// Safe schema migrations for existing SQLite databases
+try { db.exec('ALTER TABLE expenses ADD COLUMN credit_usd REAL NOT NULL DEFAULT 0'); } catch (e) {}
+try { db.exec('ALTER TABLE expenses ADD COLUMN credit_verified INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
+try { db.exec("ALTER TABLE expenses ADD COLUMN credit_note TEXT DEFAULT ''"); } catch (e) {}
 
 const DEFAULT_RATES = {
   USD: 1.0,
@@ -1699,8 +1707,8 @@ const server = http.createServer(async (req, res) => {
               id, trip_id, title, vendor, category, expense_date,
               amount_original, currency, exchange_rate, amount_usd,
               payment_method, paid_by, tax_deductible, reimbursable,
-              receipt_data, receipt_name, notes, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              receipt_data, receipt_name, notes, credit_usd, credit_verified, credit_note, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `);
           for (const e of body.expenses) {
             insExp.run(
@@ -1708,19 +1716,22 @@ const server = http.createServer(async (req, res) => {
               e.trip_id,
               e.title || 'Untitled Expense',
               e.vendor || '',
-              e.category || 'Meals & Craft',
+              e.category || 'Dining & Meals',
               e.expense_date || now.slice(0, 10),
               Number(e.amount_original) || 0,
               e.currency || 'USD',
               Number(e.exchange_rate) || 1,
               Number(e.amount_usd) || 0,
-              e.payment_method || 'Amex Business Platinum',
-              e.paid_by || 'Channel Card',
+              e.payment_method || 'Primary Card',
+              e.paid_by || 'Primary Card',
               e.tax_deductible === false || e.tax_deductible === 0 ? 0 : 1,
               e.reimbursable ? 1 : 0,
               e.receipt_data || '',
               e.receipt_name || '',
               e.notes || '',
+              Number(e.credit_usd) || 0,
+              e.credit_verified ? 1 : 0,
+              e.credit_note || '',
               e.created_at || now
             );
           }
@@ -1853,32 +1864,38 @@ const server = http.createServer(async (req, res) => {
       const amountUsd = body.amount_usd !== undefined
         ? Number(body.amount_usd)
         : Number((amountOriginal * exchangeRate).toFixed(2));
+      const creditUsd = Math.max(0, Number(body.credit_usd) || 0);
+      const creditVerified = body.credit_verified ? 1 : 0;
+      const creditNote = String(body.credit_note || '').trim();
 
       db.prepare(`
         INSERT OR REPLACE INTO expenses (
           id, trip_id, title, vendor, category, expense_date,
           amount_original, currency, exchange_rate, amount_usd,
           payment_method, paid_by, tax_deductible, reimbursable,
-          receipt_data, receipt_name, notes, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          receipt_data, receipt_name, notes, credit_usd, credit_verified, credit_note, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
         body.trip_id,
         body.title || 'Untitled Expense',
         body.vendor || '',
-        body.category || 'Meals & Craft',
+        body.category || 'Dining & Meals',
         body.expense_date || new Date().toISOString().slice(0, 10),
         amountOriginal,
         body.currency || 'USD',
         exchangeRate,
         amountUsd,
-        body.payment_method || 'Amex Business Platinum',
-        body.paid_by || 'Channel Card',
+        body.payment_method || 'Primary Card',
+        body.paid_by || 'Primary Card',
         body.tax_deductible === false || body.tax_deductible === 0 ? 0 : 1,
         body.reimbursable ? 1 : 0,
         body.receipt_data || '',
         body.receipt_name || '',
         body.notes || '',
+        creditUsd,
+        creditVerified,
+        creditNote,
         now
       );
       markServerModified();
@@ -1898,13 +1915,17 @@ const server = http.createServer(async (req, res) => {
       const amountUsd = body.amount_usd !== undefined
         ? Number(body.amount_usd)
         : Number((amountOriginal * exchangeRate).toFixed(2));
+      const creditUsd = Math.max(0, Number(body.credit_usd) || 0);
+      const creditVerified = body.credit_verified ? 1 : 0;
+      const creditNote = String(body.credit_note || '').trim();
 
       db.prepare(`
         UPDATE expenses
         SET trip_id = ?, title = ?, vendor = ?, category = ?, expense_date = ?,
             amount_original = ?, currency = ?, exchange_rate = ?, amount_usd = ?,
             payment_method = ?, paid_by = ?, tax_deductible = ?, reimbursable = ?,
-            receipt_data = ?, receipt_name = ?, notes = ?
+            receipt_data = ?, receipt_name = ?, notes = ?,
+            credit_usd = ?, credit_verified = ?, credit_note = ?
         WHERE id = ?
       `).run(
         body.trip_id,
@@ -1916,13 +1937,16 @@ const server = http.createServer(async (req, res) => {
         body.currency || 'USD',
         exchangeRate,
         amountUsd,
-        body.payment_method || 'Amex Business Platinum',
-        body.paid_by || 'Channel Card',
+        body.payment_method || 'Primary Card',
+        body.paid_by || 'Primary Card',
         body.tax_deductible === false || body.tax_deductible === 0 ? 0 : 1,
         body.reimbursable ? 1 : 0,
         body.receipt_data || '',
         body.receipt_name || '',
         body.notes || '',
+        creditUsd,
+        creditVerified,
+        creditNote,
         id
       );
       markServerModified();
@@ -2136,15 +2160,18 @@ const server = http.createServer(async (req, res) => {
       const filtered = data.expenses.filter(e => tripFilter === 'all' || e.trip_id === tripFilter);
       const headers = [
         'Expense Date',
-        'Trip / Shoot',
+        'Trip',
         'Destination',
-        'Category (IRS Schedule C)',
+        'Category',
         'Item Description',
         'Vendor / Merchant',
         'Original Amount',
         'Original Currency',
         'FX Rate to USD',
-        'Amount (USD)',
+        'Gross Amount (USD)',
+        'Card Credit (USD)',
+        'Credit Verified?',
+        'Net Amount (USD)',
         'Tax Deductible?',
         'Deductible Amount (USD)',
         'Payment Method',
@@ -2157,9 +2184,12 @@ const server = http.createServer(async (req, res) => {
       const rows = [headers.map(escapeCsvCell).join(',')];
       for (const exp of filtered) {
         const trip = tripMap.get(exp.trip_id);
-        const isMeal = exp.category === 'Meals & Craft';
+        const isMeal = exp.category === 'Dining & Meals' || exp.category === 'Meals & Craft';
         const dedMultiplier = exp.tax_deductible ? (isMeal ? mealRate : 1.0) : 0.0;
-        const deductibleUsd = (exp.amount_usd * dedMultiplier).toFixed(2);
+        const grossUsd = Number(exp.amount_usd) || 0;
+        const creditUsd = Math.max(0, Number(exp.credit_usd) || 0);
+        const netUsd = Math.max(0, grossUsd - creditUsd);
+        const deductibleUsd = (netUsd * dedMultiplier).toFixed(2);
         const row = [
           exp.expense_date,
           trip ? trip.name : exp.trip_id,
@@ -2170,21 +2200,24 @@ const server = http.createServer(async (req, res) => {
           exp.amount_original,
           exp.currency,
           exp.exchange_rate,
-          Number(exp.amount_usd).toFixed(2),
+          grossUsd.toFixed(2),
+          creditUsd.toFixed(2),
+          creditUsd > 0 ? (exp.credit_verified ? 'Verified' : 'Unverified') : 'N/A',
+          netUsd.toFixed(2),
           exp.tax_deductible ? 'Yes' : 'No',
           deductibleUsd,
           exp.payment_method,
           exp.paid_by,
           exp.reimbursable ? 'Yes' : 'No',
           exp.receipt_data ? 'Yes' : 'No',
-          exp.notes
+          [exp.notes, exp.credit_note ? `[Credit: ${exp.credit_note}]` : ''].filter(Boolean).join(' ')
         ];
         rows.push(row.map(escapeCsvCell).join(','));
       }
 
       const filename = tripFilter === 'all'
-        ? 'creator-tax-expenses-all-trips.csv'
-        : `creator-tax-expenses-${tripFilter}.csv`;
+        ? 'wander-wallet-trip-expenses-all.csv'
+        : `wander-wallet-trip-expenses-${tripFilter}.csv`;
 
       res.writeHead(200, {
         'Content-Type': 'text/csv; charset=utf-8',
