@@ -105,6 +105,7 @@ db.exec(`
 try { db.exec('ALTER TABLE expenses ADD COLUMN credit_usd REAL NOT NULL DEFAULT 0'); } catch (e) {}
 try { db.exec('ALTER TABLE expenses ADD COLUMN credit_verified INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
 try { db.exec("ALTER TABLE expenses ADD COLUMN credit_note TEXT DEFAULT ''"); } catch (e) {}
+try { db.exec("ALTER TABLE trips ADD COLUMN cover_photo TEXT DEFAULT ''"); } catch (e) {}
 travelEngine.initTravelSchema(db);
 
 const DEFAULT_RATES = {
@@ -1918,8 +1919,8 @@ const server = http.createServer(async (req, res) => {
       const id = body.id || ('trip-' + Date.now());
       const now = new Date().toISOString();
       db.prepare(`
-        INSERT OR REPLACE INTO trips (id, name, destination, country_code, default_currency, start_date, end_date, budget_usd, video_count, status, notes, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO trips (id, name, destination, country_code, default_currency, start_date, end_date, budget_usd, video_count, status, notes, cover_photo, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
         body.name || 'Untitled Trip',
@@ -1932,6 +1933,7 @@ const server = http.createServer(async (req, res) => {
         Number(body.video_count) || 1,
         body.status || 'active',
         body.notes || '',
+        body.cover_photo || '',
         now
       );
       markServerModified();
@@ -1949,7 +1951,8 @@ const server = http.createServer(async (req, res) => {
       db.prepare(`
         UPDATE trips
         SET name = ?, destination = ?, country_code = ?, default_currency = ?,
-            start_date = ?, end_date = ?, budget_usd = ?, video_count = ?, status = ?, notes = ?
+            start_date = ?, end_date = ?, budget_usd = ?, video_count = ?, status = ?, notes = ?,
+            cover_photo = COALESCE(?, cover_photo)
         WHERE id = ?
       `).run(
         body.name,
@@ -1962,6 +1965,7 @@ const server = http.createServer(async (req, res) => {
         Number(body.video_count) || 1,
         body.status || 'active',
         body.notes || '',
+        body.cover_photo !== undefined ? body.cover_photo : null,
         id
       );
       markServerModified();

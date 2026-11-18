@@ -1147,7 +1147,7 @@
     revenues: [],
     rewards: getDefaultRewardsData(),
     selectedTripId: 'trip-japan-2026',
-    activeView: 'dashboard',
+    activeView: 'hub',
     rewardsTab: 'programs',
     adminTab: 'categories',
     rewardsEcoFilter: 'all',
@@ -3632,7 +3632,7 @@
     }
 
     state.activeView = viewName;
-    const views = ['dashboard', 'trips', 'travel', 'revenue', 'rewards', 'tax', 'admin'];
+    const views = ['hub', 'dashboard', 'trips', 'travel', 'revenue', 'rewards', 'tax', 'admin'];
     for (const v of views) {
       const el = document.getElementById(`view-${v}`);
       if (el) el.style.display = v === viewName ? 'block' : 'none';
@@ -3655,6 +3655,7 @@
     }
 
     const titles = {
+      hub: 'Central Trip Hub',
       dashboard: 'Trip Expense & Rewards Dashboard',
       trips: 'Trips & Budgets',
       travel: 'Travel & Itinerary Command Center',
@@ -3664,7 +3665,10 @@
       admin: 'Workspace Administration'
     };
     const heading = document.getElementById('main-page-heading');
-    if (heading) heading.textContent = titles[viewName] || 'Trip Expense & Rewards Dashboard';
+    if (heading) heading.textContent = titles[viewName] || 'Central Trip Hub';
+    if (viewName === 'hub' && window.WWTravel) {
+      window.WWTravel.renderHub();
+    }
     if (viewName === 'travel' && window.WWTravel) {
       window.WWTravel.render();
     }
@@ -15057,7 +15061,13 @@
     applyBootstrapData,
     showToast,
     switchView,
-    escapeHtml
+    escapeHtml,
+    setSelectedTrip(tripId) {
+      state.selectedTripId = tripId || 'all';
+      const sel = document.getElementById('global-trip-select');
+      if (sel) sel.value = state.selectedTripId;
+      renderAll();
+    }
   };
 
   if (document.readyState === 'loading') {

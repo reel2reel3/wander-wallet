@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wanderwallet-finance-v24';
+const CACHE_NAME = 'wanderwallet-finance-v25';
 const ASSETS = [
   '/',
   '/index.html',

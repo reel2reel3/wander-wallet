@@ -173,6 +173,10 @@
       badge.textContent = pendingCount > 0 ? `${pendingCount} new` : String(resCount);
       badge.style.color = pendingCount > 0 ? 'var(--accent-amber)' : 'var(--accent-sky)';
     }
+    const hubBadge = document.getElementById('badge-hub-count');
+    if (hubBadge) {
+      hubBadge.textContent = String((s.trips || []).length);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1366,11 +1370,260 @@
     window.history.replaceState({}, '', window.location.pathname);
   }
 
+  // ---------------------------------------------------------------------------
+  // Central Trip Hub (Screenshot-Inspired Independent Dashboard Launcher)
+  // ---------------------------------------------------------------------------
+
+  const HUB_GRADIENTS = [
+    'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
+    'linear-gradient(135deg, #1a2980 0%, #26d0ce 100%)',
+    'linear-gradient(135deg, #2b5876 0%, #4e4376 100%)',
+    'linear-gradient(135deg, #134e5e 0%, #71b280 100%)',
+    'linear-gradient(135deg, #3a1c71 0%, #d76d77 50%, #ffaf7b 100%)'
+  ];
+
+  function getTripDaysCount(start, end) {
+    if (!start || !end) return 1;
+    const diff = Math.round((new Date(end + 'T00:00:00Z') - new Date(start + 'T00:00:00Z')) / 86400000) + 1;
+    return Math.max(1, isNaN(diff) ? 1 : diff);
+  }
+
+  function renderHub() {
+    const container = document.getElementById('view-hub');
+    if (!container) return;
+    const s = getAppData();
+    const trips = s.trips || [];
+    const allRes = s.reservations || [];
+    const allExp = s.expenses || [];
+
+    container.innerHTML = `
+      <div class="hub-header-row">
+        <div>
+          <h2 class="hub-main-title">Select a Trip to Open</h2>
+          <p class="hub-main-sub">Click any trip card to launch its independent Travel &amp; Itinerary Planner or Financial Ledger.</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-hub-new-trip">+ New Trip</button>
+      </div>
+
+      ${trips.length === 0 ? `
+        <section class="panel-card" style="text-align: center; padding: 48px 20px;">
+          <div style="font-size: 40px; margin-bottom: 10px;">🧭</div>
+          <h3 style="margin-bottom: 6px;">No trips yet</h3>
+          <p style="color: var(--text-secondary); margin-bottom: 16px;">Create your first trip to launch its Travel Planner and Financial Ledger.</p>
+          <button type="button" class="btn btn-primary" id="btn-hub-empty-new">+ Create First Trip</button>
+        </section>
+      ` : `
+        <div class="hub-cards-grid">
+          ${trips.map((t, idx) => {
+            const days = getTripDaysCount(t.start_date, t.end_date);
+            const bookingsCount = allRes.filter(r => r.trip_id === t.id).length;
+            const spentUsd = allExp.filter(e => e.trip_id === t.id).reduce((sum, e) => sum + (Number(e.amount_usd) || 0), 0);
+            const status = (t.status || 'active').toLowerCase();
+            const statusLabel = status === 'planning' ? 'PLANNING / WISHLIST' : status.toUpperCase();
+            const bgStyle = t.cover_photo
+              ? `background-image: url('${t.cover_photo}'); background-size: cover; background-position: center;`
+              : `background: ${HUB_GRADIENTS[idx % HUB_GRADIENTS.length]};`;
+
+            return `
+              <article class="hub-trip-card">
+                <div class="hub-card-hero" style="${bgStyle}">
+                  <div class="hub-card-hero-overlay"></div>
+                  <div class="hub-card-top-bar">
+                    <span class="hub-status-pill hub-status-${esc(status)}">${esc(statusLabel)}</span>
+                    <div class="hub-hero-actions">
+                      <button type="button" class="hub-hero-btn" data-hub-edit="${esc(t.id)}">✏️ Edit / Photo</button>
+                      <button type="button" class="hub-hero-btn hub-hero-del" data-hub-del="${esc(t.id)}" title="Delete Trip">🗑️</button>
+                    </div>
+                  </div>
+                  <div class="hub-card-hero-text">
+                    <div class="hub-card-dest">📍 ${esc(t.destination || 'Destination')}</div>
+                    <h3 class="hub-card-title">${esc(t.name)}</h3>
+                  </div>
+                </div>
+
+                <div class="hub-card-body">
+                  <p class="hub-card-desc">${esc(t.notes || `${t.start_date || ''} → ${t.end_date || ''}`)}</p>
+                  <div class="hub-stat-grid">
+                    <div class="hub-stat-box">
+                      <span class="hub-stat-label">SCHEDULE</span>
+                      <span class="hub-stat-val" style="color: var(--accent-sky);">${days} Day${days > 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="hub-stat-box">
+                      <span class="hub-stat-label">BOOKINGS</span>
+                      <span class="hub-stat-val" style="color: #f97316;">${bookingsCount} Item${bookingsCount !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div class="hub-stat-box">
+                      <span class="hub-stat-label">BUDGET</span>
+                      <span class="hub-stat-val" style="color: var(--accent-primary);">$${Number(t.budget_usd || 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  ${spentUsd > 0 ? `<div style="font-size: 11.5px; color: var(--text-secondary);">Spent so far: <strong class="mono">$${spentUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong></div>` : ''}
+                  <div class="hub-card-cta-row">
+                    <button type="button" class="hub-btn-primary" data-hub-open-travel="${esc(t.id)}">Open Travel Planner →</button>
+                    <button type="button" class="hub-btn-secondary" data-hub-open-finance="${esc(t.id)}">Finance Ledger</button>
+                  </div>
+                </div>
+              </article>
+            `;
+          }).join('')}
+        </div>
+      `}
+    `;
+
+    const openNew = () => openHubTripModal();
+    const btnNew = container.querySelector('#btn-hub-new-trip');
+    if (btnNew) btnNew.addEventListener('click', openNew);
+    const btnEmpty = container.querySelector('#btn-hub-empty-new');
+    if (btnEmpty) btnEmpty.addEventListener('click', openNew);
+
+    container.querySelectorAll('[data-hub-open-travel]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-hub-open-travel');
+        travelState.selectedTripId = id;
+        if (bridge()) {
+          bridge().setSelectedTrip(id);
+          bridge().switchView('travel');
+        }
+      });
+    });
+
+    container.querySelectorAll('[data-hub-open-finance]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-hub-open-finance');
+        if (bridge()) {
+          bridge().setSelectedTrip(id);
+          bridge().switchView('dashboard');
+        }
+      });
+    });
+
+    container.querySelectorAll('[data-hub-edit]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const t = trips.find(x => x.id === btn.getAttribute('data-hub-edit'));
+        if (t) openHubTripModal(t);
+      });
+    });
+
+    container.querySelectorAll('[data-hub-del]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-hub-del');
+        if (!confirm('Delete this trip and its expenses?')) return;
+        try {
+          const resp = await fetch(`/api/trips/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'same-origin' });
+          const data = await resp.json();
+          if (resp.ok && bridge()) {
+            bridge().applyBootstrapData(data);
+            toast('Trip deleted');
+            renderHub();
+          }
+        } catch (e) { toast(e.message); }
+      });
+    });
+  }
+
+  function openHubTripModal(existing = null) {
+    const isEdit = Boolean(existing && existing.id);
+    const modal = showTravelModal(isEdit ? 'Edit Trip & Cover Photo' : 'Create New Trip', `
+      <form id="ww-hub-trip-form" style="display: grid; gap: 12px;">
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Trip Name *</label>
+            <input name="name" class="form-control" required placeholder="e.g. Rocky Mountain Expedition" value="${esc((existing && existing.name) || '')}" />
+          </div>
+          <div>
+            <label class="form-label">Status</label>
+            <select name="status" class="form-control">
+              <option value="active" ${(existing && existing.status === 'active') ? 'selected' : ''}>Active</option>
+              <option value="upcoming" ${(existing && existing.status === 'upcoming') ? 'selected' : ''}>Upcoming</option>
+              <option value="planning" ${(existing && existing.status === 'planning') ? 'selected' : ''}>Planning / Wishlist</option>
+              <option value="completed" ${(existing && existing.status === 'completed') ? 'selected' : ''}>Completed</option>
+            </select>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 10px;">
+          <div>
+            <label class="form-label">Destination / Route *</label>
+            <input name="destination" class="form-control" required placeholder="e.g. Denver, CO → Zion National Park" value="${esc((existing && existing.destination) || '')}" />
+          </div>
+          <div>
+            <label class="form-label">Budget (USD)</label>
+            <input type="number" name="budget_usd" class="form-control" value="${Number((existing && existing.budget_usd) || 2500)}" />
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 0.7fr; gap: 10px;">
+          <div>
+            <label class="form-label">Start Date</label>
+            <input type="date" name="start_date" class="form-control" value="${esc((existing && existing.start_date) || new Date().toISOString().slice(0, 10))}" />
+          </div>
+          <div>
+            <label class="form-label">End Date</label>
+            <input type="date" name="end_date" class="form-control" value="${esc((existing && existing.end_date) || new Date().toISOString().slice(0, 10))}" />
+          </div>
+          <div>
+            <label class="form-label">Currency</label>
+            <input name="default_currency" class="form-control" value="${esc((existing && existing.default_currency) || 'USD')}" />
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Cover Photo (Upload Image)</label>
+          <input type="file" id="ww-hub-cover-file" class="form-control" accept="image/*" />
+        </div>
+        <div>
+          <label class="form-label">Description / Notes</label>
+          <textarea name="notes" class="form-control" rows="2">${esc((existing && existing.notes) || '')}</textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn" id="ww-hub-trip-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">${isEdit ? 'Save Trip' : 'Create Trip'}</button>
+        </div>
+      </form>
+    `);
+
+    modal.querySelector('#ww-hub-trip-cancel').addEventListener('click', closeTravelModal);
+    modal.querySelector('#ww-hub-trip-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      let cover_photo = existing ? existing.cover_photo : '';
+      const f = modal.querySelector('#ww-hub-cover-file');
+      if (f && f.files && f.files[0]) {
+        cover_photo = await readFileAsDataUrl(f.files[0]);
+      }
+      const payload = {
+        name: fd.get('name'),
+        status: fd.get('status'),
+        destination: fd.get('destination'),
+        budget_usd: Number(fd.get('budget_usd')) || 0,
+        start_date: fd.get('start_date'),
+        end_date: fd.get('end_date'),
+        default_currency: fd.get('default_currency') || 'USD',
+        notes: fd.get('notes'),
+        cover_photo
+      };
+      try {
+        const url = isEdit ? `/api/trips/${encodeURIComponent(existing.id)}` : '/api/trips';
+        const resp = await fetch(url, {
+          method: isEdit ? 'PUT' : 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed to save trip');
+        if (bridge()) bridge().applyBootstrapData(data);
+        toast(isEdit ? '✓ Trip updated' : '✓ Trip created');
+        closeTravelModal();
+        renderHub();
+      } catch (err) { toast(err.message); }
+    });
+  }
+
   window.WWTravel = {
     render,
+    renderHub,
     syncFromState(s) {
       updateBadges(s);
       renderAdminEmailSync();
+      if (s && s.activeView === 'hub') renderHub();
       if (s && s.activeView === 'travel') render();
     },
     openReservationModal,

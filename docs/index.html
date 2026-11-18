@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="stylesheet" href="styles.css?v=12" />
+  <link rel="stylesheet" href="styles.css?v=13" />
 </head>
 <body>
   <div class="app-shell">
@@ -36,7 +36,16 @@
       <div class="nav-section-label">Workspace Views</div>
       <ul class="nav-list">
         <li>
-          <button type="button" class="nav-item-btn active" data-view="dashboard" id="nav-btn-dashboard">
+          <button type="button" class="nav-item-btn active" data-view="hub" id="nav-btn-hub">
+            <span class="nav-item-left">
+              <span>🏠</span>
+              <span class="nav-item-text">Trip Hub (Main)</span>
+            </span>
+            <span class="nav-badge" id="badge-hub-count">0</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item-btn" data-view="dashboard" id="nav-btn-dashboard">
             <span class="nav-item-left">
               <span>📊</span>
               <span class="nav-item-text">Dashboard &amp; Ledger</span>
@@ -132,11 +141,6 @@
         </div>
       </div>
 
-      <div class="nav-section-label">Active Trips</div>
-      <ul class="nav-list" id="sidebar-trip-list">
-        <!-- Populated dynamically -->
-      </ul>
-
       <div class="sidebar-footer">
         <div class="fx-ticker">
           <div class="fx-ticker-title">
@@ -198,8 +202,13 @@
           <!-- Populated dynamically -->
         </section>
 
+        <!-- VIEW 0: CENTRAL TRIP HUB DASHBOARD -->
+        <div id="view-hub" class="view-section">
+          <!-- Populated dynamically by travel.js -->
+        </div>
+
         <!-- VIEW 1: DASHBOARD & LEDGER -->
-        <div id="view-dashboard" class="view-section">
+        <div id="view-dashboard" class="view-section" style="display: none;">
           <!-- 4 KPI Cards -->
           <section class="kpi-grid" aria-label="Key Financial Metrics" style="margin-bottom: 22px;">
             <div class="kpi-card">
@@ -2927,7 +2936,7 @@
 
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <script src="app.js?v=17"></script>
-  <script src="travel.js?v=2"></script>
+  <script src="app.js?v=18"></script>
+  <script src="travel.js?v=3"></script>
 </body>
 </html>
