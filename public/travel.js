@@ -1360,6 +1360,30 @@
     }
   }
 
+  // Handle Road FX Rates modal button in sidebar
+  document.addEventListener('click', e => {
+    if (e.target.closest('#btn-open-fx-rates-modal')) {
+      const s = getAppData();
+      const rates = (s.settings && s.settings.exchange_rates) || {
+        USD: 1.0, ARS: 0.00098, BRL: 0.175, JPY: 0.00658, EUR: 1.085,
+        GBP: 1.295, CAD: 0.725, AUD: 0.658, CHF: 1.155, ISK: 0.00725, KRW: 0.00073, MXN: 0.0505
+      };
+      showTravelModal('💱 Road FX Rates (→ USD)', `
+        <p style="font-size: 13px; color: var(--text-secondary); margin-top: 0;">
+          Active conversion rates used for multi-currency trip expenses and travel bookings.
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 10px;">
+          ${Object.entries(rates).map(([code, val]) => `
+            <div style="padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+              <strong class="mono">${esc(code)}</strong>
+              <span class="mono" style="color: var(--accent-primary);">$${Number(val).toFixed(code === 'ARS' || code === 'KRW' || code === 'JPY' || code === 'ISK' ? 5 : 3)}</span>
+            </div>
+          `).join('')}
+        </div>
+      `);
+    }
+  });
+
   // Handle OAuth callback query params
   const params = new URLSearchParams(window.location.search);
   if (params.get('gmail_connected')) {

@@ -117,45 +117,16 @@
         </li>
       </ul>
 
-      <!-- Left Dashboard Quick Rewards Live Glance Box (Click to open full summary) -->
-      <div class="nav-section-label" style="display: flex; justify-content: space-between; align-items: center;">
-        <span>⚡ Quick Rewards Glance</span>
-        <span style="font-size: 10px; color: var(--accent-primary); cursor: pointer;" id="sidebar-qr-open-link">View All →</span>
-      </div>
-      <div class="sidebar-quick-rewards-box" id="sidebar-quick-rewards-widget" role="button" tabindex="0" title="Click for complete Quick Rewards summary (Points, Miles, Unused Credits &amp; Reset Dates)">
-        <div class="sq-row">
-          <span class="sq-label">💎 Points &amp; Miles</span>
-          <span class="sq-val mono" id="sq-points-val">$0 (0 pts)</span>
-        </div>
-        <div class="sq-row">
-          <span class="sq-label">💰 Reward Available</span>
-          <span class="sq-val mono" id="sq-credits-avail" style="color: var(--accent-primary);">$0.00 Left</span>
-        </div>
-        <div class="sq-row">
-          <span class="sq-label">🎟️ Free Nights / Perks</span>
-          <span class="sq-val mono" id="sq-certs-avail">0 Avail</span>
-        </div>
-        <div class="sq-row" style="border-top: 1px dashed var(--border-subtle); padding-top: 4px; margin-top: 2px;">
-          <span class="sq-label">⏰ Next Reset / Use-By</span>
-          <span class="sq-val" id="sq-next-reminder" style="font-size: 11px; color: var(--accent-amber);">All Current</span>
-        </div>
-      </div>
-
-      <div class="sidebar-footer">
-        <div class="fx-ticker">
-          <div class="fx-ticker-title">
-            <span>Road FX Rates (→ USD)</span>
-            <span class="mono">AUTO</span>
-          </div>
-          <div class="fx-rates-grid mono">
-            <span>¥100 JPY = $0.66</span>
-            <span>€1 EUR = $1.09</span>
-            <span>£1 GBP = $1.30</span>
-            <span>1 CHF = $1.16</span>
-            <span>100 ISK = $0.73</span>
-            <span>$1 CAD = $0.73</span>
-          </div>
-        </div>
+      <!-- Compact Quick Rewards & FX Rate Buttons -->
+      <div class="sidebar-footer" style="margin-top: auto;">
+        <button type="button" class="btn btn-sm" id="sidebar-quick-rewards-widget" style="width: 100%; display: flex; justify-content: space-between; align-items: center;" title="Open Quick Rewards Summary (Points, Miles, Unused Credits & Reset Dates)">
+          <span>⚡ Quick Rewards Glance</span>
+          <span style="font-size: 11px; color: var(--accent-primary);">View →</span>
+        </button>
+        <button type="button" class="btn btn-sm" id="btn-open-fx-rates-modal" style="width: 100%; display: flex; justify-content: space-between; align-items: center;" title="View Road FX Rates (→ USD)">
+          <span>💱 Road FX Rates (→ USD)</span>
+          <span style="font-size: 11px; color: var(--accent-sky);">View →</span>
+        </button>
         <button type="button" class="btn btn-sm" id="btn-theme-toggle" style="width: 100%;">
           <span>◐ Switch Light / Dark Theme</span>
         </button>
@@ -2937,6 +2908,6 @@
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
   <script src="app.js?v=18"></script>
-  <script src="travel.js?v=3"></script>
+  <script src="travel.js?v=4"></script>
 </body>
 </html>
