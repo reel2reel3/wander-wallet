@@ -1361,26 +1361,104 @@
   }
 
   // Handle Road FX Rates modal button in sidebar
+  function openFxRatesModal() {
+    const s = getAppData();
+    const rates = (s.settings && s.settings.exchange_rates) || {
+      USD: 1.0, ARS: 0.00098, BRL: 0.175, JPY: 0.00658, EUR: 1.085,
+      GBP: 1.295, CAD: 0.725, AUD: 0.658, CHF: 1.155, ISK: 0.00725, KRW: 0.00073, MXN: 0.0505
+    };
+    const codes = Object.keys(rates);
+    const lastUpd = (s.settings && s.settings.fx_last_updated) ? formatDateTimeShort(s.settings.fx_last_updated) : 'Default / Manual';
+
+    const modal = showTravelModal('💱 Road FX Rates & Converter', `
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+        <div style="font-size: 12px; color: var(--text-secondary);">
+          Last updated: <strong>${esc(lastUpd)}</strong>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" id="ww-fx-refresh-btn">🔄 Update Live Rates</button>
+      </div>
+
+      <div style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 10px; margin-bottom: 14px;">
+        <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px;">Quick Currency Converter</div>
+        <div style="display: grid; grid-template-columns: 1fr 0.8fr auto 0.8fr; gap: 8px; align-items: center;">
+          <input type="number" step="any" id="ww-fx-amount" class="form-control mono" value="50" min="0" />
+          <select id="ww-fx-from" class="form-control">
+            ${codes.map(c => `<option value="${esc(c)}" ${c === 'USD' ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+          </select>
+          <button type="button" class="btn btn-sm" id="ww-fx-swap" title="Swap currencies">⇄</button>
+          <select id="ww-fx-to" class="form-control">
+            ${codes.map(c => `<option value="${esc(c)}" ${c === 'EUR' ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+          </select>
+        </div>
+        <div id="ww-fx-result" class="mono" style="margin-top: 10px; font-size: 16px; font-weight: 800; color: var(--accent-primary);"></div>
+      </div>
+
+      <div id="ww-fx-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 10px;"></div>
+    `);
+
+    const amtEl = modal.querySelector('#ww-fx-amount');
+    const fromEl = modal.querySelector('#ww-fx-from');
+    const toEl = modal.querySelector('#ww-fx-to');
+    const resEl = modal.querySelector('#ww-fx-result');
+    const gridEl = modal.querySelector('#ww-fx-grid');
+
+    function updateConverter() {
+      const amt = parseFloat(amtEl.value) || 0;
+      const fromRate = Number(rates[fromEl.value]) || 1.0;
+      const toRate = Number(rates[toEl.value]) || 1.0;
+      const usdVal = amt * fromRate;
+      const converted = usdVal / toRate;
+      const fmt = (v, c) => v.toLocaleString(undefined, { minimumFractionDigits: (c === 'JPY' || c === 'KRW' || c === 'ISK' || c === 'ARS') ? 0 : 2, maximumFractionDigits: (c === 'JPY' || c === 'KRW' || c === 'ISK' || c === 'ARS') ? 0 : 2 });
+      resEl.textContent = `${fmt(amt, fromEl.value)} ${fromEl.value} = ${fmt(converted, toEl.value)} ${toEl.value}`;
+
+      gridEl.innerHTML = codes.map(code => {
+        const val = Number(rates[code]) || 1.0;
+        const inCode = usdVal / val;
+        return `
+          <div style="padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong class="mono">${esc(code)}</strong>
+              <span class="mono" style="font-size: 13.5px; font-weight: 700; color: var(--accent-primary);">${fmt(inCode, code)}</span>
+            </div>
+            <div class="mono" style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+              1 ${esc(code)} = $${val.toFixed(code === 'ARS' || code === 'KRW' || code === 'JPY' || code === 'ISK' ? 5 : 3)}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    amtEl.addEventListener('input', updateConverter);
+    fromEl.addEventListener('change', updateConverter);
+    toEl.addEventListener('change', updateConverter);
+    modal.querySelector('#ww-fx-swap').addEventListener('click', () => {
+      const tmp = fromEl.value;
+      fromEl.value = toEl.value;
+      toEl.value = tmp;
+      updateConverter();
+    });
+
+    modal.querySelector('#ww-fx-refresh-btn').addEventListener('click', async () => {
+      const btn = modal.querySelector('#ww-fx-refresh-btn');
+      btn.disabled = true;
+      btn.textContent = 'Updating...';
+      try {
+        await travelApi('/api/fx/refresh', { method: 'POST' });
+        toast('✓ Live FX rates updated!');
+        openFxRatesModal();
+      } catch (err) {
+        toast(err.message);
+        btn.disabled = false;
+        btn.textContent = '🔄 Update Live Rates';
+      }
+    });
+
+    updateConverter();
+  }
+
   document.addEventListener('click', e => {
     if (e.target.closest('#btn-open-fx-rates-modal')) {
-      const s = getAppData();
-      const rates = (s.settings && s.settings.exchange_rates) || {
-        USD: 1.0, ARS: 0.00098, BRL: 0.175, JPY: 0.00658, EUR: 1.085,
-        GBP: 1.295, CAD: 0.725, AUD: 0.658, CHF: 1.155, ISK: 0.00725, KRW: 0.00073, MXN: 0.0505
-      };
-      showTravelModal('💱 Road FX Rates (→ USD)', `
-        <p style="font-size: 13px; color: var(--text-secondary); margin-top: 0;">
-          Active conversion rates used for multi-currency trip expenses and travel bookings.
-        </p>
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 10px;">
-          ${Object.entries(rates).map(([code, val]) => `
-            <div style="padding: 10px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
-              <strong class="mono">${esc(code)}</strong>
-              <span class="mono" style="color: var(--accent-primary);">$${Number(val).toFixed(code === 'ARS' || code === 'KRW' || code === 'JPY' || code === 'ISK' ? 5 : 3)}</span>
-            </div>
-          `).join('')}
-        </div>
-      `);
+      openFxRatesModal();
     }
   });
 

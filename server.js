@@ -2144,6 +2144,31 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, getBootstrapData());
     }
 
+    // Live FX Rates Refresh (Open Exchange Rate API -> USD base)
+    if (pathname === '/api/fx/refresh' && method === 'POST') {
+      const resp = await fetch('https://open.er-api.com/v6/latest/USD');
+      const data = await resp.json();
+      if (!resp.ok || !data || !data.rates) {
+        throw new Error('Could not fetch live FX rates');
+      }
+      const existingRates = getSettingsMap().exchange_rates || DEFAULT_RATES;
+      const updated = { ...existingRates, USD: 1.0 };
+      const trackedCodes = new Set([...Object.keys(DEFAULT_RATES), ...Object.keys(existingRates), 'THB', 'SGD', 'NZD', 'COP', 'CLP', 'PEN', 'TWD', 'HKD', 'ZAR']);
+      for (const code of trackedCodes) {
+        if (code === 'USD') continue;
+        const perUsd = Number(data.rates[code]);
+        if (perUsd && perUsd > 0) {
+          updated[code] = Number((1 / perUsd).toFixed(6));
+        }
+      }
+      const nowIso = new Date().toISOString();
+      const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+      upsert.run('exchange_rates', JSON.stringify(updated));
+      upsert.run('fx_last_updated', nowIso);
+      markServerModified();
+      return sendJson(res, 200, { ok: true, exchange_rates: updated, fx_last_updated: nowIso, bootstrap: getBootstrapData() });
+    }
+
     // Rewards & Loyalty Portfolio update
     if (pathname === '/api/rewards' && method === 'PUT') {
       const body = await readJsonBody(req);
