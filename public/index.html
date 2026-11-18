@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="stylesheet" href="styles.css?v=11" />
+  <link rel="stylesheet" href="styles.css?v=12" />
 </head>
 <body>
   <div class="app-shell">
@@ -51,6 +51,15 @@
               <span class="nav-item-text">Trips</span>
             </span>
             <span class="nav-badge" id="badge-trip-count">0</span>
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item-btn" data-view="travel" id="nav-btn-travel">
+            <span class="nav-item-left">
+              <span>🗺️</span>
+              <span class="nav-item-text">Travel &amp; Itinerary</span>
+            </span>
+            <span class="nav-badge" id="badge-travel-count" style="color: var(--accent-sky);">0</span>
           </button>
         </li>
         <li id="nav-item-revenue" style="display: none;">
@@ -366,6 +375,11 @@
               <!-- Populated dynamically -->
             </div>
           </section>
+        </div>
+
+        <!-- VIEW 2B: TRAVEL & ITINERARY -->
+        <div id="view-travel" class="view-section" style="display: none;">
+          <!-- Populated dynamically by travel.js -->
         </div>
 
         <!-- VIEW 3: STANDALONE SPONSORSHIPS & ADSENSE -->
@@ -964,7 +978,6 @@
               </div>
             </div>
 
-            <!-- Quick Feature Toggle Bar: Sponsors & AdSense (Standalone) -->
             <div id="admin-sponsors-feature-bar" style="margin-top: 14px; padding: 12px 16px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
               <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 20px;">🎬</span>
@@ -984,6 +997,8 @@
                 </button>
               </div>
             </div>
+
+            <div id="admin-travel-email-sync-mount" style="margin-top: 14px;"></div>
           
             <!-- Admin Sub-Navigation Tabs -->
             <div class="rewards-subnav" id="admin-subnav" role="tablist" aria-label="Admin Sections" style="margin-top: 14px; padding-top: 14px;">
@@ -1344,6 +1359,10 @@
       </button>
       <button type="button" class="mobile-fab" id="btn-mobile-fab-add">
         <span>+ Expense</span>
+      </button>
+      <button type="button" class="mobile-nav-btn" data-mobile-view="travel">
+        <span>🗺️</span>
+        <span>Travel</span>
       </button>
       <button type="button" class="mobile-nav-btn" data-mobile-view="trips">
         <span>✈️</span>
@@ -2908,6 +2927,7 @@
 
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
+  <script src="travel.js?v=1"></script>
 </body>
 </html>

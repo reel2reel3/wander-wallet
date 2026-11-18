@@ -2494,6 +2494,18 @@
       category: normalizeCategoryName(e.category)
     }));
     state.revenues = data.revenues || [];
+    state.reservations = data.reservations || state.reservations || [];
+    state.travel_inbox = data.travel_inbox || state.travel_inbox || [];
+    state.travel_documents = data.travel_documents || state.travel_documents || [];
+    state.email_sync_status = data.email_sync_status || state.email_sync_status || {};
+    try {
+      localStorage.setItem('ww_travel_offline_cache', JSON.stringify({
+        reservations: state.reservations,
+        travel_documents: state.travel_documents,
+        trips: state.trips,
+        savedAt: Date.now()
+      }));
+    } catch (e) {}
     if (data.rewards && Array.isArray(data.rewards.programs)) {
       state.rewards = data.rewards;
     } else if (!state.rewards || !Array.isArray(state.rewards.programs)) {
@@ -2666,6 +2678,7 @@
     renderTaxView();
     renderRewardsDashboard();
     if (state.activeView === 'admin') renderAdminWorkspace();
+    if (window.WWTravel) window.WWTravel.syncFromState(state);
   }
 
   function renderTripSelectors() {
@@ -3619,7 +3632,7 @@
     }
 
     state.activeView = viewName;
-    const views = ['dashboard', 'trips', 'revenue', 'rewards', 'tax', 'admin'];
+    const views = ['dashboard', 'trips', 'travel', 'revenue', 'rewards', 'tax', 'admin'];
     for (const v of views) {
       const el = document.getElementById(`view-${v}`);
       if (el) el.style.display = v === viewName ? 'block' : 'none';
@@ -3644,6 +3657,7 @@
     const titles = {
       dashboard: 'Trip Expense & Rewards Dashboard',
       trips: 'Trips & Budgets',
+      travel: 'Travel & Itinerary Command Center',
       revenue: 'Sponsors & AdSense',
       rewards: 'Rewards & Loyalty Command Center',
       tax: 'Tax & CSV Export Hub',
@@ -3651,6 +3665,9 @@
     };
     const heading = document.getElementById('main-page-heading');
     if (heading) heading.textContent = titles[viewName] || 'Trip Expense & Rewards Dashboard';
+    if (viewName === 'travel' && window.WWTravel) {
+      window.WWTravel.render();
+    }
     if (viewName === 'rewards') {
       renderRewardsDashboard();
     }
@@ -15034,6 +15051,14 @@
       });
     });
   }
+
+  window.WWAppBridge = {
+    getState: () => state,
+    applyBootstrapData,
+    showToast,
+    switchView,
+    escapeHtml
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initApp);

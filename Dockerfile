@@ -3,7 +3,7 @@ FROM node:24-slim
 WORKDIR /app
 
 COPY package.json ./
-COPY server.js ./
+COPY server.js travel-engine.js ./
 COPY public ./public
 
 RUN mkdir -p /app/data

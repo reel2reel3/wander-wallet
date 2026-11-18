@@ -4,6 +4,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { URL } = require('node:url');
 const { DatabaseSync } = require('node:sqlite');
+const travelEngine = require('./travel-engine');
 
 const PORT = process.env.PORT || 3000;
 const AUTO_VOLUME_DIR = (() => {
@@ -104,6 +105,7 @@ db.exec(`
 try { db.exec('ALTER TABLE expenses ADD COLUMN credit_usd REAL NOT NULL DEFAULT 0'); } catch (e) {}
 try { db.exec('ALTER TABLE expenses ADD COLUMN credit_verified INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
 try { db.exec("ALTER TABLE expenses ADD COLUMN credit_note TEXT DEFAULT ''"); } catch (e) {}
+travelEngine.initTravelSchema(db);
 
 const DEFAULT_RATES = {
   USD: 1.0,
@@ -1149,7 +1151,7 @@ function getSettingsMap() {
     ai_key_configured: Boolean(process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY)
   };
   for (const r of rows) {
-    if (r.key.startsWith('auth_') || r.key === 'rewards_data') continue;
+    if (r.key.startsWith('auth_') || r.key === 'rewards_data' || r.key.startsWith('travel_secret_')) continue;
     if (r.key === 'ai_api_key') {
       if (r.value && String(r.value).trim()) {
         map.ai_key_configured = true;
@@ -1364,11 +1366,33 @@ function markServerModified(ts = Date.now()) {
   upsert.run('updated_at', String(ts));
 }
 
+function getEmailSyncStatus() {
+  const getVal = k => {
+    const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(k);
+    return row ? row.value : '';
+  };
+  return {
+    imap_configured: Boolean(getVal('travel_imap_host') && getVal('travel_imap_user') && getVal('travel_secret_imap_pass')),
+    imap_host: getVal('travel_imap_host') || '',
+    imap_port: Number(getVal('travel_imap_port')) || 993,
+    imap_user: getVal('travel_imap_user') || '',
+    gmail_configured: Boolean(getVal('travel_gmail_client_id') && getVal('travel_secret_gmail_client_secret')),
+    gmail_connected: Boolean(getVal('travel_secret_gmail_refresh_token')),
+    gmail_client_id: getVal('travel_gmail_client_id') || '',
+    last_sync_at: getVal('travel_last_sync_at') || '',
+    last_sync_summary: getVal('travel_last_sync_summary') || ''
+  };
+}
+
 function getBootstrapData() {
   const settings = getSettingsMap();
   const trips = db.prepare('SELECT * FROM trips ORDER BY start_date DESC').all();
   const expenses = db.prepare('SELECT * FROM expenses ORDER BY expense_date DESC, created_at DESC').all();
   const revenues = db.prepare('SELECT * FROM revenues ORDER BY revenue_date DESC, created_at DESC').all();
+  const reservations = db.prepare('SELECT * FROM reservations ORDER BY start_datetime ASC, created_at DESC').all();
+  const travel_inbox = db.prepare("SELECT * FROM travel_inbox WHERE status = 'pending' ORDER BY created_at DESC").all();
+  const travel_documents = db.prepare('SELECT * FROM travel_documents ORDER BY expiry_date ASC, created_at DESC').all();
+  const email_sync_status = getEmailSyncStatus();
   const rewards = getRewardsData();
   const modRow = db.prepare("SELECT value FROM settings WHERE key = 'user_modified'").get();
   const updRow = db.prepare("SELECT value FROM settings WHERE key = 'updated_at'").get();
@@ -1378,6 +1402,10 @@ function getBootstrapData() {
     trips,
     expenses,
     revenues,
+    reservations,
+    travel_inbox,
+    travel_documents,
+    email_sync_status,
     rewards,
     user_modified: modRow ? modRow.value === 'true' : false,
     updated_at: updRow ? Number(updRow.value) || 0 : 0
@@ -2224,6 +2252,481 @@ const server = http.createServer(async (req, res) => {
         'Content-Disposition': `attachment; filename="${filename}"`
       });
       return res.end(rows.join('\n'));
+    }
+
+    // -------------------------------------------------------------------------
+    // Travel & Itinerary Endpoints
+    // -------------------------------------------------------------------------
+
+    if (pathname === '/api/travel/reservations' && method === 'POST') {
+      const b = await readJsonBody(req);
+      const id = b.id || ('res-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex'));
+      const now = new Date().toISOString();
+      const costAmount = Number(b.cost_amount) || 0;
+      const costCurrency = (b.cost_currency || 'USD').toUpperCase();
+      const rates = getSettingsMap().exchange_rates || DEFAULT_RATES;
+      const rate = Number(rates[costCurrency]) || 1.0;
+      const costUsd = b.cost_usd !== undefined ? Number(b.cost_usd) : Number((costAmount * rate).toFixed(2));
+      const detailsJson = typeof b.details === 'object' && b.details !== null
+        ? JSON.stringify(b.details)
+        : (typeof b.details_json === 'string' ? b.details_json : '{}');
+
+      db.prepare(`
+        INSERT INTO reservations (
+          id, trip_id, type, title, vendor, confirmation_code, status,
+          start_datetime, end_datetime, timezone, location_from, location_to, address,
+          details_json, cancel_deadline, is_refundable, cost_amount, cost_currency, cost_usd,
+          payment_method, points_used, points_earned, loyalty_program, linked_expense_id,
+          attachment_data, attachment_name, notes, source, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        id, b.trip_id || '', b.type || 'flight', b.title || 'Reservation', b.vendor || '',
+        b.confirmation_code || '', b.status || 'confirmed',
+        b.start_datetime || now.slice(0, 16), b.end_datetime || '', b.timezone || '',
+        b.location_from || '', b.location_to || '', b.address || '',
+        detailsJson, b.cancel_deadline || '', b.is_refundable === false ? 0 : 1,
+        costAmount, costCurrency, costUsd, b.payment_method || '',
+        Number(b.points_used) || 0, Number(b.points_earned) || 0, b.loyalty_program || '',
+        b.linked_expense_id || '', b.attachment_data || '', b.attachment_name || '',
+        b.notes || '', b.source || 'manual', now
+      );
+      markServerModified();
+      return sendJson(res, 200, { ok: true, id, bootstrap: getBootstrapData() });
+    }
+
+    if (pathname.startsWith('/api/travel/reservations/') && (method === 'PUT' || method === 'DELETE')) {
+      const parts = pathname.split('/').filter(Boolean);
+      const resId = parts[3];
+      const action = parts[4];
+
+      if (action === 'sync-finance' && method === 'POST') {
+        const b = await readJsonBody(req);
+        const r = db.prepare('SELECT * FROM reservations WHERE id = ?').get(resId);
+        if (!r) return sendJson(res, 404, { error: 'Reservation not found' });
+
+        let linkedExpenseId = r.linked_expense_id || '';
+        if (b.createExpense !== false && Number(r.cost_usd) > 0 && r.trip_id) {
+          const catMap = {
+            flight: 'Flights & Transit',
+            car: 'Flights & Transit',
+            transit: 'Flights & Transit',
+            hotel: 'Hotels & Lodging',
+            dining: 'Dining & Meals',
+            activity: 'Tours & Activities',
+            cruise: 'Tours & Activities',
+            other: 'Other Travel'
+          };
+          const expId = linkedExpenseId || ('exp-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex'));
+          const expDate = (r.start_datetime || new Date().toISOString()).slice(0, 10);
+          const rates = getSettingsMap().exchange_rates || DEFAULT_RATES;
+          const exRate = Number(rates[r.cost_currency]) || 1.0;
+
+          if (linkedExpenseId) {
+            db.prepare(`
+              UPDATE expenses SET trip_id=?, title=?, vendor=?, category=?, expense_date=?, amount_original=?, currency=?, exchange_rate=?, amount_usd=?, payment_method=?, notes=?
+              WHERE id=?
+            `).run(
+              r.trip_id, r.title, r.vendor || r.title, catMap[r.type] || 'Other Travel', expDate,
+              r.cost_amount, r.cost_currency, exRate, r.cost_usd, r.payment_method || 'Amex Business Gold',
+              `Confirmation: ${r.confirmation_code || 'N/A'}`, linkedExpenseId
+            );
+          } else {
+            db.prepare(`
+              INSERT INTO expenses (
+                id, trip_id, title, vendor, category, expense_date,
+                amount_original, currency, exchange_rate, amount_usd,
+                payment_method, paid_by, tax_deductible, reimbursable,
+                receipt_data, receipt_name, notes, credit_usd, credit_verified, credit_note, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+              expId, r.trip_id, r.title, r.vendor || r.title, catMap[r.type] || 'Other Travel', expDate,
+              r.cost_amount, r.cost_currency, exRate, r.cost_usd, r.payment_method || 'Amex Business Gold',
+              'Channel Card', 1, 0, r.attachment_data || '', r.attachment_name || '',
+              `Synced from Travel Reservation (${r.confirmation_code || r.id})`, 0, 0, '', new Date().toISOString()
+            );
+            linkedExpenseId = expId;
+          }
+          db.prepare('UPDATE reservations SET linked_expense_id = ? WHERE id = ?').run(linkedExpenseId, resId);
+        }
+
+        // Optional Rewards points balance adjustment
+        if (b.syncRewards && r.loyalty_program && (Number(r.points_earned) > 0 || Number(r.points_used) > 0)) {
+          const rewards = getRewardsData();
+          const progs = Array.isArray(rewards.programs) ? rewards.programs : [];
+          const target = progs.find(p =>
+            p.name.toLowerCase().includes(r.loyalty_program.toLowerCase()) ||
+            r.loyalty_program.toLowerCase().includes(p.name.toLowerCase())
+          );
+          if (target) {
+            const netDelta = (Number(r.points_earned) || 0) - (Number(r.points_used) || 0);
+            target.balance = Math.max(0, (Number(target.balance) || 0) + netDelta);
+            db.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('rewards_data', ?)").run(JSON.stringify(rewards));
+          }
+        }
+
+        markServerModified();
+        return sendJson(res, 200, { ok: true, linked_expense_id: linkedExpenseId, bootstrap: getBootstrapData() });
+      }
+
+      if (method === 'DELETE') {
+        db.prepare('DELETE FROM reservations WHERE id = ?').run(resId);
+        markServerModified();
+        return sendJson(res, 200, { ok: true, bootstrap: getBootstrapData() });
+      }
+
+      if (method === 'PUT') {
+        const b = await readJsonBody(req);
+        const existing = db.prepare('SELECT * FROM reservations WHERE id = ?').get(resId);
+        if (!existing) return sendJson(res, 404, { error: 'Reservation not found' });
+
+        const costAmount = b.cost_amount !== undefined ? Number(b.cost_amount) : existing.cost_amount;
+        const costCurrency = (b.cost_currency || existing.cost_currency || 'USD').toUpperCase();
+        const rates = getSettingsMap().exchange_rates || DEFAULT_RATES;
+        const rate = Number(rates[costCurrency]) || 1.0;
+        const costUsd = b.cost_usd !== undefined ? Number(b.cost_usd) : Number((costAmount * rate).toFixed(2));
+        const detailsJson = typeof b.details === 'object' && b.details !== null
+          ? JSON.stringify(b.details)
+          : (b.details_json !== undefined ? b.details_json : existing.details_json);
+
+        db.prepare(`
+          UPDATE reservations SET
+            trip_id=?, type=?, title=?, vendor=?, confirmation_code=?, status=?,
+            start_datetime=?, end_datetime=?, timezone=?, location_from=?, location_to=?, address=?,
+            details_json=?, cancel_deadline=?, is_refundable=?, cost_amount=?, cost_currency=?, cost_usd=?,
+            payment_method=?, points_used=?, points_earned=?, loyalty_program=?,
+            attachment_data=?, attachment_name=?, notes=?
+          WHERE id=?
+        `).run(
+          b.trip_id !== undefined ? b.trip_id : existing.trip_id,
+          b.type || existing.type,
+          b.title || existing.title,
+          b.vendor !== undefined ? b.vendor : existing.vendor,
+          b.confirmation_code !== undefined ? b.confirmation_code : existing.confirmation_code,
+          b.status || existing.status,
+          b.start_datetime || existing.start_datetime,
+          b.end_datetime !== undefined ? b.end_datetime : existing.end_datetime,
+          b.timezone !== undefined ? b.timezone : existing.timezone,
+          b.location_from !== undefined ? b.location_from : existing.location_from,
+          b.location_to !== undefined ? b.location_to : existing.location_to,
+          b.address !== undefined ? b.address : existing.address,
+          detailsJson,
+          b.cancel_deadline !== undefined ? b.cancel_deadline : existing.cancel_deadline,
+          b.is_refundable !== undefined ? (b.is_refundable ? 1 : 0) : existing.is_refundable,
+          costAmount, costCurrency, costUsd,
+          b.payment_method !== undefined ? b.payment_method : existing.payment_method,
+          b.points_used !== undefined ? Number(b.points_used) : existing.points_used,
+          b.points_earned !== undefined ? Number(b.points_earned) : existing.points_earned,
+          b.loyalty_program !== undefined ? b.loyalty_program : existing.loyalty_program,
+          b.attachment_data !== undefined ? b.attachment_data : existing.attachment_data,
+          b.attachment_name !== undefined ? b.attachment_name : existing.attachment_name,
+          b.notes !== undefined ? b.notes : existing.notes,
+          resId
+        );
+        markServerModified();
+        return sendJson(res, 200, { ok: true, bootstrap: getBootstrapData() });
+      }
+    }
+
+    // Quick Paste / .eml / Text Parser
+    if (pathname === '/api/travel/parse' && method === 'POST') {
+      const b = await readJsonBody(req);
+      const savedKeyRow = db.prepare("SELECT value FROM settings WHERE key = 'ai_api_key'").get();
+      const savedProvRow = db.prepare("SELECT value FROM settings WHERE key = 'ai_provider'").get();
+      const aiKey = (savedKeyRow && savedKeyRow.value) || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '';
+      const aiProvider = (savedProvRow && savedProvRow.value) || '';
+
+      const parsed = await travelEngine.parseTravelEmail({
+        rawEmail: b.rawEmail || '',
+        subject: b.subject || '',
+        sender: b.sender || '',
+        text: b.text || '',
+        html: b.html || '',
+        aiKey,
+        aiProvider
+      });
+
+      if (b.queueInInbox) {
+        const inboxId = 'tinbox-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex');
+        db.prepare(`
+          INSERT INTO travel_inbox (id, message_uid, subject, sender, received_at, raw_snippet, parsed_json, parser_used, confidence, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+        `).run(
+          inboxId, '', parsed.subject || 'Manual Import', parsed.sender || 'Quick Paste',
+          new Date().toISOString(), parsed.snippet || '', JSON.stringify(parsed.reservations || []),
+          parsed.parser_used, parsed.confidence, new Date().toISOString()
+        );
+        markServerModified();
+        return sendJson(res, 200, { ok: true, inboxId, parsed, bootstrap: getBootstrapData() });
+      }
+
+      return sendJson(res, 200, { ok: true, parsed });
+    }
+
+    // Travel Inbox: Import or Dismiss
+    if (pathname.startsWith('/api/travel/inbox/') && method === 'POST') {
+      const parts = pathname.split('/').filter(Boolean);
+      const inboxId = parts[3];
+      const action = parts[4];
+      const item = db.prepare('SELECT * FROM travel_inbox WHERE id = ?').get(inboxId);
+      if (!item) return sendJson(res, 404, { error: 'Inbox item not found' });
+
+      if (action === 'dismiss') {
+        db.prepare("UPDATE travel_inbox SET status = 'dismissed' WHERE id = ?").run(inboxId);
+        markServerModified();
+        return sendJson(res, 200, { ok: true, bootstrap: getBootstrapData() });
+      }
+
+      if (action === 'import') {
+        const b = await readJsonBody(req);
+        const candidates = Array.isArray(b.reservations) ? b.reservations : JSON.parse(item.parsed_json || '[]');
+        const tripId = b.trip_id || '';
+        const rates = getSettingsMap().exchange_rates || DEFAULT_RATES;
+        const now = new Date().toISOString();
+        const ins = db.prepare(`
+          INSERT INTO reservations (
+            id, trip_id, type, title, vendor, confirmation_code, status,
+            start_datetime, end_datetime, timezone, location_from, location_to, address,
+            details_json, cancel_deadline, is_refundable, cost_amount, cost_currency, cost_usd,
+            payment_method, points_used, points_earned, loyalty_program, linked_expense_id,
+            attachment_data, attachment_name, notes, source, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, '', ?, ?, ?, ?, ?, 1, ?, ?, ?, '', ?, ?, ?, '', '', '', ?, 'email', ?)
+        `);
+
+        for (const c of candidates) {
+          const rid = 'res-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex');
+          const cur = (c.cost_currency || 'USD').toUpperCase();
+          const amt = Number(c.cost_amount) || 0;
+          const usd = Number((amt * (Number(rates[cur]) || 1.0)).toFixed(2));
+          ins.run(
+            rid, tripId, c.type || 'other', c.title || item.subject || 'Imported Reservation',
+            c.vendor || '', c.confirmation_code || '',
+            c.start_datetime || now.slice(0, 16), c.end_datetime || '',
+            c.location_from || '', c.location_to || '', c.address || '',
+            JSON.stringify(c.details || {}), c.cancel_deadline || '',
+            amt, cur, usd, Number(c.points_used) || 0, Number(c.points_earned) || 0,
+            c.loyalty_program || '', c.notes || `Imported from: ${item.subject}`, now
+          );
+        }
+
+        db.prepare("UPDATE travel_inbox SET status = 'imported' WHERE id = ?").run(inboxId);
+        markServerModified();
+        return sendJson(res, 200, { ok: true, importedCount: candidates.length, bootstrap: getBootstrapData() });
+      }
+    }
+
+    // Travel Documents Vault CRUD
+    if (pathname === '/api/travel/documents' && method === 'POST') {
+      const b = await readJsonBody(req);
+      const id = 'doc-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex');
+      const now = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO travel_documents (id, doc_type, title, holder_name, doc_number, issuing_country, issue_date, expiry_date, attachment_data, attachment_name, notes, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        id, b.doc_type || 'passport', b.title || 'Travel Document', b.holder_name || '',
+        b.doc_number || '', b.issuing_country || '', b.issue_date || '', b.expiry_date || '',
+        b.attachment_data || '', b.attachment_name || '', b.notes || '', now
+      );
+      markServerModified();
+      return sendJson(res, 200, { ok: true, id, bootstrap: getBootstrapData() });
+    }
+
+    if (pathname.startsWith('/api/travel/documents/') && (method === 'PUT' || method === 'DELETE')) {
+      const docId = pathname.split('/').pop();
+      if (method === 'DELETE') {
+        db.prepare('DELETE FROM travel_documents WHERE id = ?').run(docId);
+        markServerModified();
+        return sendJson(res, 200, { ok: true, bootstrap: getBootstrapData() });
+      }
+      if (method === 'PUT') {
+        const b = await readJsonBody(req);
+        const ex = db.prepare('SELECT * FROM travel_documents WHERE id = ?').get(docId);
+        if (!ex) return sendJson(res, 404, { error: 'Document not found' });
+        db.prepare(`
+          UPDATE travel_documents SET doc_type=?, title=?, holder_name=?, doc_number=?, issuing_country=?, issue_date=?, expiry_date=?, attachment_data=?, attachment_name=?, notes=?
+          WHERE id=?
+        `).run(
+          b.doc_type || ex.doc_type, b.title || ex.title,
+          b.holder_name !== undefined ? b.holder_name : ex.holder_name,
+          b.doc_number !== undefined ? b.doc_number : ex.doc_number,
+          b.issuing_country !== undefined ? b.issuing_country : ex.issuing_country,
+          b.issue_date !== undefined ? b.issue_date : ex.issue_date,
+          b.expiry_date !== undefined ? b.expiry_date : ex.expiry_date,
+          b.attachment_data !== undefined ? b.attachment_data : ex.attachment_data,
+          b.attachment_name !== undefined ? b.attachment_name : ex.attachment_name,
+          b.notes !== undefined ? b.notes : ex.notes,
+          docId
+        );
+        markServerModified();
+        return sendJson(res, 200, { ok: true, bootstrap: getBootstrapData() });
+      }
+    }
+
+    // Email Sync Configuration (IMAP + Gmail OAuth 2.0)
+    if (pathname === '/api/travel/email-config' && method === 'POST') {
+      const b = await readJsonBody(req);
+      const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+      if (b.imap_host !== undefined) upsert.run('travel_imap_host', String(b.imap_host).trim());
+      if (b.imap_port !== undefined) upsert.run('travel_imap_port', String(Number(b.imap_port) || 993));
+      if (b.imap_user !== undefined) upsert.run('travel_imap_user', String(b.imap_user).trim());
+      if (b.imap_password) upsert.run('travel_secret_imap_pass', String(b.imap_password));
+      if (b.gmail_client_id !== undefined) upsert.run('travel_gmail_client_id', String(b.gmail_client_id).trim());
+      if (b.gmail_client_secret) upsert.run('travel_secret_gmail_client_secret', String(b.gmail_client_secret).trim());
+      if (b.disconnect_gmail) {
+        db.prepare("DELETE FROM settings WHERE key IN ('travel_secret_gmail_refresh_token', 'travel_secret_gmail_access_token')").run();
+      }
+      if (b.clear_imap) {
+        db.prepare("DELETE FROM settings WHERE key IN ('travel_imap_host', 'travel_imap_port', 'travel_imap_user', 'travel_secret_imap_pass')").run();
+      }
+      markServerModified();
+      return sendJson(res, 200, { ok: true, bootstrap: getBootstrapData() });
+    }
+
+    if (pathname === '/api/travel/gmail/auth-url' && method === 'GET') {
+      const clientIdRow = db.prepare("SELECT value FROM settings WHERE key = 'travel_gmail_client_id'").get();
+      if (!clientIdRow || !clientIdRow.value) {
+        return sendJson(res, 400, { error: 'Please save your Gmail OAuth Client ID first in Admin.' });
+      }
+      const proto = req.headers['x-forwarded-proto'] || 'http';
+      const host = req.headers['x-forwarded-host'] || req.headers.host || `localhost:${PORT}`;
+      const redirectUri = `${proto}://${host}/api/travel/gmail/callback`;
+      const url = travelEngine.getGmailAuthUrl({ clientId: clientIdRow.value, redirectUri, state: 'ww-gmail' });
+      return sendJson(res, 200, { ok: true, url, redirectUri });
+    }
+
+    if (pathname === '/api/travel/gmail/callback' && method === 'GET') {
+      const code = parsedUrl.searchParams.get('code');
+      const err = parsedUrl.searchParams.get('error');
+      if (err || !code) {
+        res.writeHead(302, { Location: '/?gmail_error=' + encodeURIComponent(err || 'missing_code') });
+        return res.end();
+      }
+      const clientId = (db.prepare("SELECT value FROM settings WHERE key = 'travel_gmail_client_id'").get() || {}).value || '';
+      const clientSecret = (db.prepare("SELECT value FROM settings WHERE key = 'travel_secret_gmail_client_secret'").get() || {}).value || '';
+      const proto = req.headers['x-forwarded-proto'] || 'http';
+      const host = req.headers['x-forwarded-host'] || req.headers.host || `localhost:${PORT}`;
+      const redirectUri = `${proto}://${host}/api/travel/gmail/callback`;
+
+      const tokens = await travelEngine.exchangeGmailCode({ code, clientId, clientSecret, redirectUri });
+      const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+      if (tokens.refresh_token) upsert.run('travel_secret_gmail_refresh_token', tokens.refresh_token);
+      if (tokens.access_token) upsert.run('travel_secret_gmail_access_token', tokens.access_token);
+      markServerModified();
+
+      res.writeHead(302, { Location: '/?gmail_connected=1' });
+      return res.end();
+    }
+
+    // Run Direct Inbox Sync (IMAP + Gmail OAuth)
+    if (pathname === '/api/travel/email-sync' && method === 'POST') {
+      const getVal = k => ((db.prepare('SELECT value FROM settings WHERE key = ?').get(k) || {}).value || '');
+      const savedKeyRow = db.prepare("SELECT value FROM settings WHERE key = 'ai_api_key'").get();
+      const savedProvRow = db.prepare("SELECT value FROM settings WHERE key = 'ai_provider'").get();
+      const aiKey = (savedKeyRow && savedKeyRow.value) || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '';
+      const aiProvider = (savedProvRow && savedProvRow.value) || '';
+
+      let fetchedEmails = [];
+      const errors = [];
+
+      // 1. IMAP Sync
+      const imapHost = getVal('travel_imap_host');
+      const imapPort = Number(getVal('travel_imap_port')) || 993;
+      const imapUser = getVal('travel_imap_user');
+      const imapPass = getVal('travel_secret_imap_pass');
+      if (imapHost && imapUser && imapPass) {
+        try {
+          const imapList = await travelEngine.syncImapInbox({ host: imapHost, port: imapPort, user: imapUser, password: imapPass });
+          fetchedEmails.push(...imapList);
+        } catch (e) {
+          errors.push(`IMAP: ${e.message}`);
+        }
+      }
+
+      // 2. Gmail OAuth Sync
+      const gClientId = getVal('travel_gmail_client_id');
+      const gSecret = getVal('travel_secret_gmail_client_secret');
+      const gRefresh = getVal('travel_secret_gmail_refresh_token');
+      if (gClientId && gSecret && gRefresh) {
+        try {
+          const refreshed = await travelEngine.refreshGmailToken({ refreshToken: gRefresh, clientId: gClientId, clientSecret: gSecret });
+          const gList = await travelEngine.syncGmailInbox({ accessToken: refreshed.access_token });
+          fetchedEmails.push(...gList);
+        } catch (e) {
+          errors.push(`Gmail: ${e.message}`);
+        }
+      }
+
+      if (!imapHost && !gRefresh) {
+        return sendJson(res, 400, { error: 'No IMAP or Gmail OAuth account configured yet. Set up Email Sync in Admin.' });
+      }
+
+      let addedCount = 0;
+      const insInbox = db.prepare(`
+        INSERT INTO travel_inbox (id, message_uid, subject, sender, received_at, raw_snippet, parsed_json, parser_used, confidence, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+      `);
+
+      for (const em of fetchedEmails) {
+        const exists = db.prepare('SELECT id FROM travel_inbox WHERE message_uid = ?').get(em.uid);
+        if (exists) continue;
+        const parsed = await travelEngine.parseTravelEmail({
+          rawEmail: em.rawEmail || '',
+          subject: em.subject || '',
+          sender: em.sender || '',
+          text: em.text || '',
+          html: em.html || '',
+          aiKey,
+          aiProvider
+        });
+        if (!parsed.reservations || parsed.reservations.length === 0) continue;
+        const inboxId = 'tinbox-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex');
+        insInbox.run(
+          inboxId, em.uid, parsed.subject || 'Travel Email', parsed.sender || '',
+          em.received_at || new Date().toISOString(), parsed.snippet || '',
+          JSON.stringify(parsed.reservations), parsed.parser_used, parsed.confidence, new Date().toISOString()
+        );
+        addedCount++;
+      }
+
+      const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+      upsert.run('travel_last_sync_at', new Date().toISOString());
+      upsert.run('travel_last_sync_summary', `Scanned ${fetchedEmails.length} email(s), queued ${addedCount} new booking(s).${errors.length ? ' Errors: ' + errors.join('; ') : ''}`);
+      markServerModified();
+
+      return sendJson(res, 200, {
+        ok: true,
+        scanned: fetchedEmails.length,
+        added: addedCount,
+        errors,
+        bootstrap: getBootstrapData()
+      });
+    }
+
+    // ICS Calendar Export
+    if (pathname === '/api/travel/export/ics' && method === 'GET') {
+      const tripId = parsedUrl.searchParams.get('tripId');
+      const resId = parsedUrl.searchParams.get('reservationId');
+      let list = [];
+      let calName = 'Wander Wallet Itinerary';
+      if (resId) {
+        const r = db.prepare('SELECT * FROM reservations WHERE id = ?').get(resId);
+        if (r) {
+          list = [r];
+          calName = r.title;
+        }
+      } else if (tripId && tripId !== 'all') {
+        list = db.prepare('SELECT * FROM reservations WHERE trip_id = ? ORDER BY start_datetime ASC').all(tripId);
+        const t = db.prepare('SELECT name FROM trips WHERE id = ?').get(tripId);
+        if (t) calName = `Wander Wallet — ${t.name}`;
+      } else {
+        list = db.prepare('SELECT * FROM reservations ORDER BY start_datetime ASC').all();
+      }
+      const ics = travelEngine.generateIcs(list, calName);
+      res.writeHead(200, {
+        'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="wander-wallet-itinerary.ics"'
+      });
+      return res.end(ics);
     }
 
     // Static Files (with no-cache headers so browser/Service Worker never serves stale JS/HTML)
