@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="stylesheet" href="styles.css?v=13" />
+  <link rel="stylesheet" href="styles.css?v=14" />
 </head>
 <body>
   <div class="app-shell">
@@ -51,15 +51,6 @@
               <span class="nav-item-text">Dashboard &amp; Ledger</span>
             </span>
             <span class="nav-badge" id="badge-expense-count">0</span>
-          </button>
-        </li>
-        <li>
-          <button type="button" class="nav-item-btn" data-view="trips" id="nav-btn-trips">
-            <span class="nav-item-left">
-              <span>✈️</span>
-              <span class="nav-item-text">Trips</span>
-            </span>
-            <span class="nav-badge" id="badge-trip-count">0</span>
           </button>
         </li>
         <li>
@@ -146,11 +137,12 @@
       <header class="topbar">
         <div class="topbar-left">
           <h1 class="page-heading" id="main-page-heading">Trip Expense &amp; Rewards Dashboard</h1>
-          <div class="trip-pill-selector" title="Filter workspace by trip">
-            <span>📍 Trip:</span>
-            <select id="global-trip-select" aria-label="Select Trip">
-              <option value="all">All Trips</option>
+          <div class="trip-pill-selector" title="Toggle Entire Trip or any Country / City Leg">
+            <span>📍 Trip / Leg:</span>
+            <select id="global-trip-select" aria-label="Select Trip or Leg">
+              <option value="all">Entire Trip</option>
             </select>
+            <button type="button" class="btn btn-xs" id="btn-topbar-manage-legs" title="Add, Edit or Delete Trip Legs & Sub-Locations" style="margin-left: 4px; padding: 3px 8px; font-size: 11.5px;">⚙️ Legs</button>
           </div>
         </div>
 
@@ -1344,9 +1336,9 @@
         <span>🗺️</span>
         <span>Travel</span>
       </button>
-      <button type="button" class="mobile-nav-btn" data-mobile-view="trips">
-        <span>✈️</span>
-        <span>Trips</span>
+      <button type="button" class="mobile-nav-btn" data-mobile-view="hub">
+        <span>🏠</span>
+        <span>Trip Hub</span>
       </button>
       <button type="button" class="mobile-nav-btn" data-mobile-view="admin">
         <span>⚙️</span>
@@ -1403,6 +1395,16 @@
               <label class="form-label" for="exp-date">Date</label>
               <input type="date" id="exp-date" class="form-input" required />
             </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label class="form-label" for="exp-leg-path" style="margin-bottom: 0;">Trip Leg / Sub-Location (Country / City)</label>
+              <button type="button" class="btn btn-xs" id="btn-exp-modal-manage-legs" style="padding: 2px 8px; font-size: 11px;">+ Add / Edit Legs</button>
+            </div>
+            <select id="exp-leg-path" class="form-select">
+              <option value="">(Entire Trip / General)</option>
+            </select>
           </div>
 
           <div class="form-grid-2">
@@ -2907,7 +2909,7 @@
 
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <script src="app.js?v=18"></script>
-  <script src="travel.js?v=5"></script>
+  <script src="app.js?v=19"></script>
+  <script src="travel.js?v=6"></script>
 </body>
 </html>

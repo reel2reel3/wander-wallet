@@ -3723,3 +3723,28 @@ body {
 .hub-btn-secondary:hover {
   border-color: var(--accent-sky);
 }
+
+/* Trip Legs Filter Chips */
+.leg-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 99px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.leg-filter-chip:hover {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+.leg-filter-chip.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+}

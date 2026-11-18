@@ -192,21 +192,28 @@
     const inbox = s.travel_inbox || [];
     const docs = s.travel_documents || [];
 
-    if (travelState.selectedTripId !== 'all' && !trips.some(t => t.id === travelState.selectedTripId)) {
+    if (s.selectedTripId && s.selectedTripId !== 'all' && trips.some(t => t.id === s.selectedTripId)) {
+      travelState.selectedTripId = s.selectedTripId;
+    } else if (travelState.selectedTripId !== 'all' && !trips.some(t => t.id === travelState.selectedTripId)) {
       travelState.selectedTripId = 'all';
     }
 
+    const activeLegPath = (travelState.selectedTripId !== 'all' && s.selectedTripId === travelState.selectedTripId) ? (s.selectedLegPath || '') : '';
     const filteredRes = allRes.filter(r => {
       if (travelState.selectedTripId !== 'all' && r.trip_id !== travelState.selectedTripId) return false;
+      if (activeLegPath && bridge() && bridge().matchesLegFilter) {
+        if (!bridge().matchesLegFilter(r.leg_path, activeLegPath)) return false;
+      }
       if (travelState.searchQuery) {
         const q = travelState.searchQuery.toLowerCase();
-        const hay = `${r.title} ${r.vendor} ${r.confirmation_code} ${r.location_from} ${r.location_to} ${r.address}`.toLowerCase();
+        const hay = `${r.title} ${r.vendor} ${r.confirmation_code} ${r.location_from} ${r.location_to} ${r.address} ${r.leg_path || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     }).sort((a, b) => String(a.start_datetime).localeCompare(String(b.start_datetime)));
 
     const activeTrip = trips.find(t => t.id === travelState.selectedTripId) || null;
+    const activeTripLegs = (activeTrip && bridge() && bridge().getTripLegs) ? bridge().getTripLegs(activeTrip) : [];
     const alerts = computeAlerts(activeTrip, filteredRes);
     const totalCommittedUsd = filteredRes.reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0);
     const totalPointsUsed = filteredRes.reduce((sum, r) => sum + (Number(r.points_used) || 0), 0);
@@ -277,6 +284,22 @@
             <input type="search" id="travel-search-input" class="form-control" placeholder="Search confirmation #, airline, hotel..." value="${esc(travelState.searchQuery)}" style="min-width: 210px;" />
           </div>
         </div>
+        ${activeTrip ? `
+          <div class="trip-legs-bar" style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span style="font-size: 11.5px; font-weight: 700; color: var(--text-secondary); margin-right: 4px;">🗺️ Trip Legs:</span>
+              <button type="button" class="leg-filter-chip ${!activeLegPath ? 'active' : ''}" data-select-leg="">
+                Entire Trip
+              </button>
+              ${activeTripLegs.map(l => `
+                <button type="button" class="leg-filter-chip ${activeLegPath === l.path ? 'active' : ''}" data-select-leg="${esc(l.path)}">
+                  ${l.parent ? '↳ ' : '📍 '}${esc(l.path)}
+                </button>
+              `).join('')}
+            </div>
+            <button type="button" class="btn btn-xs" data-manage-trip-legs="${esc(activeTrip.id)}">+ Add / Edit Legs</button>
+          </div>
+        ` : ''}
       </section>
 
       ${alerts.length > 0 && travelState.subTab === 'timeline' ? `
@@ -362,6 +385,7 @@
                   ${meta.icon} ${meta.label}
                 </span>
                 ${tripObj ? `<span class="travel-trip-pill">🧳 ${esc(tripObj.name)}</span>` : ''}
+                ${r.leg_path ? `<span class="travel-trip-pill" style="background: rgba(16,185,129,0.12); color: var(--accent-primary);">📍 ${esc(r.leg_path)}</span>` : ''}
                 ${r.status && r.status !== 'confirmed' ? `<span class="travel-status-pill status-${esc(r.status)}">${esc(r.status)}</span>` : ''}
               </div>
               <div class="travel-res-actions">
@@ -580,7 +604,11 @@
     if (tripSel) {
       tripSel.addEventListener('change', () => {
         travelState.selectedTripId = tripSel.value;
-        render();
+        if (bridge() && bridge().setSelectedTrip) {
+          bridge().setSelectedTrip(tripSel.value);
+        } else {
+          render();
+        }
       });
     }
 
@@ -797,10 +825,11 @@
     let details = {};
     try { details = JSON.parse((existing && existing.details_json) || '{}'); } catch (e) {}
     const defaultTrip = (existing && existing.trip_id) || (travelState.selectedTripId !== 'all' ? travelState.selectedTripId : (trips[0] ? trips[0].id : ''));
+    const defaultLegPath = (existing && existing.leg_path) !== undefined ? (existing.leg_path || '') : (s.selectedLegPath || '');
 
     const modal = showTravelModal(isEdit ? 'Edit Reservation' : 'Add Travel Reservation', `
       <form id="ww-res-form" style="display: grid; gap: 12px;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div style="display: grid; grid-template-columns: 0.9fr 1.1fr 1.1fr; gap: 10px;">
           <div>
             <label class="form-label">Type</label>
             <select name="type" class="form-control">
@@ -809,10 +838,14 @@
           </div>
           <div>
             <label class="form-label">Trip</label>
-            <select name="trip_id" class="form-control">
+            <select name="trip_id" id="ww-res-trip-sel" class="form-control">
               <option value="">(Unassigned)</option>
               ${trips.map(t => `<option value="${esc(t.id)}" ${defaultTrip === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}
             </select>
+          </div>
+          <div>
+            <label class="form-label">Trip Leg / Sub-Location</label>
+            <select name="leg_path" id="ww-res-leg-sel" class="form-control"></select>
           </div>
         </div>
 
@@ -923,6 +956,20 @@
       </form>
     `);
 
+    const resTripSel = modal.querySelector('#ww-res-trip-sel');
+    const resLegSel = modal.querySelector('#ww-res-leg-sel');
+    const syncResLegs = (selectedPath) => {
+      const tripObj = trips.find(t => t.id === resTripSel.value);
+      const legs = (tripObj && bridge() && bridge().getTripLegs) ? bridge().getTripLegs(tripObj) : [];
+      resLegSel.innerHTML = `<option value="">(Entire Trip / No Leg)</option>` + legs.map(l => {
+        const prefix = l.parent ? '\u00A0\u00A0└─ ' : '📍 ';
+        return `<option value="${esc(l.path)}">${prefix}${esc(l.path)}</option>`;
+      }).join('');
+      resLegSel.value = legs.some(l => l.path === selectedPath) ? selectedPath : '';
+    };
+    syncResLegs(defaultLegPath);
+    resTripSel.addEventListener('change', () => syncResLegs(''));
+
     modal.querySelector('#ww-res-cancel').addEventListener('click', closeTravelModal);
     modal.querySelector('#ww-res-form').addEventListener('submit', async e => {
       e.preventDefault();
@@ -946,6 +993,7 @@
 
       const payload = {
         trip_id: fd.get('trip_id'),
+        leg_path: fd.get('leg_path') || '',
         type,
         title: fd.get('title'),
         vendor: fd.get('vendor'),
@@ -1456,9 +1504,281 @@
     updateConverter();
   }
 
+  // ---------------------------------------------------------------------------
+  // Manage Trip Legs / Sub-Locations Modal (Country / City Hierarchy)
+  // ---------------------------------------------------------------------------
+
+  function openManageLegsModal(tripId, editingLegId = null) {
+    const s = getAppData();
+    const trips = s.trips || [];
+    const targetTripId = tripId || (s.selectedTripId && s.selectedTripId !== 'all' ? s.selectedTripId : (trips[0] ? trips[0].id : ''));
+    const trip = trips.find(t => t.id === targetTripId);
+    if (!trip) {
+      toast('Please select or create a trip first.');
+      return;
+    }
+
+    const legs = (bridge() && bridge().getTripLegs) ? bridge().getTripLegs(trip) : [];
+    const topLevelLegs = legs.filter(l => !l.parent);
+    const editingLeg = editingLegId ? legs.find(l => l.id === editingLegId) : null;
+
+    // Organize legs hierarchically: each top-level leg followed by its children, then any orphan sub-legs
+    const orderedLegs = [];
+    const seen = new Set();
+    topLevelLegs.forEach(parent => {
+      orderedLegs.push(parent);
+      seen.add(parent.id);
+      legs.filter(c => c.parent === parent.path).forEach(child => {
+        orderedLegs.push(child);
+        seen.add(child.id);
+      });
+    });
+    legs.forEach(l => {
+      if (!seen.has(l.id)) orderedLegs.push(l);
+    });
+
+    const allExp = (s.expenses || []).filter(e => e.trip_id === trip.id);
+    const allRes = (s.reservations || []).filter(r => r.trip_id === trip.id);
+
+    const modal = showTravelModal(`🗺️ Trip Legs & Locations — ${trip.name}`, `
+      <div style="display: grid; gap: 14px;">
+        <div style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.45;">
+          Organize <strong>${esc(trip.name)}</strong> into countries, regions, or city stops (e.g. <code>Panama</code>, <code>Argentina</code> → <code>Argentina / Buenos Aires</code>, or <code>Bangkok</code>, <code>Chiang Mai</code>). Toggle any leg in the top bar or ledger to isolate its expenses and bookings.
+        </div>
+
+        <form id="ww-leg-form" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 10px; display: grid; gap: 10px;">
+          <div style="font-size: 12.5px; font-weight: 700; color: var(--accent-primary);">
+            ${editingLeg ? `✏️ Edit Leg: ${esc(editingLeg.path)}` : '+ Add New Trip Leg / Stop'}
+          </div>
+          <div style="display: grid; grid-template-columns: 1.3fr 1.2fr; gap: 10px;">
+            <div>
+              <label class="form-label">Location / Leg Name *</label>
+              <input name="name" class="form-control" required placeholder="e.g. Argentina, Buenos Aires, Bangkok" value="${esc(editingLeg ? editingLeg.name : '')}" />
+            </div>
+            <div>
+              <label class="form-label">Parent Country / Region (Optional)</label>
+              <select name="parent" class="form-control">
+                <option value="">(Top-Level Country / Region / Stop)</option>
+                ${topLevelLegs
+                  .filter(p => !editingLeg || p.id !== editingLeg.id)
+                  .map(p => `<option value="${esc(p.path)}" ${(editingLeg && editingLeg.parent === p.path) ? 'selected' : ''}>📍 ${esc(p.path)}</option>`)
+                  .join('')}
+              </select>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end;">
+            <div>
+              <label class="form-label">Default Currency (Optional)</label>
+              <input name="currency" class="form-control mono" placeholder="${esc(trip.default_currency || 'USD')}" value="${esc(editingLeg ? (editingLeg.currency || '') : '')}" />
+            </div>
+            <div>
+              <label class="form-label">Sub-Budget USD (Optional)</label>
+              <input type="number" step="1" name="budget_usd" class="form-control mono" placeholder="0 = use trip budget" value="${editingLeg && editingLeg.budget_usd ? Number(editingLeg.budget_usd) : ''}" />
+            </div>
+            <div style="display: flex; gap: 6px;">
+              ${editingLeg ? `<button type="button" class="btn btn-sm" id="ww-leg-cancel-edit">Cancel</button>` : ''}
+              <button type="submit" class="btn btn-sm btn-primary">${editingLeg ? '💾 Update Leg' : '+ Add Leg'}</button>
+            </div>
+          </div>
+        </form>
+
+        <div>
+          <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-bottom: 8px;">
+            Configured Legs (${orderedLegs.length})
+          </div>
+          ${orderedLegs.length === 0 ? `
+            <div style="padding: 20px; text-align: center; color: var(--text-secondary); background: var(--bg-elevated); border-radius: 8px; font-size: 13px;">
+              No sub-legs added yet. Add countries or cities above to break down this trip!
+            </div>
+          ` : `
+            <div style="display: grid; gap: 6px;">
+              ${orderedLegs.map(l => {
+                const matchFn = (bridge() && bridge().matchesLegFilter) ? bridge().matchesLegFilter : ((a, b) => a === b);
+                const legExp = allExp.filter(e => matchFn(e.leg_path, l.path));
+                const legSpent = legExp.reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
+                const legResCount = allRes.filter(r => matchFn(r.leg_path, l.path)).length;
+                return `
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 8px; ${l.parent ? 'margin-left: 22px; border-left: 3px solid var(--accent-sky);' : 'border-left: 3px solid var(--accent-primary);'}">
+                    <div>
+                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <strong style="font-size: 13.5px;">${l.parent ? '↳ ' : '📍 '}${esc(l.path)}</strong>
+                        ${l.currency ? `<span class="kpi-tag mono">${esc(l.currency)}</span>` : ''}
+                        ${Number(l.budget_usd) > 0 ? `<span class="kpi-tag mono" style="color: var(--accent-primary);">Budget: $${Number(l.budget_usd).toLocaleString()}</span>` : ''}
+                      </div>
+                      <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">
+                        ${legExp.length} expense${legExp.length === 1 ? '' : 's'} ($${legSpent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) • ${legResCount} booking${legResCount === 1 ? '' : 's'}
+                      </div>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                      <button type="button" class="btn btn-xs" data-leg-view="${esc(l.path)}" title="Filter workspace to this leg">👁️ View</button>
+                      <button type="button" class="btn btn-xs" data-leg-edit="${esc(l.id)}">✏️</button>
+                      <button type="button" class="btn btn-xs btn-danger" data-leg-del="${esc(l.id)}">🗑️</button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </div>
+      </div>
+    `);
+
+    const refreshExpenseLegDropdownIfOpen = (selectedLegPath) => {
+      const expTripSel = document.getElementById('exp-trip');
+      const expLegSel = document.getElementById('exp-leg-path');
+      if (expTripSel && expLegSel && expTripSel.value === trip.id) {
+        const updatedState = getAppData();
+        const updatedTrip = (updatedState.trips || []).find(t => t.id === trip.id);
+        const updatedLegs = (updatedTrip && bridge() && bridge().getTripLegs) ? bridge().getTripLegs(updatedTrip) : [];
+        expLegSel.innerHTML = `<option value="">(Entire Trip / No Specific Leg)</option>` + updatedLegs.map(l => {
+          const prefix = l.parent ? '\u00A0\u00A0└─ ' : '📍 ';
+          return `<option value="${esc(l.path)}">${prefix}${esc(l.path)}</option>`;
+        }).join('');
+        if (selectedLegPath && updatedLegs.some(l => l.path === selectedLegPath)) {
+          expLegSel.value = selectedLegPath;
+        }
+      }
+    };
+
+    const btnCancelEdit = modal.querySelector('#ww-leg-cancel-edit');
+    if (btnCancelEdit) {
+      btnCancelEdit.addEventListener('click', () => openManageLegsModal(trip.id, null));
+    }
+
+    modal.querySelector('#ww-leg-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const rawName = String(fd.get('name') || '').trim().replace(/\s*\/\s*/g, ' - ');
+      const parent = String(fd.get('parent') || '').trim();
+      if (!rawName) return;
+      const newPath = parent ? `${parent} / ${rawName}` : rawName;
+      const currency = String(fd.get('currency') || '').trim().toUpperCase();
+      const budget_usd = Number(fd.get('budget_usd')) || 0;
+
+      if (legs.some(l => l.path.toLowerCase() === newPath.toLowerCase() && (!editingLeg || l.id !== editingLeg.id))) {
+        toast(`Leg "${newPath}" already exists on this trip.`);
+        return;
+      }
+
+      let nextLegs;
+      let renameFrom = '';
+      let renameTo = '';
+
+      if (editingLeg) {
+        renameFrom = editingLeg.path;
+        renameTo = newPath;
+        nextLegs = legs.map(l => {
+          if (l.id === editingLeg.id) {
+            return { ...l, name: rawName, parent, path: newPath, currency, budget_usd };
+          }
+          if (l.parent === editingLeg.path) {
+            return { ...l, parent: newPath, path: `${newPath} / ${l.name}` };
+          }
+          return l;
+        });
+      } else {
+        const newLeg = {
+          id: 'leg-' + Date.now().toString(36),
+          name: rawName,
+          parent,
+          path: newPath,
+          currency,
+          budget_usd
+        };
+        nextLegs = [...legs, newLeg];
+      }
+
+      try {
+        const resp = await fetch(`/api/trips/${encodeURIComponent(trip.id)}/legs`, {
+          method: 'PUT',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ legs: nextLegs, renameFrom, renameTo })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed to save leg');
+        if (bridge() && bridge().applyBootstrapData) bridge().applyBootstrapData(data);
+        refreshExpenseLegDropdownIfOpen(newPath);
+        toast(editingLeg ? `✓ Updated leg "${newPath}"` : `✓ Added leg "${newPath}"`);
+        openManageLegsModal(trip.id, null);
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+
+    modal.querySelectorAll('[data-leg-edit]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openManageLegsModal(trip.id, btn.getAttribute('data-leg-edit'));
+      });
+    });
+
+    modal.querySelectorAll('[data-leg-view]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const path = btn.getAttribute('data-leg-view');
+        if (bridge() && bridge().setSelectedLeg) {
+          bridge().setSelectedLeg(trip.id, path);
+        }
+        closeTravelModal();
+      });
+    });
+
+    modal.querySelectorAll('[data-leg-del]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-leg-del');
+        const target = legs.find(l => l.id === id);
+        if (!target) return;
+        if (!confirm(`Delete leg "${target.path}"? Any expenses or reservations assigned to it will remain on the main trip.`)) return;
+        const nextLegs = legs.filter(l => l.id !== id && l.parent !== target.path);
+        try {
+          const resp = await fetch(`/api/trips/${encodeURIComponent(trip.id)}/legs`, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ legs: nextLegs, deletedPath: target.path })
+          });
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || 'Failed to delete leg');
+          if (bridge() && bridge().applyBootstrapData) bridge().applyBootstrapData(data);
+          refreshExpenseLegDropdownIfOpen('');
+          toast(`Removed leg "${target.path}"`);
+          openManageLegsModal(trip.id, null);
+        } catch (err) {
+          toast(err.message);
+        }
+      });
+    });
+  }
+
   document.addEventListener('click', e => {
     if (e.target.closest('#btn-open-fx-rates-modal')) {
       openFxRatesModal();
+      return;
+    }
+    const selLegBtn = e.target.closest('[data-select-leg]');
+    if (selLegBtn) {
+      const s = getAppData();
+      const legPath = selLegBtn.getAttribute('data-select-leg') || '';
+      if (bridge() && bridge().setSelectedLeg && s.selectedTripId && s.selectedTripId !== 'all') {
+        bridge().setSelectedLeg(s.selectedTripId, legPath);
+      }
+      return;
+    }
+    const manageBtn = e.target.closest('[data-manage-trip-legs]');
+    if (manageBtn) {
+      openManageLegsModal(manageBtn.getAttribute('data-manage-trip-legs'));
+      return;
+    }
+    if (e.target.closest('#btn-topbar-manage-legs')) {
+      const s = getAppData();
+      const tripId = (s.selectedTripId && s.selectedTripId !== 'all') ? s.selectedTripId : ((s.trips && s.trips[0]) ? s.trips[0].id : '');
+      openManageLegsModal(tripId);
+      return;
+    }
+    if (e.target.closest('#btn-exp-modal-manage-legs')) {
+      const expTripSel = document.getElementById('exp-trip');
+      const tripId = expTripSel ? expTripSel.value : '';
+      openManageLegsModal(tripId);
+      return;
     }
   });
 
@@ -1533,6 +1853,7 @@
                   <div class="hub-card-top-bar">
                     <span class="hub-status-pill hub-status-${esc(status)}">${esc(statusLabel)}</span>
                     <div class="hub-hero-actions">
+                      <button type="button" class="hub-hero-btn" data-manage-trip-legs="${esc(t.id)}" title="Add or Edit Trip Legs / Stops">🗺️ Legs</button>
                       <button type="button" class="hub-hero-btn" data-hub-edit="${esc(t.id)}">✏️ Edit / Photo</button>
                       <button type="button" class="hub-hero-btn hub-hero-del" data-hub-del="${esc(t.id)}" title="Delete Trip">🗑️</button>
                     </div>
@@ -1699,7 +2020,8 @@
         end_date: fd.get('end_date'),
         default_currency: fd.get('default_currency') || 'USD',
         notes: fd.get('notes'),
-        cover_photo
+        cover_photo,
+        legs_json: existing ? existing.legs_json : '[]'
       };
       try {
         const url = isEdit ? `/api/trips/${encodeURIComponent(existing.id)}` : '/api/trips';

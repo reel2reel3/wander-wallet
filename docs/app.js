@@ -1147,6 +1147,7 @@
     revenues: [],
     rewards: getDefaultRewardsData(),
     selectedTripId: 'trip-japan-2026',
+    selectedLegPath: '',
     activeView: 'hub',
     rewardsTab: 'programs',
     adminTab: 'categories',
@@ -2585,6 +2586,60 @@
     return Math.max(0, Number((gross - cred).toFixed(2)));
   }
 
+  function getTripLegs(trip) {
+    if (!trip) return [];
+    let raw = [];
+    if (Array.isArray(trip.legs)) {
+      raw = trip.legs;
+    } else if (typeof trip.legs_json === 'string' && trip.legs_json.trim()) {
+      try { raw = JSON.parse(trip.legs_json); } catch (e) { raw = []; }
+    }
+    if (!Array.isArray(raw)) return [];
+    return raw.map(l => {
+      const name = String(l.name || '').trim();
+      const parent = String(l.parent || '').trim();
+      const path = parent ? `${parent} / ${name}` : name;
+      return {
+        id: l.id || ('leg-' + path.toLowerCase().replace(/[^a-z0-9]+/g, '-')),
+        name,
+        parent,
+        path,
+        currency: l.currency || trip.default_currency || 'USD',
+        budget_usd: Number(l.budget_usd) || 0
+      };
+    }).filter(l => l.name);
+  }
+
+  function matchesLegFilter(itemLegPath, filterLegPath) {
+    const flt = String(filterLegPath || '').trim();
+    if (!flt) return true;
+    const itm = String(itemLegPath || '').trim();
+    return itm === flt || itm.startsWith(flt + ' / ');
+  }
+
+  function populateLegSelect(selectEl, tripId, selectedPath = '') {
+    if (!selectEl) return;
+    const trip = state.trips.find(t => t.id === tripId);
+    const legs = getTripLegs(trip);
+    const topLegs = legs.filter(l => !l.parent);
+    let html = `<option value="">🌎 Entire Trip (${trip ? escapeHtml(trip.name) : 'General'})</option>`;
+    for (const top of topLegs) {
+      html += `<option value="${escapeHtml(top.path)}">├─ 📍 ${escapeHtml(top.name)}</option>`;
+      const children = legs.filter(c => c.parent === top.name);
+      for (const ch of children) {
+        html += `<option value="${escapeHtml(ch.path)}">&nbsp;&nbsp;&nbsp;└─ 📍 ${escapeHtml(ch.path)}</option>`;
+      }
+    }
+    // Any orphan legs whose parent wasn't listed
+    for (const l of legs) {
+      if (l.parent && !topLegs.some(t => t.name === l.parent)) {
+        html += `<option value="${escapeHtml(l.path)}">├─ 📍 ${escapeHtml(l.path)}</option>`;
+      }
+    }
+    selectEl.innerHTML = html;
+    selectEl.value = selectedPath || '';
+  }
+
   function getScopedTrips() {
     if (state.selectedTripId === 'all') return state.trips;
     return state.trips.filter(t => t.id === state.selectedTripId);
@@ -2592,7 +2647,10 @@
 
   function getScopedExpenses() {
     if (state.selectedTripId === 'all') return state.expenses;
-    return state.expenses.filter(e => e.trip_id === state.selectedTripId);
+    return state.expenses.filter(e =>
+      e.trip_id === state.selectedTripId &&
+      matchesLegFilter(e.leg_path || '', state.selectedLegPath || '')
+    );
   }
 
   function getScopedRevenues() {
@@ -2682,14 +2740,47 @@
   }
 
   function renderTripSelectors() {
+    if (state.selectedTripId === 'all' && state.trips.length > 0) {
+      state.selectedTripId = state.trips[0].id;
+    }
+    const activeTrip = state.trips.find(t => t.id === state.selectedTripId) || state.trips[0] || null;
+    const activeLegs = getTripLegs(activeTrip);
+    if (state.selectedLegPath && !activeLegs.some(l => l.path === state.selectedLegPath)) {
+      state.selectedLegPath = '';
+    }
+
     const globalSelect = document.getElementById('global-trip-select');
     if (globalSelect) {
-      const currentVal = state.selectedTripId;
-      globalSelect.innerHTML = `<option value="all">All Trips (${state.trips.length})</option>` +
-        state.trips.map(t =>
-          `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)} (${escapeHtml(t.default_currency)})</option>`
-        ).join('');
-      globalSelect.value = currentVal;
+      if (!activeTrip) {
+        globalSelect.innerHTML = `<option value="all">No Active Trip</option>`;
+      } else {
+        const topLegs = activeLegs.filter(l => !l.parent);
+        let opts = `<optgroup label="📍 ${escapeHtml(activeTrip.name)} Hierarchy">`;
+        opts += `<option value="${escapeHtml(activeTrip.id)}">🌎 ${escapeHtml(activeTrip.name)} — Entire Trip (${escapeHtml(activeTrip.default_currency)})</option>`;
+        for (const top of topLegs) {
+          opts += `<option value="${escapeHtml(activeTrip.id)}::${escapeHtml(top.path)}">├─ ${escapeHtml(activeTrip.name)} / ${escapeHtml(top.name)}</option>`;
+          const children = activeLegs.filter(c => c.parent === top.name);
+          for (const ch of children) {
+            opts += `<option value="${escapeHtml(activeTrip.id)}::${escapeHtml(ch.path)}">&nbsp;&nbsp;&nbsp;└─ ${escapeHtml(activeTrip.name)} / ${escapeHtml(ch.path)}</option>`;
+          }
+        }
+        for (const l of activeLegs) {
+          if (l.parent && !topLegs.some(t => t.name === l.parent)) {
+            opts += `<option value="${escapeHtml(activeTrip.id)}::${escapeHtml(l.path)}">├─ ${escapeHtml(activeTrip.name)} / ${escapeHtml(l.path)}</option>`;
+          }
+        }
+        opts += `</optgroup>`;
+        const otherTrips = state.trips.filter(t => t.id !== activeTrip.id);
+        if (otherTrips.length > 0) {
+          opts += `<optgroup label="⇄ Switch Trip">` +
+            otherTrips.map(t => `<option value="${escapeHtml(t.id)}">✈️ ${escapeHtml(t.name)} (${escapeHtml(t.default_currency)})</option>`).join('') +
+            `</optgroup>`;
+        }
+        globalSelect.innerHTML = opts;
+        globalSelect.value = state.selectedLegPath
+          ? `${activeTrip.id}::${state.selectedLegPath}`
+          : activeTrip.id;
+      }
     }
 
     const sidebarList = document.getElementById('sidebar-trip-list');
@@ -2782,26 +2873,55 @@
     const trip = state.trips.find(t => t.id === state.selectedTripId);
     if (!trip) return;
     const days = computeDaysBetween(trip.start_date, trip.end_date);
-    const fxRate = state.settings.exchange_rates[trip.default_currency] || 1;
+    const legs = getTripLegs(trip);
+    const activeLeg = legs.find(l => l.path === state.selectedLegPath) || null;
+    const displayCurrency = (activeLeg && activeLeg.currency) ? activeLeg.currency : trip.default_currency;
+    const fxRate = state.settings.exchange_rates[displayCurrency] || 1;
+    const displayBudget = (activeLeg && activeLeg.budget_usd > 0) ? activeLeg.budget_usd : trip.budget_usd;
+    const tripExps = state.expenses.filter(e => e.trip_id === trip.id);
+
+    const legsBarHtml = `
+      <div class="trip-legs-bar" style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-subtle); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-right: 4px;">🗺️ Trip Legs:</span>
+        <button type="button" class="leg-filter-chip ${!state.selectedLegPath ? 'active' : ''}" data-select-leg="">
+          🌎 Entire Trip (${tripExps.length})
+        </button>
+        ${legs.map(l => {
+          const count = tripExps.filter(e => matchesLegFilter(e.leg_path || '', l.path)).length;
+          const isChild = Boolean(l.parent);
+          return `
+            <button type="button" class="leg-filter-chip ${state.selectedLegPath === l.path ? 'active' : ''}" data-select-leg="${escapeHtml(l.path)}">
+              ${isChild ? '↳' : '📍'} ${escapeHtml(l.path)} (${count})
+            </button>
+          `;
+        }).join('')}
+        <button type="button" class="btn btn-xs" data-manage-trip-legs="${escapeHtml(trip.id)}" style="margin-left: 4px; padding: 3px 9px; font-size: 11.5px;">
+          + Add / Edit Legs
+        </button>
+      </div>
+    `;
+
     banner.innerHTML = `
-      <div class="trip-context-info">
+      <div class="trip-context-info" style="flex: 1;">
         <div class="trip-context-eyebrow">
           <span class="status-badge ${escapeHtml(trip.status)}">${escapeHtml(trip.status)}</span>
           <span>📍 ${escapeHtml(trip.destination)}</span>
+          ${activeLeg ? `<span>•</span><span style="color: var(--accent-amber); font-weight: 700;">🗺️ Leg: ${escapeHtml(trip.name)} / ${escapeHtml(activeLeg.path)}</span>` : ''}
           <span>•</span>
           <span class="mono">${escapeHtml(trip.start_date)} → ${escapeHtml(trip.end_date)} (${days} days)</span>
         </div>
-        <h2 class="trip-context-title">${escapeHtml(trip.name)}</h2>
+        <h2 class="trip-context-title">${escapeHtml(trip.name)}${activeLeg ? ` <span style="color: var(--accent-sky); font-weight: 600; font-size: 0.85em;">/ ${escapeHtml(activeLeg.path)}</span>` : ''}</h2>
         <p class="trip-context-notes">${escapeHtml(trip.notes || 'Trip expense tracking, receipts & budget burn rate.')}</p>
+        ${legsBarHtml}
       </div>
       <div class="trip-context-meta">
         <div class="meta-stat">
           <span class="meta-stat-label">Local Currency</span>
-          <span class="meta-stat-val mono">${escapeHtml(trip.default_currency)} (${fxRate === 1 ? '1.00' : fxRate})</span>
+          <span class="meta-stat-val mono">${escapeHtml(displayCurrency)} (${fxRate === 1 ? '1.00' : fxRate})</span>
         </div>
         <div class="meta-stat">
-          <span class="meta-stat-label">Trip Budget</span>
-          <span class="meta-stat-val tabular">${fmtUsdCompact(trip.budget_usd)}</span>
+          <span class="meta-stat-label">${activeLeg && activeLeg.budget_usd > 0 ? 'Leg Budget' : 'Trip Budget'}</span>
+          <span class="meta-stat-val tabular">${fmtUsdCompact(displayBudget)}</span>
         </div>
         <button type="button" class="btn btn-sm" data-trip-ai-advisor="${escapeHtml(trip.id)}" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(14, 165, 233, 0.16)); border: 1px solid rgba(139, 92, 246, 0.4); font-weight: 700; color: var(--text-primary);" title="Generate AI hotel, flight & rewards plan for this trip">✨ AI Rewards Plan</button>
         <button type="button" class="btn btn-sm" id="btn-banner-edit-trip" data-edit-trip="${escapeHtml(trip.id)}">✎ Edit Trip</button>
@@ -2822,7 +2942,14 @@
     const taxPct = totalSpend > 0 ? Math.round((deductibleSpend / totalSpend) * 100) : 100;
     const receiptsCount = expenses.filter(e => e.receipt_data).length;
 
-    const totalBudget = trips.reduce((s, t) => s + (Number(t.budget_usd) || 0), 0);
+    let totalBudget = trips.reduce((s, t) => s + (Number(t.budget_usd) || 0), 0);
+    if (state.selectedLegPath && trips.length === 1) {
+      const legs = getTripLegs(trips[0]);
+      const activeLeg = legs.find(l => l.path === state.selectedLegPath);
+      if (activeLeg && activeLeg.budget_usd > 0) {
+        totalBudget = activeLeg.budget_usd;
+      }
+    }
     const budgetRemaining = totalBudget - totalSpend;
     const budgetUsedPct = totalBudget > 0 ? Math.min(100, Math.round((totalSpend / totalBudget) * 100)) : 0;
 
@@ -3048,7 +3175,7 @@
       if (state.specialFilter === 'missing_receipt' && (e.receipt_data || e.amount_usd < 75)) return false;
       if (state.specialFilter === 'reimbursable' && !e.reimbursable) return false;
       if (q) {
-        const hay = `${e.title} ${e.vendor} ${e.category} ${e.notes} ${e.credit_note || ''} ${e.currency} ${e.paid_by}`.toLowerCase();
+        const hay = `${e.title} ${e.vendor} ${e.category} ${e.leg_path || ''} ${e.notes} ${e.credit_note || ''} ${e.currency} ${e.paid_by}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -3092,7 +3219,8 @@
             </div>
           </td>
           <td style="white-space: nowrap; font-size: 12.5px;">
-            ${trip ? escapeHtml(trip.name) : escapeHtml(e.trip_id)}
+            <div>${trip ? escapeHtml(trip.name) : escapeHtml(e.trip_id)}</div>
+            ${e.leg_path ? `<div style="font-size: 11px; color: var(--accent-sky); font-weight: 600; margin-top: 2px;">📍 ${escapeHtml(e.leg_path)}</div>` : ''}
           </td>
           <td>
             <span class="cat-badge" style="border-color: ${hexToRgba(meta.color, 0.55)}; background-color: ${hexToRgba(meta.color, 0.12)};">
@@ -3764,6 +3892,7 @@
       titleEl.textContent = 'Edit Trip Expense';
       idInput.value = editExpense.id;
       tripSelect.value = editExpense.trip_id;
+      populateLegSelect(document.getElementById('exp-leg-path'), editExpense.trip_id, editExpense.leg_path || '');
       dateInput.value = editExpense.expense_date;
       descInput.value = editExpense.title;
       vendorInput.value = editExpense.vendor || '';
@@ -3791,6 +3920,7 @@
         ? state.selectedTripId
         : (state.trips[0] ? state.trips[0].id : '');
       tripSelect.value = defaultTripId;
+      populateLegSelect(document.getElementById('exp-leg-path'), defaultTripId, state.selectedLegPath || '');
       const activeTrip = state.trips.find(t => t.id === defaultTripId);
       const defaultCurr = activeTrip ? activeTrip.default_currency : 'USD';
       const defaultRate = state.settings.exchange_rates[defaultCurr] || 1;
@@ -3981,8 +4111,10 @@
     const creditUsd = Math.max(0, Number(((Number(creditUsdEl ? creditUsdEl.value : 0) || 0)).toFixed(2)));
     const netUsd = Math.max(0, Number((grossUsd - creditUsd).toFixed(2)));
 
+    const legPathEl = document.getElementById('exp-leg-path');
     const payload = {
       trip_id: document.getElementById('exp-trip-id').value,
+      leg_path: legPathEl ? legPathEl.value : '',
       expense_date: document.getElementById('exp-date').value || new Date().toISOString().slice(0, 10),
       title: titleVal,
       vendor: document.getElementById('exp-vendor').value.trim(),
@@ -12119,12 +12251,27 @@
   }
 
   function bindEvents() {
-    // Global Trip Selector
+    // Global Trip / Leg Hierarchy Selector
     const globalSelect = document.getElementById('global-trip-select');
     if (globalSelect) {
       globalSelect.addEventListener('change', e => {
-        state.selectedTripId = e.target.value;
+        const val = String(e.target.value || '');
+        if (val.includes('::')) {
+          const [tId, ...legParts] = val.split('::');
+          state.selectedTripId = tId;
+          state.selectedLegPath = legParts.join('::');
+        } else {
+          state.selectedTripId = val;
+          state.selectedLegPath = '';
+        }
         renderAll();
+      });
+    }
+
+    const expTripSelectEl = document.getElementById('exp-trip-id');
+    if (expTripSelectEl) {
+      expTripSelectEl.addEventListener('change', e => {
+        populateLegSelect(document.getElementById('exp-leg-path'), e.target.value, '');
       });
     }
 
@@ -15062,10 +15209,16 @@
     showToast,
     switchView,
     escapeHtml,
+    getTripLegs,
+    matchesLegFilter,
     setSelectedTrip(tripId) {
-      state.selectedTripId = tripId || 'all';
-      const sel = document.getElementById('global-trip-select');
-      if (sel) sel.value = state.selectedTripId;
+      state.selectedTripId = tripId || (state.trips[0] ? state.trips[0].id : 'all');
+      state.selectedLegPath = '';
+      renderAll();
+    },
+    setSelectedLeg(tripId, legPath) {
+      if (tripId) state.selectedTripId = tripId;
+      state.selectedLegPath = legPath || '';
       renderAll();
     }
   };

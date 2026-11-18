@@ -106,7 +106,10 @@ try { db.exec('ALTER TABLE expenses ADD COLUMN credit_usd REAL NOT NULL DEFAULT 
 try { db.exec('ALTER TABLE expenses ADD COLUMN credit_verified INTEGER NOT NULL DEFAULT 0'); } catch (e) {}
 try { db.exec("ALTER TABLE expenses ADD COLUMN credit_note TEXT DEFAULT ''"); } catch (e) {}
 try { db.exec("ALTER TABLE trips ADD COLUMN cover_photo TEXT DEFAULT ''"); } catch (e) {}
+try { db.exec("ALTER TABLE trips ADD COLUMN legs_json TEXT DEFAULT '[]'"); } catch (e) {}
+try { db.exec("ALTER TABLE expenses ADD COLUMN leg_path TEXT DEFAULT ''"); } catch (e) {}
 travelEngine.initTravelSchema(db);
+try { db.exec("ALTER TABLE reservations ADD COLUMN leg_path TEXT DEFAULT ''"); } catch (e) {}
 
 const DEFAULT_RATES = {
   USD: 1.0,
@@ -1918,9 +1921,10 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const id = body.id || ('trip-' + Date.now());
       const now = new Date().toISOString();
+      const legsJson = Array.isArray(body.legs) ? JSON.stringify(body.legs) : (typeof body.legs_json === 'string' ? body.legs_json : '[]');
       db.prepare(`
-        INSERT OR REPLACE INTO trips (id, name, destination, country_code, default_currency, start_date, end_date, budget_usd, video_count, status, notes, cover_photo, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO trips (id, name, destination, country_code, default_currency, start_date, end_date, budget_usd, video_count, status, notes, cover_photo, legs_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
         body.name || 'Untitled Trip',
@@ -1934,6 +1938,7 @@ const server = http.createServer(async (req, res) => {
         body.status || 'active',
         body.notes || '',
         body.cover_photo || '',
+        legsJson,
         now
       );
       markServerModified();
@@ -1941,18 +1946,51 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname.startsWith('/api/trips/') && (method === 'PUT' || method === 'DELETE')) {
-      const id = decodeURIComponent(pathname.replace('/api/trips/', ''));
+      const rest = pathname.replace('/api/trips/', '');
+      if (rest.endsWith('/legs') && method === 'PUT') {
+        const tripId = decodeURIComponent(rest.slice(0, -5));
+        const body = await readJsonBody(req);
+        const legs = Array.isArray(body.legs) ? body.legs : [];
+        db.prepare('UPDATE trips SET legs_json = ? WHERE id = ?').run(JSON.stringify(legs), tripId);
+        if (body.renameFrom && body.renameTo) {
+          const oldP = String(body.renameFrom);
+          const newP = String(body.renameTo);
+          const exps = db.prepare('SELECT id, leg_path FROM expenses WHERE trip_id = ?').all(tripId);
+          const updExp = db.prepare('UPDATE expenses SET leg_path = ? WHERE id = ?');
+          for (const e of exps) {
+            if (e.leg_path === oldP) updExp.run(newP, e.id);
+            else if (e.leg_path && e.leg_path.startsWith(oldP + ' / ')) updExp.run(newP + e.leg_path.slice(oldP.length), e.id);
+          }
+          const ress = db.prepare('SELECT id, leg_path FROM reservations WHERE trip_id = ?').all(tripId);
+          const updRes = db.prepare('UPDATE reservations SET leg_path = ? WHERE id = ?');
+          for (const r of ress) {
+            if (r.leg_path === oldP) updRes.run(newP, r.id);
+            else if (r.leg_path && r.leg_path.startsWith(oldP + ' / ')) updRes.run(newP + r.leg_path.slice(oldP.length), r.id);
+          }
+        }
+        if (body.deletedPath) {
+          const delP = String(body.deletedPath);
+          db.prepare("UPDATE expenses SET leg_path = '' WHERE trip_id = ? AND (leg_path = ? OR leg_path LIKE ?)").run(tripId, delP, delP + ' / %');
+          db.prepare("UPDATE reservations SET leg_path = '' WHERE trip_id = ? AND (leg_path = ? OR leg_path LIKE ?)").run(tripId, delP, delP + ' / %');
+        }
+        markServerModified();
+        return sendJson(res, 200, { ok: true, bootstrap: getBootstrapData() });
+      }
+
+      const id = decodeURIComponent(rest);
       if (method === 'DELETE') {
         db.prepare('DELETE FROM trips WHERE id = ?').run(id);
         markServerModified();
         return sendJson(res, 200, getBootstrapData());
       }
       const body = await readJsonBody(req);
+      const legsJson = Array.isArray(body.legs) ? JSON.stringify(body.legs) : (typeof body.legs_json === 'string' ? body.legs_json : null);
       db.prepare(`
         UPDATE trips
         SET name = ?, destination = ?, country_code = ?, default_currency = ?,
             start_date = ?, end_date = ?, budget_usd = ?, video_count = ?, status = ?, notes = ?,
-            cover_photo = COALESCE(?, cover_photo)
+            cover_photo = COALESCE(?, cover_photo),
+            legs_json = COALESCE(?, legs_json)
         WHERE id = ?
       `).run(
         body.name,
@@ -1966,6 +2004,7 @@ const server = http.createServer(async (req, res) => {
         body.status || 'active',
         body.notes || '',
         body.cover_photo !== undefined ? body.cover_photo : null,
+        legsJson,
         id
       );
       markServerModified();
@@ -1991,8 +2030,8 @@ const server = http.createServer(async (req, res) => {
           id, trip_id, title, vendor, category, expense_date,
           amount_original, currency, exchange_rate, amount_usd,
           payment_method, paid_by, tax_deductible, reimbursable,
-          receipt_data, receipt_name, notes, credit_usd, credit_verified, credit_note, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          receipt_data, receipt_name, notes, credit_usd, credit_verified, credit_note, leg_path, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
         body.trip_id,
@@ -2014,6 +2053,7 @@ const server = http.createServer(async (req, res) => {
         creditUsd,
         creditVerified,
         creditNote,
+        String(body.leg_path || '').trim(),
         now
       );
       markServerModified();
@@ -2043,7 +2083,8 @@ const server = http.createServer(async (req, res) => {
             amount_original = ?, currency = ?, exchange_rate = ?, amount_usd = ?,
             payment_method = ?, paid_by = ?, tax_deductible = ?, reimbursable = ?,
             receipt_data = ?, receipt_name = ?, notes = ?,
-            credit_usd = ?, credit_verified = ?, credit_note = ?
+            credit_usd = ?, credit_verified = ?, credit_note = ?,
+            leg_path = COALESCE(?, leg_path)
         WHERE id = ?
       `).run(
         body.trip_id,
@@ -2065,6 +2106,7 @@ const server = http.createServer(async (req, res) => {
         creditUsd,
         creditVerified,
         creditNote,
+        body.leg_path !== undefined ? String(body.leg_path || '').trim() : null,
         id
       );
       markServerModified();
@@ -2388,14 +2430,14 @@ const server = http.createServer(async (req, res) => {
 
       db.prepare(`
         INSERT INTO reservations (
-          id, trip_id, type, title, vendor, confirmation_code, status,
+          id, trip_id, leg_path, type, title, vendor, confirmation_code, status,
           start_datetime, end_datetime, timezone, location_from, location_to, address,
           details_json, cancel_deadline, is_refundable, cost_amount, cost_currency, cost_usd,
           payment_method, points_used, points_earned, loyalty_program, linked_expense_id,
           attachment_data, attachment_name, notes, source, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        id, b.trip_id || '', b.type || 'flight', b.title || 'Reservation', b.vendor || '',
+        id, b.trip_id || '', String(b.leg_path || '').trim(), b.type || 'flight', b.title || 'Reservation', b.vendor || '',
         b.confirmation_code || '', b.status || 'confirmed',
         b.start_datetime || now.slice(0, 16), b.end_datetime || '', b.timezone || '',
         b.location_from || '', b.location_to || '', b.address || '',
@@ -2438,23 +2480,23 @@ const server = http.createServer(async (req, res) => {
 
           if (linkedExpenseId) {
             db.prepare(`
-              UPDATE expenses SET trip_id=?, title=?, vendor=?, category=?, expense_date=?, amount_original=?, currency=?, exchange_rate=?, amount_usd=?, payment_method=?, notes=?
+              UPDATE expenses SET trip_id=?, leg_path=?, title=?, vendor=?, category=?, expense_date=?, amount_original=?, currency=?, exchange_rate=?, amount_usd=?, payment_method=?, notes=?
               WHERE id=?
             `).run(
-              r.trip_id, r.title, r.vendor || r.title, catMap[r.type] || 'Other Travel', expDate,
+              r.trip_id, r.leg_path || '', r.title, r.vendor || r.title, catMap[r.type] || 'Other Travel', expDate,
               r.cost_amount, r.cost_currency, exRate, r.cost_usd, r.payment_method || 'Amex Business Gold',
               `Confirmation: ${r.confirmation_code || 'N/A'}`, linkedExpenseId
             );
           } else {
             db.prepare(`
               INSERT INTO expenses (
-                id, trip_id, title, vendor, category, expense_date,
+                id, trip_id, leg_path, title, vendor, category, expense_date,
                 amount_original, currency, exchange_rate, amount_usd,
                 payment_method, paid_by, tax_deductible, reimbursable,
                 receipt_data, receipt_name, notes, credit_usd, credit_verified, credit_note, created_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
-              expId, r.trip_id, r.title, r.vendor || r.title, catMap[r.type] || 'Other Travel', expDate,
+              expId, r.trip_id, r.leg_path || '', r.title, r.vendor || r.title, catMap[r.type] || 'Other Travel', expDate,
               r.cost_amount, r.cost_currency, exRate, r.cost_usd, r.payment_method || 'Amex Business Gold',
               'Channel Card', 1, 0, r.attachment_data || '', r.attachment_name || '',
               `Synced from Travel Reservation (${r.confirmation_code || r.id})`, 0, 0, '', new Date().toISOString()
@@ -2505,7 +2547,7 @@ const server = http.createServer(async (req, res) => {
 
         db.prepare(`
           UPDATE reservations SET
-            trip_id=?, type=?, title=?, vendor=?, confirmation_code=?, status=?,
+            trip_id=?, leg_path=?, type=?, title=?, vendor=?, confirmation_code=?, status=?,
             start_datetime=?, end_datetime=?, timezone=?, location_from=?, location_to=?, address=?,
             details_json=?, cancel_deadline=?, is_refundable=?, cost_amount=?, cost_currency=?, cost_usd=?,
             payment_method=?, points_used=?, points_earned=?, loyalty_program=?,
@@ -2513,6 +2555,7 @@ const server = http.createServer(async (req, res) => {
           WHERE id=?
         `).run(
           b.trip_id !== undefined ? b.trip_id : existing.trip_id,
+          b.leg_path !== undefined ? String(b.leg_path || '').trim() : (existing.leg_path || ''),
           b.type || existing.type,
           b.title || existing.title,
           b.vendor !== undefined ? b.vendor : existing.vendor,
