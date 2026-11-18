@@ -3760,10 +3760,14 @@
     }
 
     state.activeView = viewName;
-    const views = ['hub', 'dashboard', 'trips', 'travel', 'revenue', 'rewards', 'tax', 'admin'];
+    const views = ['hub', 'visited-places', 'dashboard', 'trips', 'travel', 'revenue', 'rewards', 'tax', 'admin'];
     for (const v of views) {
       const el = document.getElementById(`view-${v}`);
       if (el) el.style.display = v === viewName ? 'block' : 'none';
+    }
+    const bannerEl = document.getElementById('trip-context-banner');
+    if (bannerEl) {
+      bannerEl.style.display = (viewName === 'hub' || viewName === 'visited-places') ? 'none' : '';
     }
 
     document.querySelectorAll('[data-view]').forEach(btn => {
@@ -3784,6 +3788,7 @@
 
     const titles = {
       hub: 'Central Trip Hub',
+      'visited-places': 'Visited States & Countries Tracker',
       dashboard: 'Trip Expense & Rewards Dashboard',
       trips: 'Trips & Budgets',
       travel: 'Travel & Itinerary Command Center',
@@ -3796,6 +3801,9 @@
     if (heading) heading.textContent = titles[viewName] || 'Central Trip Hub';
     if (viewName === 'hub' && window.WWTravel) {
       window.WWTravel.renderHub();
+    }
+    if (viewName === 'visited-places' && window.WWTravel && window.WWTravel.renderVisitedPlaces) {
+      window.WWTravel.renderVisitedPlaces();
     }
     if (viewName === 'travel' && window.WWTravel) {
       window.WWTravel.render();

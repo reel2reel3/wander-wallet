@@ -1184,6 +1184,12 @@ function getSettingsMap() {
       } catch {
         map.ecosystem_colors = null;
       }
+    } else if (r.key === 'visited_places') {
+      try {
+        map.visited_places = JSON.parse(r.value);
+      } catch {
+        map.visited_places = { states: [], countries: [], excluded_states: [], excluded_countries: [] };
+      }
     } else if (r.key === 'channel_name' && r.value === 'Nomad Frame Studios') {
       map.channel_name = 'Wander Wallet';
     } else {
@@ -2182,8 +2188,24 @@ const server = http.createServer(async (req, res) => {
       if (body.exchange_rates !== undefined) upsert.run('exchange_rates', JSON.stringify(body.exchange_rates));
       if (body.tax_categories !== undefined) upsert.run('tax_categories', JSON.stringify(body.tax_categories));
       if (body.ecosystem_colors !== undefined) upsert.run('ecosystem_colors', JSON.stringify(body.ecosystem_colors));
+      if (body.visited_places !== undefined) upsert.run('visited_places', JSON.stringify(body.visited_places));
       markServerModified();
       return sendJson(res, 200, getBootstrapData());
+    }
+
+    // Visited U.S. States & World Countries Tracker
+    if (pathname === '/api/visited-places' && method === 'PUT') {
+      const body = await readJsonBody(req);
+      const current = getSettingsMap().visited_places || { states: [], countries: [], excluded_states: [], excluded_countries: [] };
+      const next = {
+        states: Array.isArray(body.states) ? Array.from(new Set(body.states.map(s => String(s).trim()).filter(Boolean))) : (current.states || []),
+        countries: Array.isArray(body.countries) ? Array.from(new Set(body.countries.map(c => String(c).trim()).filter(Boolean))) : (current.countries || []),
+        excluded_states: Array.isArray(body.excluded_states) ? Array.from(new Set(body.excluded_states.map(s => String(s).trim()).filter(Boolean))) : (current.excluded_states || []),
+        excluded_countries: Array.isArray(body.excluded_countries) ? Array.from(new Set(body.excluded_countries.map(c => String(c).trim()).filter(Boolean))) : (current.excluded_countries || [])
+      };
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('visited_places', JSON.stringify(next));
+      markServerModified();
+      return sendJson(res, 200, { ok: true, visited_places: next, bootstrap: getBootstrapData() });
     }
 
     // Live FX Rates Refresh (Open Exchange Rate API -> USD base)

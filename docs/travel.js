@@ -177,6 +177,7 @@
     if (hubBadge) {
       hubBadge.textContent = String((s.trips || []).length);
     }
+    updateVisitedSidebarBadges(s);
   }
 
   // ---------------------------------------------------------------------------
@@ -1817,6 +1818,7 @@
     const trips = s.trips || [];
     const allRes = s.reservations || [];
     const allExp = s.expenses || [];
+    const vStats = computeVisitedStats(s);
 
     container.innerHTML = `
       <div class="hub-header-row">
@@ -1824,7 +1826,23 @@
           <h2 class="hub-main-title">Select a Trip to Open</h2>
           <p class="hub-main-sub">Click any trip card to launch its independent Travel &amp; Itinerary Planner or Financial Ledger.</p>
         </div>
-        <button type="button" class="btn btn-primary" id="btn-hub-new-trip">+ New Trip</button>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button type="button" class="visited-sidebar-card" data-open-visited-mode="countries" style="min-width: 145px;" title="Open Countries Visited Map">
+            <span class="visited-pin-icon">📍</span>
+            <div class="visited-sidebar-card-text">
+              <div class="visited-sidebar-count">${vStats.countries.total} <span class="visited-crown">👑</span></div>
+              <div class="visited-sidebar-label">Countries</div>
+            </div>
+          </button>
+          <button type="button" class="visited-sidebar-card" data-open-visited-mode="states" style="min-width: 145px;" title="Open U.S. States Visited Map">
+            <span class="visited-pin-icon">📍</span>
+            <div class="visited-sidebar-card-text">
+              <div class="visited-sidebar-count">${vStats.states.total} <span class="visited-crown">👑</span></div>
+              <div class="visited-sidebar-label">U.S. States</div>
+            </div>
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-hub-new-trip">+ New Trip</button>
+        </div>
       </div>
 
       ${trips.length === 0 ? `
@@ -2041,14 +2059,603 @@
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Visited U.S. States & World Countries Interactive Map Tracker
+  // ---------------------------------------------------------------------------
+
+  const visitedState = {
+    mode: 'states', // 'states' | 'countries'
+    viewTab: 'map', // 'map' | 'list'
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    listSearch: ''
+  };
+
+  const COUNTRY_CODE_TO_NAME = {
+    US: 'United States', USA: 'United States', JP: 'Japan', AR: 'Argentina', PA: 'Panama',
+    TH: 'Thailand', FR: 'France', GB: 'United Kingdom', UK: 'United Kingdom', IT: 'Italy',
+    ES: 'Spain', DE: 'Germany', CA: 'Canada', MX: 'Mexico', BR: 'Brazil', CL: 'Chile',
+    PE: 'Peru', CO: 'Colombia', CR: 'Costa Rica', AU: 'Australia', NZ: 'New Zealand',
+    CH: 'Switzerland', IS: 'Iceland', KR: 'South Korea', SG: 'Singapore', ID: 'Indonesia',
+    MY: 'Malaysia', PH: 'Philippines', VN: 'Vietnam', IN: 'India',ZA: 'South Africa',
+    PT: 'Portugal', GR: 'Greece', NL: 'Netherlands', AT: 'Austria', IE: 'Ireland'
+  };
+
+  function getMapDataset() {
+    return window.WW_MAP_DATA || { states: [], countries: [], allCountryNames: [] };
+  }
+
+  function computeVisitedStats(appState) {
+    const s = appState || getAppData();
+    const mapData = getMapDataset();
+    const saved = (s.settings && s.settings.visited_places) || {};
+    const manualStates = new Set(Array.isArray(saved.states) ? saved.states : []);
+    const manualCountries = new Set(Array.isArray(saved.countries) ? saved.countries : []);
+    const excludedStates = new Set(Array.isArray(saved.excluded_states) ? saved.excluded_states : []);
+    const excludedCountries = new Set(Array.isArray(saved.excluded_countries) ? saved.excluded_countries : []);
+
+    const fromTripsStates = new Set();
+    const fromTripsCountries = new Set();
+
+    const trips = s.trips || [];
+    const allStates = mapData.states || [];
+    const allCountries = mapData.allCountryNames || [];
+
+    for (const t of trips) {
+      const legs = (bridge() && bridge().getTripLegs) ? bridge().getTripLegs(t) : [];
+      const textChunks = [
+        t.name || '',
+        t.destination || '',
+        ...legs.map(l => l.path || l.name || '')
+      ];
+      const combinedText = textChunks.join(' • ');
+      const lowerText = combinedText.toLowerCase();
+
+      // Match Country Code or Country Names
+      const cc = String(t.country_code || '').trim().toUpperCase();
+      if (COUNTRY_CODE_TO_NAME[cc] && !excludedCountries.has(COUNTRY_CODE_TO_NAME[cc])) {
+        fromTripsCountries.add(COUNTRY_CODE_TO_NAME[cc]);
+      }
+      for (const cName of allCountries) {
+        if (excludedCountries.has(cName)) continue;
+        if (lowerText.includes(cName.toLowerCase())) {
+          fromTripsCountries.add(cName);
+        }
+      }
+
+      // Match U.S. State Names or ", ST" postal abbreviations
+      for (const st of allStates) {
+        if (excludedStates.has(st.name)) continue;
+        const nameRegex = new RegExp(`\\b${st.name.replace(/\s+/g, '\\s+')}\\b`, 'i');
+        const codeRegex = new RegExp(`(?:,\\s*|\\b)${st.code}\\b`);
+        if (nameRegex.test(combinedText) || (cc === 'US' && codeRegex.test(combinedText))) {
+          fromTripsStates.add(st.name);
+          if (!excludedCountries.has('United States')) {
+            fromTripsCountries.add('United States');
+          }
+        }
+      }
+    }
+
+    const finalStates = new Map(); // name -> 'trip' | 'manual'
+    for (const name of fromTripsStates) {
+      if (!excludedStates.has(name)) finalStates.set(name, 'trip');
+    }
+    for (const name of manualStates) {
+      if (!finalStates.has(name)) finalStates.set(name, 'manual');
+    }
+
+    const finalCountries = new Map(); // name -> 'trip' | 'manual'
+    for (const name of fromTripsCountries) {
+      if (!excludedCountries.has(name)) finalCountries.set(name, 'trip');
+    }
+    for (const name of manualCountries) {
+      if (!finalCountries.has(name)) finalCountries.set(name, 'manual');
+    }
+
+    let statesFromTripsCount = 0;
+    let statesManualCount = 0;
+    for (const src of finalStates.values()) {
+      if (src === 'trip') statesFromTripsCount++;
+      else statesManualCount++;
+    }
+
+    let countriesFromTripsCount = 0;
+    let countriesManualCount = 0;
+    for (const src of finalCountries.values()) {
+      if (src === 'trip') countriesFromTripsCount++;
+      else countriesManualCount++;
+    }
+
+    return {
+      states: {
+        map: finalStates,
+        total: finalStates.size,
+        max: 50,
+        pct: Math.round((finalStates.size / 50) * 100),
+        fromTrips: statesFromTripsCount,
+        manual: statesManualCount,
+        manualSet: manualStates,
+        excludedSet: excludedStates
+      },
+      countries: {
+        map: finalCountries,
+        total: finalCountries.size,
+        max: 195,
+        pct: Math.round((finalCountries.size / 195) * 100),
+        fromTrips: countriesFromTripsCount,
+        manual: countriesManualCount,
+        manualSet: manualCountries,
+        excludedSet: excludedCountries
+      }
+    };
+  }
+
+  function updateVisitedSidebarBadges(appState) {
+    const stats = computeVisitedStats(appState);
+    const cEl = document.getElementById('sidebar-visited-countries-count');
+    if (cEl) cEl.textContent = String(stats.countries.total);
+    const sEl = document.getElementById('sidebar-visited-states-count');
+    if (sEl) sEl.textContent = String(stats.states.total);
+  }
+
+  async function saveVisitedPlaceChange(mode, placeName, shouldBeVisited) {
+    const s = getAppData();
+    const stats = computeVisitedStats(s);
+    const manualStates = new Set(stats.states.manualSet);
+    const excludedStates = new Set(stats.states.excludedSet);
+    const manualCountries = new Set(stats.countries.manualSet);
+    const excludedCountries = new Set(stats.countries.excludedSet);
+
+    if (mode === 'states') {
+      if (shouldBeVisited) {
+        manualStates.add(placeName);
+        excludedStates.delete(placeName);
+      } else {
+        manualStates.delete(placeName);
+        excludedStates.add(placeName);
+      }
+    } else {
+      if (shouldBeVisited) {
+        manualCountries.add(placeName);
+        excludedCountries.delete(placeName);
+      } else {
+        manualCountries.delete(placeName);
+        excludedCountries.add(placeName);
+      }
+    }
+
+    const payload = {
+      states: Array.from(manualStates),
+      countries: Array.from(manualCountries),
+      excluded_states: Array.from(excludedStates),
+      excluded_countries: Array.from(excludedCountries)
+    };
+
+    try {
+      await travelApi('/api/visited-places', {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      updateVisitedSidebarBadges();
+      renderVisitedPlaces();
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  function openVisitedConfirmModal(mode, placeName, isCurrentlyVisited) {
+    const noun = mode === 'states' ? 'state' : 'country';
+    closeTravelModal();
+    const backdrop = document.createElement('div');
+    backdrop.id = 'ww-travel-modal-backdrop';
+    backdrop.className = 'modal-backdrop';
+    backdrop.style.display = 'flex';
+    backdrop.innerHTML = `
+      <div class="visited-confirm-dialog">
+        <h3 class="visited-confirm-title">${isCurrentlyVisited ? `Remove ${esc(placeName)}?` : `Add ${esc(placeName)}?`}</h3>
+        <p class="visited-confirm-desc">
+          ${isCurrentlyVisited
+            ? `Remove ${esc(placeName)} from your visited ${noun === 'state' ? 'states' : 'countries'} list.`
+            : `Mark ${esc(placeName)} as a ${noun} you've visited. You can remove it later from the map or list view.`}
+        </p>
+        <div class="visited-confirm-actions">
+          <button type="button" class="visited-btn-cancel" id="ww-visited-confirm-cancel">Cancel</button>
+          <button type="button" class="visited-btn-confirm ${isCurrentlyVisited ? 'danger' : ''}" id="ww-visited-confirm-ok">
+            ${isCurrentlyVisited ? `Remove ${noun}` : `Add ${noun}`}
+          </button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+    backdrop.querySelector('#ww-visited-confirm-cancel').addEventListener('click', closeTravelModal);
+    backdrop.addEventListener('click', e => {
+      if (e.target === backdrop) closeTravelModal();
+    });
+    backdrop.querySelector('#ww-visited-confirm-ok').addEventListener('click', async () => {
+      closeTravelModal();
+      await saveVisitedPlaceChange(mode, placeName, !isCurrentlyVisited);
+      toast(isCurrentlyVisited ? `Removed ${placeName}` : `✓ Added ${placeName} to visited ${mode}!`);
+    });
+  }
+
+  function openAddVisitedPlaceModal(mode) {
+    const noun = mode === 'states' ? 'state' : 'country';
+    const mapData = getMapDataset();
+    const stats = computeVisitedStats();
+    const visitedMap = mode === 'states' ? stats.states.map : stats.countries.map;
+    const allItems = mode === 'states'
+      ? (mapData.states || []).map(s => s.name)
+      : (mapData.allCountryNames || []);
+    const unvisited = allItems.filter(name => !visitedMap.has(name));
+
+    const modal = showTravelModal(mode === 'states' ? '+ Add U.S. State Visited' : '+ Add Country Visited', `
+      <form id="ww-add-visited-form" style="display: grid; gap: 14px;">
+        <p style="margin: 0; font-size: 13px; color: var(--text-secondary);">
+          Select a ${noun} below to mark it as visited, or click directly on any ${noun} on the map.
+        </p>
+        <div>
+          <label class="form-label">${mode === 'states' ? 'U.S. State' : 'Country'}</label>
+          <select name="place" class="form-control" required>
+            ${unvisited.map(name => `<option value="${esc(name)}">${esc(name)}</option>`).join('')}
+          </select>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn" id="ww-add-visited-cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add ${noun}</button>
+        </div>
+      </form>
+    `);
+
+    modal.querySelector('#ww-add-visited-cancel').addEventListener('click', closeTravelModal);
+    modal.querySelector('#ww-add-visited-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const place = fd.get('place');
+      if (!place) return;
+      closeTravelModal();
+      await saveVisitedPlaceChange(mode, place, true);
+      toast(`✓ Added ${place} to visited ${mode}!`);
+    });
+  }
+
+  function applyMapTransform() {
+    const g = document.getElementById('ww-visited-svg-group');
+    if (!g) return;
+    g.setAttribute('transform', `translate(${visitedState.panX}, ${visitedState.panY}) scale(${visitedState.zoom})`);
+  }
+
+  function renderVisitedPlaces(optionalMode) {
+    if (optionalMode === 'states' || optionalMode === 'countries') {
+      if (visitedState.mode !== optionalMode) {
+        visitedState.mode = optionalMode;
+        visitedState.zoom = 1;
+        visitedState.panX = 0;
+        visitedState.panY = 0;
+        visitedState.listSearch = '';
+      }
+    }
+    const container = document.getElementById('view-visited-places');
+    if (!container) return;
+
+    const isStates = visitedState.mode === 'states';
+    const stats = computeVisitedStats();
+    const cur = isStates ? stats.states : stats.countries;
+    const mapData = getMapDataset();
+    const polygons = isStates ? (mapData.states || []) : (mapData.countries || []);
+    const allNames = isStates ? polygons.map(p => p.name) : (mapData.allCountryNames || []);
+    const visitedEntries = Array.from(cur.map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+
+    container.innerHTML = `
+      <div class="visited-page-wrap">
+        <div class="visited-top-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <h2 class="visited-main-title">${isStates ? '🗺️ U.S. States Visited' : '🌐 Countries Visited'}</h2>
+              <div class="visited-mode-switch">
+                <button type="button" class="visited-mode-btn ${isStates ? 'active' : ''}" data-visited-mode="states">🇺🇸 U.S. States (${stats.states.total})</button>
+                <button type="button" class="visited-mode-btn ${!isStates ? 'active' : ''}" data-visited-mode="countries">🌐 Countries (${stats.countries.total})</button>
+              </div>
+            </div>
+            <p class="visited-main-sub">
+              Track every ${isStates ? 'U.S. state' : 'country'} you've been to — from past trips and the ones you've planned in Wander Wallet.
+            </p>
+          </div>
+          <div class="visited-header-actions">
+            <button type="button" class="visited-btn-back" id="btn-visited-back-hub">Back to dashboard</button>
+            <button type="button" class="visited-btn-add" id="btn-visited-add-modal">+ Add ${isStates ? 'state' : 'country'}</button>
+          </div>
+        </div>
+
+        <!-- 4 KPI Cards matching Screenshots 2 & 4 -->
+        <div class="visited-kpi-grid">
+          <div class="visited-kpi-card">
+            <div class="visited-kpi-val">${cur.total}</div>
+            <div class="visited-kpi-lbl">${isStates ? 'States visited' : 'Countries visited'}</div>
+          </div>
+          <div class="visited-kpi-card">
+            <div class="visited-kpi-val">${cur.pct}%</div>
+            <div class="visited-kpi-lbl">${isStates ? 'of 50' : 'of world'}</div>
+            <div class="visited-kpi-sub">${cur.total} / ${cur.max}</div>
+          </div>
+          <div class="visited-kpi-card">
+            <div class="visited-kpi-val">${cur.fromTrips}</div>
+            <div class="visited-kpi-lbl">From trips</div>
+          </div>
+          <div class="visited-kpi-card">
+            <div class="visited-kpi-val">${cur.manual}</div>
+            <div class="visited-kpi-lbl">Manually added</div>
+          </div>
+        </div>
+
+        <!-- Map / List Pill Toggle -->
+        <div class="visited-view-toggle-bar">
+          <div class="visited-tab-group">
+            <button type="button" class="visited-tab-btn ${visitedState.viewTab === 'map' ? 'active' : ''}" data-visited-tab="map">
+              <span>${isStates ? '🗺️' : '🌐'}</span><span>Map</span>
+            </button>
+            <button type="button" class="visited-tab-btn ${visitedState.viewTab === 'list' ? 'active' : ''}" data-visited-tab="list">
+              <span>📍</span><span>List (${cur.total})</span>
+            </button>
+          </div>
+        </div>
+
+        ${visitedState.viewTab === 'map' ? `
+          <div class="visited-map-stage" id="ww-visited-map-stage">
+            <div class="visited-zoom-controls">
+              <button type="button" class="visited-zoom-btn" id="btn-visited-zoom-in" title="Zoom In">+</button>
+              <button type="button" class="visited-zoom-btn" id="btn-visited-zoom-out" title="Zoom Out">&minus;</button>
+              <button type="button" class="visited-zoom-btn" id="btn-visited-zoom-reset" title="Reset View">&#8635;</button>
+            </div>
+            <div id="ww-visited-map-tooltip" class="visited-map-tooltip" style="display: none;"></div>
+            <svg
+              id="ww-visited-svg"
+              viewBox="${isStates ? '-60 0 1035 620' : '0 0 1000 540'}"
+              preserveAspectRatio="xMidYMid meet"
+              class="visited-map-svg"
+            >
+              <g id="ww-visited-svg-group" transform="translate(${visitedState.panX}, ${visitedState.panY}) scale(${visitedState.zoom})">
+                ${polygons.map(item => {
+                  const isVisited = cur.map.has(item.name);
+                  return `<path
+                    d="${item.d}"
+                    data-place-name="${esc(item.name)}"
+                    class="visited-map-shape ${isVisited ? 'is-visited' : 'not-visited'}"
+                  />`;
+                }).join('')}
+              </g>
+            </svg>
+            <div class="visited-map-legend">
+              <span><i class="legend-dot visited"></i> Visited</span>
+              <span><i class="legend-dot unvisited"></i> Not visited</span>
+              <span><i class="legend-dot ocean"></i> Background</span>
+            </div>
+          </div>
+        ` : `
+          <div class="visited-list-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;">
+              <h3 style="margin: 0; font-size: 16px;">Visited ${isStates ? 'U.S. States' : 'Countries'} (${visitedEntries.length})</h3>
+              <input type="search" id="ww-visited-list-search" class="form-control" style="max-width: 280px;" placeholder="Search all ${isStates ? '50 states' : 'countries'}..." value="${esc(visitedState.listSearch)}" />
+            </div>
+
+            ${visitedEntries.length === 0 ? `
+              <div style="padding: 24px; text-align: center; color: var(--text-secondary); background: var(--bg-elevated); border-radius: 10px; margin-bottom: 18px;">
+                No ${isStates ? 'U.S. states' : 'countries'} marked as visited yet. Switch to the <strong>Map</strong> tab and click any ${isStates ? 'state' : 'country'}, or click <strong>+ Add ${isStates ? 'state' : 'country'}</strong>!
+              </div>
+            ` : `
+              <div class="visited-places-grid" style="margin-bottom: 22px;">
+                ${visitedEntries
+                  .filter(([name]) => !visitedState.listSearch || name.toLowerCase().includes(visitedState.listSearch.toLowerCase()))
+                  .map(([name, source]) => `
+                    <div class="visited-place-chip">
+                      <div>
+                        <strong>📍 ${esc(name)}</strong>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                          ${source === 'trip' ? '✈️ From trips' : '✨ Manually added'}
+                        </div>
+                      </div>
+                      <button type="button" class="btn btn-xs btn-danger" data-visited-remove="${esc(name)}">Remove</button>
+                    </div>
+                  `).join('')}
+              </div>
+            `}
+
+            <h4 style="margin: 0 0 10px; font-size: 13.5px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+              All ${isStates ? '50 U.S. States' : 'World Countries'} Directory — Click to Toggle
+            </h4>
+            <div class="visited-directory-grid">
+              ${allNames
+                .filter(name => !visitedState.listSearch || name.toLowerCase().includes(visitedState.listSearch.toLowerCase()))
+                .map(name => {
+                  const isVis = cur.map.has(name);
+                  return `
+                    <button type="button" class="visited-dir-btn ${isVis ? 'active' : ''}" data-visited-toggle="${esc(name)}">
+                      <span>${isVis ? '🟡' : '⚪'} ${esc(name)}</span>
+                      <span style="font-size: 11px; opacity: 0.8;">${isVis ? 'Visited ✓' : '+ Add'}</span>
+                    </button>
+                  `;
+                }).join('')}
+            </div>
+          </div>
+        `}
+      </div>
+    `;
+
+    container.querySelectorAll('[data-visited-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        renderVisitedPlaces(btn.getAttribute('data-visited-mode'));
+      });
+    });
+
+    container.querySelectorAll('[data-visited-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        visitedState.viewTab = btn.getAttribute('data-visited-tab');
+        renderVisitedPlaces();
+      });
+    });
+
+    const btnBack = container.querySelector('#btn-visited-back-hub');
+    if (btnBack) {
+      btnBack.addEventListener('click', () => {
+        if (bridge() && bridge().switchView) bridge().switchView('hub');
+      });
+    }
+
+    const btnAddModal = container.querySelector('#btn-visited-add-modal');
+    if (btnAddModal) {
+      btnAddModal.addEventListener('click', () => openAddVisitedPlaceModal(visitedState.mode));
+    }
+
+    // Map interaction (Click state/country -> Confirm Modal, Hover -> Tooltip, Zoom & Pan)
+    const stage = container.querySelector('#ww-visited-map-stage');
+    const tooltip = container.querySelector('#ww-visited-map-tooltip');
+    if (stage) {
+      let isDragging = false;
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let movedPixels = 0;
+
+      stage.querySelectorAll('.visited-map-shape').forEach(shape => {
+        shape.addEventListener('mouseenter', () => {
+          const name = shape.getAttribute('data-place-name');
+          const isVis = cur.map.has(name);
+          if (tooltip) {
+            tooltip.innerHTML = `<strong>${esc(name)}</strong> <span>${isVis ? '• Visited ✓' : '• Click to add'}</span>`;
+            tooltip.style.display = 'block';
+          }
+        });
+        shape.addEventListener('mousemove', e => {
+          if (!tooltip) return;
+          const rect = stage.getBoundingClientRect();
+          tooltip.style.left = `${e.clientX - rect.left + 14}px`;
+          tooltip.style.top = `${e.clientY - rect.top - 32}px`;
+        });
+        shape.addEventListener('mouseleave', () => {
+          if (tooltip) tooltip.style.display = 'none';
+        });
+        shape.addEventListener('click', e => {
+          e.stopPropagation();
+          if (movedPixels > 6) return;
+          const name = shape.getAttribute('data-place-name');
+          if (!name) return;
+          openVisitedConfirmModal(visitedState.mode, name, cur.map.has(name));
+        });
+      });
+
+      const zoomBy = factor => {
+        const nextZoom = Math.max(1, Math.min(6, visitedState.zoom * factor));
+        if (nextZoom === 1) {
+          visitedState.panX = 0;
+          visitedState.panY = 0;
+        }
+        visitedState.zoom = nextZoom;
+        applyMapTransform();
+      };
+
+      const btnIn = stage.querySelector('#btn-visited-zoom-in');
+      const btnOut = stage.querySelector('#btn-visited-zoom-out');
+      const btnReset = stage.querySelector('#btn-visited-zoom-reset');
+      if (btnIn) btnIn.addEventListener('click', () => zoomBy(1.35));
+      if (btnOut) btnOut.addEventListener('click', () => zoomBy(1 / 1.35));
+      if (btnReset) {
+        btnReset.addEventListener('click', () => {
+          visitedState.zoom = 1;
+          visitedState.panX = 0;
+          visitedState.panY = 0;
+          applyMapTransform();
+        });
+      }
+
+      stage.addEventListener('mousedown', e => {
+        if (e.target.closest('.visited-zoom-controls')) return;
+        isDragging = true;
+        movedPixels = 0;
+        dragStartX = e.clientX - visitedState.panX;
+        dragStartY = e.clientY - visitedState.panY;
+      });
+      window.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        const nx = e.clientX - dragStartX;
+        const ny = e.clientY - dragStartY;
+        movedPixels += Math.hypot(nx - visitedState.panX, ny - visitedState.panY);
+        visitedState.panX = nx;
+        visitedState.panY = ny;
+        applyMapTransform();
+      });
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+    }
+
+    // List search & actions
+    const searchInp = container.querySelector('#ww-visited-list-search');
+    if (searchInp) {
+      searchInp.addEventListener('input', () => {
+        visitedState.listSearch = searchInp.value;
+        renderVisitedPlaces();
+        const nextInp = document.getElementById('ww-visited-list-search');
+        if (nextInp) {
+          nextInp.focus();
+          nextInp.setSelectionRange(nextInp.value.length, nextInp.value.length);
+        }
+      });
+    }
+
+    container.querySelectorAll('[data-visited-remove]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const place = btn.getAttribute('data-visited-remove');
+        await saveVisitedPlaceChange(visitedState.mode, place, false);
+        toast(`Removed ${place}`);
+      });
+    });
+
+    container.querySelectorAll('[data-visited-toggle]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const place = btn.getAttribute('data-visited-toggle');
+        const isVis = cur.map.has(place);
+        await saveVisitedPlaceChange(visitedState.mode, place, !isVis);
+        toast(isVis ? `Removed ${place}` : `✓ Added ${place}`);
+      });
+    });
+  }
+
+  document.addEventListener('click', e => {
+    if (e.target.closest('#btn-sidebar-visited-countries')) {
+      visitedState.mode = 'countries';
+      visitedState.viewTab = 'map';
+      if (bridge() && bridge().switchView) bridge().switchView('visited-places');
+      renderVisitedPlaces('countries');
+      return;
+    }
+    if (e.target.closest('#btn-sidebar-visited-states')) {
+      visitedState.mode = 'states';
+      visitedState.viewTab = 'map';
+      if (bridge() && bridge().switchView) bridge().switchView('visited-places');
+      renderVisitedPlaces('states');
+      return;
+    }
+    const modeCard = e.target.closest('[data-open-visited-mode]');
+    if (modeCard) {
+      const m = modeCard.getAttribute('data-open-visited-mode');
+      visitedState.mode = m;
+      visitedState.viewTab = 'map';
+      if (bridge() && bridge().switchView) bridge().switchView('visited-places');
+      renderVisitedPlaces(m);
+      return;
+    }
+  });
+
   window.WWTravel = {
     render,
     renderHub,
+    renderVisitedPlaces,
     syncFromState(s) {
       updateBadges(s);
       renderAdminEmailSync();
       if (s && s.activeView === 'hub') renderHub();
       if (s && s.activeView === 'travel') render();
+      if (s && s.activeView === 'visited-places') renderVisitedPlaces();
     },
     openReservationModal,
     openQuickImportModal,

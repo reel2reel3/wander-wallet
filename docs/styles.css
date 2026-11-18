@@ -3748,3 +3748,467 @@ body {
   border-color: var(--accent-primary);
   color: #fff;
 }
+
+/* ============================================================================
+   Visited U.S. States & World Countries Interactive Map Tracker
+   ============================================================================ */
+
+.visited-sidebar-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.visited-sidebar-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #132d4e;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 10px;
+  color: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.visited-sidebar-card:hover {
+  background: #183a66;
+  border-color: #3b82f6;
+  transform: translateY(-1px);
+}
+
+.visited-pin-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.visited-sidebar-count {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.15;
+}
+
+.visited-crown {
+  font-size: 12px;
+}
+
+.visited-sidebar-label {
+  font-size: 11px;
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.visited-page-wrap {
+  background: #0d213a;
+  color: #f8fafc;
+  padding: 22px 24px 26px;
+  border-radius: 16px;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.45);
+}
+
+.visited-top-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.visited-main-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0;
+  color: #ffffff;
+}
+
+.visited-main-sub {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 5px 0 0;
+}
+
+.visited-mode-switch {
+  display: inline-flex;
+  background: #132d4e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 99px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.visited-mode-btn {
+  border: none;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 99px;
+  cursor: pointer;
+}
+
+.visited-mode-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.visited-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.visited-btn-back {
+  background: #f8fafc;
+  color: #0f172a;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 15px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.visited-btn-back:hover {
+  background: #e2e8f0;
+}
+
+.visited-btn-add {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.visited-btn-add:hover {
+  background: #1d4ed8;
+}
+
+.visited-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.visited-kpi-card {
+  background: #152e4d;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+
+.visited-kpi-val {
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.15;
+}
+
+.visited-kpi-lbl {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.visited-kpi-sub {
+  font-size: 11.5px;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.visited-view-toggle-bar {
+  margin-bottom: 14px;
+}
+
+.visited-tab-group {
+  display: inline-flex;
+  background: #09182c;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.visited-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.visited-tab-btn.active {
+  background: #152e4d;
+  color: #ffffff;
+}
+
+.visited-map-stage {
+  position: relative;
+  background: #1e56e8;
+  border-radius: 14px;
+  overflow: hidden;
+  min-height: 490px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  user-select: none;
+}
+
+.visited-map-svg {
+  width: 100%;
+  max-height: 560px;
+  height: auto;
+  display: block;
+  cursor: grab;
+}
+
+.visited-map-svg:active {
+  cursor: grabbing;
+}
+
+.visited-map-shape {
+  stroke: #1e56e8;
+  stroke-width: 0.75px;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+  transition: fill 0.14s ease, opacity 0.14s ease;
+}
+
+.visited-map-shape.not-visited {
+  fill: #ffffff;
+}
+
+.visited-map-shape.not-visited:hover {
+  fill: #dbeafe;
+}
+
+.visited-map-shape.is-visited {
+  fill: #f5b82e;
+}
+
+.visited-map-shape.is-visited:hover {
+  fill: #fbbf24;
+}
+
+.visited-zoom-controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 5;
+}
+
+.visited-zoom-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(13, 33, 58, 0.85);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.visited-zoom-btn:hover {
+  background: #0d213a;
+}
+
+.visited-map-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(13, 33, 58, 0.94);
+  color: #ffffff;
+  padding: 6px 11px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.visited-map-legend {
+  position: absolute;
+  bottom: 12px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(13, 33, 58, 0.55);
+  padding: 5px 12px;
+  border-radius: 99px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.legend-dot.visited {
+  background: #f5b82e;
+}
+
+.legend-dot.unvisited {
+  background: #ffffff;
+}
+
+.legend-dot.ocean {
+  background: #1e56e8;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* Confirmation Modal matching Screenshot 3 ("Add Wyoming?") */
+.visited-confirm-dialog {
+  background: #132d4e;
+  color: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 16px;
+  padding: 24px 26px;
+  max-width: 480px;
+  width: 92%;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.55);
+}
+
+.visited-confirm-title {
+  margin: 0 0 10px;
+  font-size: 21px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.visited-confirm-desc {
+  margin: 0 0 22px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+.visited-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.visited-btn-cancel {
+  background: #f8fafc;
+  color: #0f172a;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.visited-btn-cancel:hover {
+  background: #e2e8f0;
+}
+
+.visited-btn-confirm {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.visited-btn-confirm:hover {
+  background: #1d4ed8;
+}
+
+.visited-btn-confirm.danger {
+  background: #ef4444;
+}
+
+.visited-list-panel {
+  background: #132d4e;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.visited-places-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.visited-place-chip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #0d213a;
+  border: 1px solid rgba(245, 184, 46, 0.45);
+  border-radius: 10px;
+}
+
+.visited-directory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.visited-dir-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #0d213a;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  color: #cbd5e1;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.visited-dir-btn:hover {
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.visited-dir-btn.active {
+  border-color: #f5b82e;
+  background: rgba(245, 184, 46, 0.14);
+  color: #ffffff;
+}

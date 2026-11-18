@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
-  <link rel="stylesheet" href="styles.css?v=14" />
+  <link rel="stylesheet" href="styles.css?v=15" />
 </head>
 <body>
   <div class="app-shell">
@@ -110,6 +110,22 @@
 
       <!-- Compact Quick Rewards & FX Rate Buttons -->
       <div class="sidebar-footer" style="margin-top: auto;">
+        <div class="visited-sidebar-cards">
+          <button type="button" class="visited-sidebar-card" id="btn-sidebar-visited-countries" title="Track all countries you have visited on an interactive world map">
+            <span class="visited-pin-icon">📍</span>
+            <div class="visited-sidebar-card-text">
+              <div class="visited-sidebar-count"><span id="sidebar-visited-countries-count">0</span> <span class="visited-crown">👑</span></div>
+              <div class="visited-sidebar-label">Countries</div>
+            </div>
+          </button>
+          <button type="button" class="visited-sidebar-card" id="btn-sidebar-visited-states" title="Track all U.S. states you have visited on an interactive map">
+            <span class="visited-pin-icon">📍</span>
+            <div class="visited-sidebar-card-text">
+              <div class="visited-sidebar-count"><span id="sidebar-visited-states-count">0</span> <span class="visited-crown">👑</span></div>
+              <div class="visited-sidebar-label">U.S. States</div>
+            </div>
+          </button>
+        </div>
         <button type="button" class="btn btn-sm" id="sidebar-quick-rewards-widget" style="width: 100%; display: flex; justify-content: space-between; align-items: center;" title="Open Quick Rewards Summary (Points, Miles, Unused Credits & Reset Dates)">
           <span>⚡ Quick Rewards Glance</span>
           <span style="font-size: 11px; color: var(--accent-primary);">View →</span>
@@ -167,6 +183,11 @@
 
         <!-- VIEW 0: CENTRAL TRIP HUB DASHBOARD -->
         <div id="view-hub" class="view-section">
+          <!-- Populated dynamically by travel.js -->
+        </div>
+
+        <!-- VIEW 0B: VISITED U.S. STATES & WORLD COUNTRIES MAP -->
+        <div id="view-visited-places" class="view-section" style="display: none;">
           <!-- Populated dynamically by travel.js -->
         </div>
 
@@ -2909,7 +2930,8 @@
 
   <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-  <script src="app.js?v=19"></script>
-  <script src="travel.js?v=6"></script>
+  <script src="visited-maps-data.js?v=1"></script>
+  <script src="app.js?v=20"></script>
+  <script src="travel.js?v=7"></script>
 </body>
 </html>

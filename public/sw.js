@@ -1,8 +1,9 @@
-const CACHE_NAME = 'wanderwallet-finance-v28';
+const CACHE_NAME = 'wanderwallet-finance-v29';
 const ASSETS = [
   '/',
   '/index.html',
   '/styles.css',
+  '/visited-maps-data.js',
   '/app.js',
   '/travel.js',
   '/manifest.json',
