@@ -1379,9 +1379,95 @@ function getEmailSyncStatus() {
     gmail_configured: Boolean(getVal('travel_gmail_client_id') && getVal('travel_secret_gmail_client_secret')),
     gmail_connected: Boolean(getVal('travel_secret_gmail_refresh_token')),
     gmail_client_id: getVal('travel_gmail_client_id') || '',
+    auto_sync_minutes: getVal('travel_auto_sync_minutes') !== '' ? Number(getVal('travel_auto_sync_minutes')) : 360,
     last_sync_at: getVal('travel_last_sync_at') || '',
     last_sync_summary: getVal('travel_last_sync_summary') || ''
   };
+}
+
+let isTravelSyncRunning = false;
+async function runTravelEmailSync() {
+  if (isTravelSyncRunning) {
+    return { skipped: true, scanned: 0, added: 0, errors: ['Sync already in progress'] };
+  }
+  isTravelSyncRunning = true;
+  try {
+    const getVal = k => ((db.prepare('SELECT value FROM settings WHERE key = ?').get(k) || {}).value || '');
+    const savedKeyRow = db.prepare("SELECT value FROM settings WHERE key = 'ai_api_key'").get();
+    const savedProvRow = db.prepare("SELECT value FROM settings WHERE key = 'ai_provider'").get();
+    const aiKey = (savedKeyRow && savedKeyRow.value) || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '';
+    const aiProvider = (savedProvRow && savedProvRow.value) || '';
+
+    let fetchedEmails = [];
+    const errors = [];
+
+    const imapHost = getVal('travel_imap_host');
+    const imapPort = Number(getVal('travel_imap_port')) || 993;
+    const imapUser = getVal('travel_imap_user');
+    const imapPass = getVal('travel_secret_imap_pass');
+    if (imapHost && imapUser && imapPass) {
+      try {
+        const imapList = await travelEngine.syncImapInbox({ host: imapHost, port: imapPort, user: imapUser, password: imapPass });
+        fetchedEmails.push(...imapList);
+      } catch (e) {
+        errors.push(`IMAP: ${e.message}`);
+      }
+    }
+
+    const gClientId = getVal('travel_gmail_client_id');
+    const gSecret = getVal('travel_secret_gmail_client_secret');
+    const gRefresh = getVal('travel_secret_gmail_refresh_token');
+    if (gClientId && gSecret && gRefresh) {
+      try {
+        const refreshed = await travelEngine.refreshGmailToken({ refreshToken: gRefresh, clientId: gClientId, clientSecret: gSecret });
+        const gList = await travelEngine.syncGmailInbox({ accessToken: refreshed.access_token });
+        fetchedEmails.push(...gList);
+      } catch (e) {
+        errors.push(`Gmail: ${e.message}`);
+      }
+    }
+
+    if (!imapHost && !gRefresh) {
+      return { notConfigured: true, scanned: 0, added: 0, errors: [] };
+    }
+
+    let addedCount = 0;
+    const insInbox = db.prepare(`
+      INSERT INTO travel_inbox (id, message_uid, subject, sender, received_at, raw_snippet, parsed_json, parser_used, confidence, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+    `);
+
+    for (const em of fetchedEmails) {
+      const exists = db.prepare('SELECT id FROM travel_inbox WHERE message_uid = ?').get(em.uid);
+      if (exists) continue;
+      const parsed = await travelEngine.parseTravelEmail({
+        rawEmail: em.rawEmail || '',
+        subject: em.subject || '',
+        sender: em.sender || '',
+        text: em.text || '',
+        html: em.html || '',
+        aiKey,
+        aiProvider
+      });
+      if (!parsed.reservations || parsed.reservations.length === 0) continue;
+      const inboxId = 'tinbox-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex');
+      insInbox.run(
+        inboxId, em.uid, parsed.subject || 'Travel Email', parsed.sender || '',
+        em.received_at || new Date().toISOString(), parsed.snippet || '',
+        JSON.stringify(parsed.reservations), parsed.parser_used, parsed.confidence, new Date().toISOString()
+      );
+      addedCount++;
+    }
+
+    const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
+    upsert.run('travel_last_sync_at', new Date().toISOString());
+    upsert.run('travel_last_sync_summary', `Scanned ${fetchedEmails.length} email(s), queued ${addedCount} new booking(s).${errors.length ? ' Errors: ' + errors.join('; ') : ''}`);
+    markServerModified();
+
+    return { ok: true, scanned: fetchedEmails.length, added: addedCount, errors };
+  } finally {
+    isTravelSyncRunning = false;
+  }
 }
 
 function getBootstrapData() {
@@ -2572,6 +2658,7 @@ const server = http.createServer(async (req, res) => {
       if (b.imap_password) upsert.run('travel_secret_imap_pass', String(b.imap_password));
       if (b.gmail_client_id !== undefined) upsert.run('travel_gmail_client_id', String(b.gmail_client_id).trim());
       if (b.gmail_client_secret) upsert.run('travel_secret_gmail_client_secret', String(b.gmail_client_secret).trim());
+      if (b.auto_sync_minutes !== undefined) upsert.run('travel_auto_sync_minutes', String(Math.max(0, Number(b.auto_sync_minutes) || 0)));
       if (b.disconnect_gmail) {
         db.prepare("DELETE FROM settings WHERE key IN ('travel_secret_gmail_refresh_token', 'travel_secret_gmail_access_token')").run();
       }
@@ -2619,85 +2706,15 @@ const server = http.createServer(async (req, res) => {
 
     // Run Direct Inbox Sync (IMAP + Gmail OAuth)
     if (pathname === '/api/travel/email-sync' && method === 'POST') {
-      const getVal = k => ((db.prepare('SELECT value FROM settings WHERE key = ?').get(k) || {}).value || '');
-      const savedKeyRow = db.prepare("SELECT value FROM settings WHERE key = 'ai_api_key'").get();
-      const savedProvRow = db.prepare("SELECT value FROM settings WHERE key = 'ai_provider'").get();
-      const aiKey = (savedKeyRow && savedKeyRow.value) || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '';
-      const aiProvider = (savedProvRow && savedProvRow.value) || '';
-
-      let fetchedEmails = [];
-      const errors = [];
-
-      // 1. IMAP Sync
-      const imapHost = getVal('travel_imap_host');
-      const imapPort = Number(getVal('travel_imap_port')) || 993;
-      const imapUser = getVal('travel_imap_user');
-      const imapPass = getVal('travel_secret_imap_pass');
-      if (imapHost && imapUser && imapPass) {
-        try {
-          const imapList = await travelEngine.syncImapInbox({ host: imapHost, port: imapPort, user: imapUser, password: imapPass });
-          fetchedEmails.push(...imapList);
-        } catch (e) {
-          errors.push(`IMAP: ${e.message}`);
-        }
-      }
-
-      // 2. Gmail OAuth Sync
-      const gClientId = getVal('travel_gmail_client_id');
-      const gSecret = getVal('travel_secret_gmail_client_secret');
-      const gRefresh = getVal('travel_secret_gmail_refresh_token');
-      if (gClientId && gSecret && gRefresh) {
-        try {
-          const refreshed = await travelEngine.refreshGmailToken({ refreshToken: gRefresh, clientId: gClientId, clientSecret: gSecret });
-          const gList = await travelEngine.syncGmailInbox({ accessToken: refreshed.access_token });
-          fetchedEmails.push(...gList);
-        } catch (e) {
-          errors.push(`Gmail: ${e.message}`);
-        }
-      }
-
-      if (!imapHost && !gRefresh) {
+      const result = await runTravelEmailSync();
+      if (result.notConfigured) {
         return sendJson(res, 400, { error: 'No IMAP or Gmail OAuth account configured yet. Set up Email Sync in Admin.' });
       }
-
-      let addedCount = 0;
-      const insInbox = db.prepare(`
-        INSERT INTO travel_inbox (id, message_uid, subject, sender, received_at, raw_snippet, parsed_json, parser_used, confidence, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
-      `);
-
-      for (const em of fetchedEmails) {
-        const exists = db.prepare('SELECT id FROM travel_inbox WHERE message_uid = ?').get(em.uid);
-        if (exists) continue;
-        const parsed = await travelEngine.parseTravelEmail({
-          rawEmail: em.rawEmail || '',
-          subject: em.subject || '',
-          sender: em.sender || '',
-          text: em.text || '',
-          html: em.html || '',
-          aiKey,
-          aiProvider
-        });
-        if (!parsed.reservations || parsed.reservations.length === 0) continue;
-        const inboxId = 'tinbox-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex');
-        insInbox.run(
-          inboxId, em.uid, parsed.subject || 'Travel Email', parsed.sender || '',
-          em.received_at || new Date().toISOString(), parsed.snippet || '',
-          JSON.stringify(parsed.reservations), parsed.parser_used, parsed.confidence, new Date().toISOString()
-        );
-        addedCount++;
-      }
-
-      const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
-      upsert.run('travel_last_sync_at', new Date().toISOString());
-      upsert.run('travel_last_sync_summary', `Scanned ${fetchedEmails.length} email(s), queued ${addedCount} new booking(s).${errors.length ? ' Errors: ' + errors.join('; ') : ''}`);
-      markServerModified();
-
       return sendJson(res, 200, {
         ok: true,
-        scanned: fetchedEmails.length,
-        added: addedCount,
-        errors,
+        scanned: result.scanned,
+        added: result.added,
+        errors: result.errors,
         bootstrap: getBootstrapData()
       });
     }
@@ -2766,3 +2783,22 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Wander Wallet Creator Finance Server listening on http://0.0.0.0:${PORT}`);
 });
+
+// Background Auto-Sync Scheduler for Travel Email Inbox (checks every 15 minutes)
+setInterval(async () => {
+  try {
+    const st = getEmailSyncStatus();
+    if (!st.imap_configured && !st.gmail_connected) return;
+    const intervalMins = Number(st.auto_sync_minutes) || 0;
+    if (intervalMins <= 0) return;
+    const lastMs = st.last_sync_at ? new Date(st.last_sync_at).getTime() : 0;
+    if (!lastMs || (Date.now() - lastMs) >= intervalMins * 60000) {
+      const res = await runTravelEmailSync();
+      if (res && res.ok) {
+        console.log(`[Travel Auto-Sync] Scanned ${res.scanned} email(s), queued ${res.added} new booking(s).`);
+      }
+    }
+  } catch (e) {
+    console.error('[Travel Auto-Sync] Error:', e.message);
+  }
+}, 15 * 60 * 1000);

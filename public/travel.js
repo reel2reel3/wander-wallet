@@ -1229,7 +1229,16 @@
               ${st.last_sync_at ? `Last sync: ${esc(formatDateTimeShort(st.last_sync_at))} — ${esc(st.last_sync_summary || '')}` : 'Connect your inbox to automatically pull flight, hotel, and car confirmations into Pending Review.'}
             </div>
           </div>
-          <button type="button" class="btn btn-sm btn-primary" id="btn-admin-sync-travel-now">🔄 Sync Inbox Now</button>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <select id="ww-admin-auto-sync" class="form-control" style="font-size: 12.5px; padding: 5px 10px;" title="Automatic background email check interval">
+              <option value="0" ${Number(st.auto_sync_minutes) === 0 ? 'selected' : ''}>Auto-Sync: Off (Manual)</option>
+              <option value="240" ${Number(st.auto_sync_minutes) === 240 ? 'selected' : ''}>Auto-Sync: Every 4 hrs (6x/day)</option>
+              <option value="360" ${(st.auto_sync_minutes === undefined || Number(st.auto_sync_minutes) === 360) ? 'selected' : ''}>Auto-Sync: Every 6 hrs (4x/day)</option>
+              <option value="720" ${Number(st.auto_sync_minutes) === 720 ? 'selected' : ''}>Auto-Sync: Every 12 hrs (2x/day)</option>
+              <option value="1440" ${Number(st.auto_sync_minutes) === 1440 ? 'selected' : ''}>Auto-Sync: Daily (24 hrs)</option>
+            </select>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-admin-sync-travel-now">🔄 Sync Inbox Now</button>
+          </div>
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px;">
@@ -1273,6 +1282,19 @@
     `;
 
     mount.querySelector('#btn-admin-sync-travel-now').addEventListener('click', () => syncInbox());
+
+    const autoSyncSel = mount.querySelector('#ww-admin-auto-sync');
+    if (autoSyncSel) {
+      autoSyncSel.addEventListener('change', async () => {
+        try {
+          await travelApi('/api/travel/email-config', {
+            method: 'POST',
+            body: JSON.stringify({ auto_sync_minutes: Number(autoSyncSel.value) })
+          });
+          toast(Number(autoSyncSel.value) === 0 ? 'Auto-Sync turned off' : `✓ Auto-Sync set to every ${Number(autoSyncSel.value) / 60}h`);
+        } catch (err) { toast(err.message); }
+      });
+    }
 
     mount.querySelector('#ww-admin-imap-form').addEventListener('submit', async e => {
       e.preventDefault();
