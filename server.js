@@ -1456,9 +1456,9 @@ function repairExistingIataReservations() {
 repairExistingIataReservations();
 
 let isTravelSyncRunning = false;
-async function runTravelEmailSync() {
+async function runTravelEmailSync(options = {}) {
   if (isTravelSyncRunning) {
-    return { skipped: true, scanned: 0, added: 0, errors: ['Sync already in progress'] };
+    return { skipped: true, scanned: 0, added: 0, updated: 0, errors: ['Sync already in progress'] };
   }
   isTravelSyncRunning = true;
   try {
@@ -1498,7 +1498,7 @@ async function runTravelEmailSync() {
     }
 
     if (!imapHost && !gRefresh) {
-      return { notConfigured: true, scanned: 0, added: 0, errors: [] };
+      return { notConfigured: true, scanned: 0, added: 0, updated: 0, errors: [] };
     }
 
     let addedCount = 0;
@@ -1507,6 +1507,8 @@ async function runTravelEmailSync() {
       INSERT INTO travel_inbox (id, message_uid, subject, sender, received_at, raw_snippet, parsed_json, parser_used, confidence, status, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
     `);
+
+    const usedResIds = new Set();
 
     for (const em of fetchedEmails) {
       const parsed = await travelEngine.parseTravelEmail({
@@ -1522,45 +1524,94 @@ async function runTravelEmailSync() {
 
       const exists = db.prepare('SELECT id, subject, status FROM travel_inbox WHERE message_uid = ?').get(em.uid);
       if (exists) {
-        // Update existing inbox item & refresh any already-imported reservation from this email with improved parsed dates, full cost, and full email text
-        db.prepare('UPDATE travel_inbox SET raw_snippet = ?, parsed_json = ?, parser_used = ?, confidence = ? WHERE id = ?').run(
-          parsed.snippet || '', JSON.stringify(parsed.reservations), parsed.parser_used, parsed.confidence, exists.id
+        const nextSubject = parsed.subject || exists.subject || 'Travel Email';
+        const nextStatus = options.requeueAll ? 'pending' : exists.status;
+        db.prepare('UPDATE travel_inbox SET subject = ?, sender = ?, raw_snippet = ?, parsed_json = ?, parser_used = ?, confidence = ?, status = ? WHERE id = ?').run(
+          nextSubject, parsed.sender || '', parsed.snippet || '', JSON.stringify(parsed.reservations), parsed.parser_used, parsed.confidence, nextStatus, exists.id
         );
+        if (options.requeueAll && exists.status !== 'pending') {
+          addedCount++;
+        }
+
         const cand = parsed.reservations[0];
-        if (cand && (exists.subject || parsed.subject)) {
-          const subjToMatch = exists.subject || parsed.subject;
+        if (cand) {
           const rates = getSettingsMap().exchange_rates || DEFAULT_RATES;
-          const matchingRes = db.prepare('SELECT * FROM reservations WHERE notes LIKE ?').all(`%${subjToMatch}%`);
-          for (const mr of matchingRes) {
-            const nextCur = (cand.cost_currency || mr.cost_currency || 'USD').toUpperCase();
-            const nextAmt = Number(cand.cost_amount) > 0 ? Number(cand.cost_amount) : Number(mr.cost_amount) || 0;
-            const nextUsd = Number((nextAmt * (Number(rates[nextCur]) || 1.0)).toFixed(2));
-            let prevDet = {};
-            try { prevDet = JSON.parse(mr.details_json || '{}'); } catch (e) {}
-            const mergedDet = { ...prevDet, ...(cand.details || {}) };
-            if (parsed.snippet && !mergedDet.full_email_text) {
-              mergedDet.full_email_text = parsed.snippet;
-            }
-            db.prepare(`
-              UPDATE reservations
-              SET title = ?, vendor = ?, confirmation_code = ?, start_datetime = ?, end_datetime = ?,
-                  location_from = ?, location_to = ?, cost_amount = ?, cost_currency = ?, cost_usd = ?, details_json = ?
-              WHERE id = ?
-            `).run(
-              cand.title || mr.title,
-              cand.vendor || mr.vendor,
-              (cand.confirmation_code && cand.confirmation_code.length >= 6) ? cand.confirmation_code : mr.confirmation_code,
-              cand.start_datetime || mr.start_datetime,
-              cand.end_datetime || mr.end_datetime,
-              cand.location_from || mr.location_from,
-              cand.location_to || mr.location_to,
-              nextAmt,
-              nextCur,
-              nextUsd,
-              JSON.stringify(mergedDet),
-              mr.id
+          const allDbRes = db.prepare('SELECT * FROM reservations').all();
+          const passenger = (cand.details && cand.details.passenger) ? String(cand.details.passenger).toLowerCase() : '';
+
+          // Smart-match existing reservation from this email by subject in notes, passenger name, confirmation code, or route
+          let matchingRes = allDbRes.filter(mr => {
+            if (usedResIds.has(mr.id)) return false;
+            const hay = `${mr.title || ''} ${mr.notes || ''}`.toLowerCase();
+            if (nextSubject && (mr.notes || '').toLowerCase().includes(nextSubject.toLowerCase())) return true;
+            if (passenger && hay.includes(passenger)) return true;
+            if (cand.confirmation_code && mr.confirmation_code && mr.confirmation_code.toUpperCase() === cand.confirmation_code.toUpperCase() && !passenger) return true;
+            return false;
+          });
+
+          // Fallback match: same origin/destination email reservation that still has old $34.99 / 0U01M placeholder values
+          if (matchingRes.length === 0 && cand.location_from && cand.location_to) {
+            const fallback = allDbRes.find(mr =>
+              !usedResIds.has(mr.id) &&
+              mr.location_from === cand.location_from &&
+              mr.location_to === cand.location_to &&
+              (Number(mr.cost_amount) < 100 || mr.confirmation_code === '0U01M' || mr.source === 'email')
             );
-            updatedCount++;
+            if (fallback) matchingRes = [fallback];
+          }
+
+          if (matchingRes.length > 0) {
+            for (const mr of matchingRes) {
+              usedResIds.add(mr.id);
+              const nextCur = (cand.cost_currency || mr.cost_currency || 'USD').toUpperCase();
+              const nextAmt = Number(cand.cost_amount) > 0 ? Number(cand.cost_amount) : Number(mr.cost_amount) || 0;
+              const nextUsd = Number((nextAmt * (Number(rates[nextCur]) || 1.0)).toFixed(2));
+              let prevDet = {};
+              try { prevDet = JSON.parse(mr.details_json || '{}'); } catch (e) {}
+              const mergedDet = { ...prevDet, ...(cand.details || {}) };
+              if (parsed.snippet) {
+                mergedDet.full_email_text = parsed.snippet;
+              }
+              db.prepare(`
+                UPDATE reservations
+                SET title = ?, vendor = ?, confirmation_code = ?, start_datetime = ?, end_datetime = ?,
+                    location_from = ?, location_to = ?, cost_amount = ?, cost_currency = ?, cost_usd = ?, details_json = ?
+                WHERE id = ?
+              `).run(
+                cand.title || mr.title,
+                cand.vendor || mr.vendor,
+                (cand.confirmation_code && cand.confirmation_code.length >= 6) ? cand.confirmation_code : mr.confirmation_code,
+                cand.start_datetime || mr.start_datetime,
+                cand.end_datetime || mr.end_datetime,
+                cand.location_from || mr.location_from,
+                cand.location_to || mr.location_to,
+                nextAmt,
+                nextCur,
+                nextUsd,
+                JSON.stringify(mergedDet),
+                mr.id
+              );
+              // If already linked to an expense in the Ledger, keep the expense amount synced too!
+              if (mr.linked_expense_id && nextUsd > 0) {
+                db.prepare(`
+                  UPDATE expenses
+                  SET title = ?, vendor = ?, amount_original = ?, currency = ?, amount_usd = ?
+                  WHERE id = ?
+                `).run(
+                  cand.title || mr.title,
+                  cand.vendor || mr.vendor || 'Travel Booking',
+                  nextAmt,
+                  nextCur,
+                  nextUsd,
+                  mr.linked_expense_id
+                );
+              }
+              updatedCount++;
+            }
+          } else if (exists.status !== 'pending') {
+            // No matching reservation exists in the database anymore — re-open in Pending Email Confirmations!
+            db.prepare("UPDATE travel_inbox SET status = 'pending' WHERE id = ?").run(exists.id);
+            addedCount++;
           }
         }
         continue;
@@ -1578,7 +1629,7 @@ async function runTravelEmailSync() {
     repairExistingIataReservations();
     const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
     upsert.run('travel_last_sync_at', new Date().toISOString());
-    upsert.run('travel_last_sync_summary', `Scanned ${fetchedEmails.length} email(s), queued ${addedCount} new, refreshed ${updatedCount} existing.${errors.length ? ' Errors: ' + errors.join('; ') : ''}`);
+    upsert.run('travel_last_sync_summary', `Scanned ${fetchedEmails.length} email(s), queued ${addedCount} new, updated ${updatedCount} existing booking(s).${errors.length ? ' Errors: ' + errors.join('; ') : ''}`);
     markServerModified();
 
     return { ok: true, scanned: fetchedEmails.length, added: addedCount, updated: updatedCount, errors };
@@ -1593,7 +1644,7 @@ function getBootstrapData() {
   const expenses = db.prepare('SELECT * FROM expenses ORDER BY expense_date DESC, created_at DESC').all();
   const revenues = db.prepare('SELECT * FROM revenues ORDER BY revenue_date DESC, created_at DESC').all();
   const reservations = db.prepare('SELECT * FROM reservations ORDER BY start_datetime ASC, created_at DESC').all();
-  const travel_inbox = db.prepare("SELECT * FROM travel_inbox WHERE status = 'pending' ORDER BY created_at DESC").all();
+  const travel_inbox = db.prepare("SELECT * FROM travel_inbox WHERE status != 'dismissed' ORDER BY CASE WHEN status = 'pending' THEN 0 ELSE 1 END, created_at DESC").all();
   const travel_documents = db.prepare('SELECT * FROM travel_documents ORDER BY expiry_date ASC, created_at DESC').all();
   const email_sync_status = getEmailSyncStatus();
   const rewards = getRewardsData();
@@ -2580,7 +2631,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true, id, bootstrap: getBootstrapData() });
     }
 
-    if (pathname.startsWith('/api/travel/reservations/') && (method === 'PUT' || method === 'DELETE')) {
+    if (pathname.startsWith('/api/travel/reservations/') && (method === 'PUT' || method === 'DELETE' || method === 'POST')) {
       const parts = pathname.split('/').filter(Boolean);
       const resId = parts[3];
       const action = parts[4];
@@ -2590,30 +2641,79 @@ const server = http.createServer(async (req, res) => {
         const r = db.prepare('SELECT * FROM reservations WHERE id = ?').get(resId);
         if (!r) return sendJson(res, 404, { error: 'Reservation not found' });
 
-        let linkedExpenseId = r.linked_expense_id || '';
-        if (b.createExpense !== false && Number(r.cost_usd) > 0 && r.trip_id) {
-          const catMap = {
-            flight: 'Flights & Transit',
-            car: 'Flights & Transit',
-            transit: 'Flights & Transit',
-            hotel: 'Hotels & Lodging',
-            dining: 'Dining & Meals',
-            activity: 'Tours & Activities',
-            cruise: 'Tours & Activities',
-            other: 'Other Travel'
-          };
-          const expId = linkedExpenseId || ('exp-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex'));
-          const expDate = (r.start_datetime || new Date().toISOString()).slice(0, 10);
-          const rates = getSettingsMap().exchange_rates || DEFAULT_RATES;
-          const exRate = Number(rates[r.cost_currency]) || 1.0;
+        if (b.unlink) {
+          db.prepare("UPDATE reservations SET linked_expense_id = '' WHERE id = ?").run(resId);
+          markServerModified();
+          return sendJson(res, 200, { ok: true, linked_expense_id: '', bootstrap: getBootstrapData() });
+        }
 
-          if (linkedExpenseId) {
+        const catMap = {
+          flight: 'Flights & Transit',
+          car: 'Flights & Transit',
+          transit: 'Flights & Transit',
+          hotel: 'Hotels & Lodging',
+          dining: 'Dining & Meals',
+          activity: 'Tours & Activities',
+          cruise: 'Tours & Activities',
+          other: 'Other Travel'
+        };
+
+        let linkedExpenseId = b.match_expense_id || r.linked_expense_id || '';
+        const allTrips = db.prepare('SELECT id FROM trips ORDER BY start_date DESC').all();
+        const targetTripId = b.trip_id || r.trip_id || (allTrips[0] ? allTrips[0].id : '');
+        const targetLegPath = b.leg_path !== undefined ? String(b.leg_path || '').trim() : (r.leg_path || '');
+        const rates = getSettingsMap().exchange_rates || DEFAULT_RATES;
+        const targetCurrency = (b.currency || r.cost_currency || 'USD').toUpperCase();
+        const exRate = Number(rates[targetCurrency]) || 1.0;
+        const targetAmountOrig = b.amount_original !== undefined ? Number(b.amount_original) : (Number(r.cost_amount) || Number(r.cost_usd) || 0);
+        const targetAmountUsd = b.amount_usd !== undefined ? Number(b.amount_usd) : (Number(r.cost_usd) || Number((targetAmountOrig * exRate).toFixed(2)));
+        const expDate = b.expense_date || (r.start_datetime || new Date().toISOString()).slice(0, 10);
+        const expCategory = b.category || catMap[r.type] || 'Flights & Transit';
+        const expTitle = b.title || r.title || 'Travel Reservation';
+        const expVendor = b.vendor !== undefined ? b.vendor : (r.vendor || r.title);
+        const expCard = b.payment_method || r.payment_method || 'Amex Business Platinum';
+
+        if (b.match_expense_id) {
+          // Match to an existing expense in the Ledger
+          const existingExp = db.prepare('SELECT * FROM expenses WHERE id = ?').get(b.match_expense_id);
+          if (!existingExp) return sendJson(res, 404, { error: 'Selected expense not found in ledger' });
+          linkedExpenseId = existingExp.id;
+          if (b.updateMatchedExpense !== false) {
+            db.prepare(`
+              UPDATE expenses
+              SET trip_id = ?, leg_path = ?, amount_original = ?, currency = ?, exchange_rate = ?, amount_usd = ?,
+                  notes = ?
+              WHERE id = ?
+            `).run(
+              targetTripId || existingExp.trip_id,
+              targetLegPath || existingExp.leg_path || '',
+              targetAmountOrig > 0 ? targetAmountOrig : existingExp.amount_original,
+              targetCurrency,
+              exRate,
+              targetAmountUsd > 0 ? targetAmountUsd : existingExp.amount_usd,
+              [existingExp.notes, r.confirmation_code ? `[Matched Reservation Conf: ${r.confirmation_code}]` : ''].filter(Boolean).join(' '),
+              existingExp.id
+            );
+          }
+          db.prepare('UPDATE reservations SET linked_expense_id = ?, trip_id = ?, leg_path = ?, cost_amount = ?, cost_currency = ?, cost_usd = ? WHERE id = ?').run(
+            linkedExpenseId,
+            targetTripId || existingExp.trip_id,
+            targetLegPath || existingExp.leg_path || '',
+            targetAmountOrig > 0 ? targetAmountOrig : existingExp.amount_original,
+            targetCurrency,
+            targetAmountUsd > 0 ? targetAmountUsd : existingExp.amount_usd,
+            resId
+          );
+        } else if (b.createExpense !== false && targetTripId) {
+          const expId = linkedExpenseId || ('exp-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex'));
+          const existsInExp = linkedExpenseId ? db.prepare('SELECT id FROM expenses WHERE id = ?').get(linkedExpenseId) : null;
+          if (existsInExp) {
             db.prepare(`
               UPDATE expenses SET trip_id=?, leg_path=?, title=?, vendor=?, category=?, expense_date=?, amount_original=?, currency=?, exchange_rate=?, amount_usd=?, payment_method=?, notes=?
               WHERE id=?
             `).run(
-              r.trip_id, r.leg_path || '', r.title, r.vendor || r.title, catMap[r.type] || 'Other Travel', expDate,
-              r.cost_amount, r.cost_currency, exRate, r.cost_usd, r.payment_method || 'Amex Business Gold',
+              targetTripId, targetLegPath, expTitle, expVendor, expCategory, expDate,
+              targetAmountOrig, targetCurrency, exRate, targetAmountUsd, expCard,
               `Confirmation: ${r.confirmation_code || 'N/A'}`, linkedExpenseId
             );
           } else {
@@ -2625,14 +2725,16 @@ const server = http.createServer(async (req, res) => {
                 receipt_data, receipt_name, notes, credit_usd, credit_verified, credit_note, created_at
               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
-              expId, r.trip_id, r.leg_path || '', r.title, r.vendor || r.title, catMap[r.type] || 'Other Travel', expDate,
-              r.cost_amount, r.cost_currency, exRate, r.cost_usd, r.payment_method || 'Amex Business Gold',
+              expId, targetTripId, targetLegPath, expTitle, expVendor, expCategory, expDate,
+              targetAmountOrig, targetCurrency, exRate, targetAmountUsd, expCard,
               'Channel Card', 1, 0, r.attachment_data || '', r.attachment_name || '',
-              `Synced from Travel Reservation (${r.confirmation_code || r.id})`, 0, 0, '', new Date().toISOString()
+              `Matched from Email Reservation (${r.confirmation_code || r.id})`, 0, 0, '', new Date().toISOString()
             );
             linkedExpenseId = expId;
           }
-          db.prepare('UPDATE reservations SET linked_expense_id = ? WHERE id = ?').run(linkedExpenseId, resId);
+          db.prepare('UPDATE reservations SET linked_expense_id = ?, trip_id = ?, leg_path = ?, cost_amount = ?, cost_currency = ?, cost_usd = ?, payment_method = ? WHERE id = ?').run(
+            linkedExpenseId, targetTripId, targetLegPath, targetAmountOrig, targetCurrency, targetAmountUsd, expCard, resId
+          );
         }
 
         // Optional Rewards points balance adjustment
@@ -2817,17 +2919,53 @@ const server = http.createServer(async (req, res) => {
           const rid = 'res-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex');
           const cur = (c.cost_currency || 'USD').toUpperCase();
           const amt = Number(c.cost_amount) || 0;
-          const usd = Number((amt * (Number(rates[cur]) || 1.0)).toFixed(2));
+          const exRate = Number(rates[cur]) || 1.0;
+          const usd = Number((amt * exRate).toFixed(2));
+          const finalLegPath = c.leg_path !== undefined ? String(c.leg_path || '').trim() : legPath;
+          const finalTitle = c.title || item.subject || 'Imported Reservation';
+          let linkedExpId = '';
+
+          if (b.syncToExpenses && tripId && usd > 0) {
+            const catMap = {
+              flight: 'Flights & Transit', car: 'Flights & Transit', transit: 'Flights & Transit',
+              hotel: 'Hotels & Lodging', dining: 'Dining & Meals', activity: 'Tours & Activities',
+              cruise: 'Tours & Activities', other: 'Other Travel'
+            };
+            linkedExpId = 'exp-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex');
+            const expDate = (c.start_datetime || now).slice(0, 10);
+            db.prepare(`
+              INSERT INTO expenses (
+                id, trip_id, leg_path, title, vendor, category, expense_date,
+                amount_original, currency, exchange_rate, amount_usd,
+                payment_method, paid_by, tax_deductible, reimbursable,
+                receipt_data, receipt_name, notes, credit_usd, credit_verified, credit_note, created_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0, '', '', ?, 0, 0, '', ?)
+            `).run(
+              linkedExpId, tripId, finalLegPath, finalTitle, c.vendor || finalTitle,
+              catMap[c.type] || 'Flights & Transit', expDate, amt, cur, exRate, usd,
+              'Amex Business Platinum', 'Channel Card',
+              `Matched from Email Reservation (${c.confirmation_code || item.subject})`, now
+            );
+          }
+
+          const detObj = { ...(c.details || {}) };
+          if (item.raw_snippet && !detObj.full_email_text) {
+            detObj.full_email_text = item.raw_snippet;
+          }
+
           ins.run(
-            rid, tripId, c.leg_path !== undefined ? String(c.leg_path || '').trim() : legPath,
-            c.type || 'other', c.title || item.subject || 'Imported Reservation',
+            rid, tripId, finalLegPath,
+            c.type || 'other', finalTitle,
             c.vendor || '', c.confirmation_code || '',
             c.start_datetime || now.slice(0, 16), c.end_datetime || '',
             c.location_from || '', c.location_to || '', c.address || '',
-            JSON.stringify(c.details || {}), c.cancel_deadline || '',
+            JSON.stringify(detObj), c.cancel_deadline || '',
             amt, cur, usd, Number(c.points_used) || 0, Number(c.points_earned) || 0,
             c.loyalty_program || '', c.notes || `Imported from: ${item.subject}`, now
           );
+          if (linkedExpId) {
+            db.prepare('UPDATE reservations SET linked_expense_id = ? WHERE id = ?').run(linkedExpId, rid);
+          }
         }
 
         db.prepare("UPDATE travel_inbox SET status = 'imported' WHERE id = ?").run(inboxId);
@@ -2942,7 +3080,8 @@ const server = http.createServer(async (req, res) => {
 
     // Run Direct Inbox Sync (IMAP + Gmail OAuth)
     if (pathname === '/api/travel/email-sync' && method === 'POST') {
-      const result = await runTravelEmailSync();
+      const b = await readJsonBody(req).catch(() => ({}));
+      const result = await runTravelEmailSync({ manual: true, requeueAll: Boolean(b && b.requeueAll) });
       if (result.notConfigured) {
         return sendJson(res, 400, { error: 'No IMAP or Gmail OAuth account configured yet. Set up Email Sync in Admin.' });
       }
@@ -2950,6 +3089,7 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         scanned: result.scanned,
         added: result.added,
+        updated: result.updated || 0,
         errors: result.errors,
         bootstrap: getBootstrapData()
       });

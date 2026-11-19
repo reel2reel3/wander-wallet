@@ -109,11 +109,18 @@ function stripHtml(html) {
     .replace(/<\/(tr|p|div|li|h[1-6]|table|section)>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
+    .replace(/&#160;/gi, ' ')
+    .replace(/&#36;/gi, '$')
+    .replace(/&#x24;/gi, '$')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code) => {
+      const n = parseInt(code, 10);
+      return (n >= 32 && n <= 126) ? String.fromCharCode(n) : ' ';
+    })
     .replace(/[ \t]+/g, ' ')
     .replace(/\n[ \t]+/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -151,10 +158,11 @@ function extractMimeParts(raw) {
     const parts = body.split('--' + boundary);
     let text = '';
     let html = '';
-    for (const part of parts) {
+    for (let i = 1; i < parts.length; i++) {
+      const part = parts[i];
       const trimmed = part.trim();
-      if (!trimmed || trimmed === '--') continue;
-      const sub = extractMimeParts(part.replace(/^\r?\n/, ''));
+      if (!trimmed || trimmed.startsWith('--')) continue;
+      const sub = extractMimeParts(part.replace(/^[ \t]*\r?\n/, ''));
       if (sub.text) text += (text ? '\n' : '') + sub.text;
       if (sub.html) html += (html ? '\n' : '') + sub.html;
     }
@@ -171,7 +179,11 @@ function extractMimeParts(raw) {
   if (contentType.includes('text/html')) {
     return { headers, text: stripHtml(decoded), html: decoded };
   }
-  return { headers, text: decoded, html: '' };
+  if (contentType.includes('text/plain') || !headers['content-type']) {
+    return { headers, text: decoded, html: '' };
+  }
+  // Ignore binary attachments / inline images (image/png, application/pdf, etc.)
+  return { headers, text: '', html: '' };
 }
 
 // ---------------------------------------------------------------------------
@@ -432,18 +444,18 @@ function extractRegexReservations(subject = '', sender = '', text = '') {
     }
   }
 
-  // Price & Fare Breakdown (Prioritize TICKET AMOUNT / TOTAL AMOUNT over promo/ancillary/tax lines)
+  // Price & Fare Breakdown (Prioritize TICKET AMOUNT / TOTAL AMOUNT over promo/ancillary/tax lines, supporting both 1-row and 2-column HTML tables)
   let cost_amount = 0;
   let cost_currency = 'USD';
   let baseFareAmount = 0;
 
-  const baseFareMatch = combined.match(/\bbase\s+fare[\s:|•\-]*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN|\$|€|£)?\s*([0-9,]+\.\d{2})\s*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN)?/i);
+  const baseFareMatch = combined.match(/\bbase\s+fare\b[^0-9$€£]{0,60}?(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN|\$|€|£)?\s*(\$|€|£)?\s*([0-9,]+\.\d{2})\s*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN)?/i);
   if (baseFareMatch) {
-    baseFareAmount = parseFloat(baseFareMatch[2].replace(/,/g, '')) || 0;
+    baseFareAmount = parseFloat(baseFareMatch[3].replace(/,/g, '')) || 0;
   }
 
-  // Match all explicitly labeled total lines (e.g., "TICKET AMOUNT $375.25 USD", "Total: $375.25", "Amount Paid $375.25")
-  const totalRegex = /\b(ticket\s+amount|total\s+ticket\s+amount|grand\s+total|total\s+paid|amount\s+paid|total\s+charged|total\s+fare|total\s+amount|total\s+price|total\s+cost|total\s+due|air\s+transportation\s+charges|ticket\s+total|total)[\s:|•\-]*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN|\$|€|£)?\s*(\$|€|£)?\s*([0-9,]+\.\d{2})\s*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN)?/gi;
+  // Match all explicitly labeled total lines (allowing up to 80 non-digit chars between label and amount)
+  const totalRegex = /\b(ticket\s+amount|total\s+ticket\s+amount|grand\s+total|total\s+paid|amount\s+paid|total\s+charged|total\s+fare|total\s+amount|total\s+price|total\s+cost|total\s+due|air\s+transportation\s+charges|ticket\s+total|total)\b[^0-9$€£]{0,80}?(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN|\$|€|£)?\s*(\$|€|£)?\s*([0-9,]+\.\d{2})\s*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN)?/gi;
   let bestPriority = 0;
   let tm;
   while ((tm = totalRegex.exec(combined)) !== null) {
@@ -453,12 +465,39 @@ function extractRegexReservations(subject = '', sender = '', text = '') {
     const sym = cur2 || cur1 || '$';
     const val = parseFloat(tm[4].replace(/,/g, '')) || 0;
     if (val <= 0) continue;
-    // Give highest priority to explicit "ticket amount" / "grand total" / "amount paid", and prefer larger total over sub-items
     const prio = (label.includes('ticket amount') || label.includes('grand total') || label.includes('amount paid') || label.includes('total charged')) ? 3 : 2;
     if (prio > bestPriority || (prio === bestPriority && val > cost_amount)) {
       bestPriority = prio;
       cost_amount = val;
       cost_currency = sym === '€' ? 'EUR' : sym === '£' ? 'GBP' : (sym === '$' ? 'USD' : sym);
+    }
+  }
+
+  // Also handle 2-column nested HTML tables where "Base Fare ... TICKET AMOUNT" labels are in the left column and "$336.00 USD ... $375.25 USD" are in the right column
+  const fareSectionIdx = combined.search(/\b(base\s+fare|ticket\s+amount|taxes,\s*fees\s+and\s+charges)\b/i);
+  if (fareSectionIdx !== -1) {
+    const fareWindow = combined.slice(fareSectionIdx, fareSectionIdx + 1800);
+    const allPricesInFareBlock = [];
+    const priceInBlockRe = /(\$|€|£)?\s*([0-9,]+\.\d{2})\s*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN)/gi;
+    let pm;
+    while ((pm = priceInBlockRe.exec(fareWindow)) !== null) {
+      const val = parseFloat(pm[2].replace(/,/g, '')) || 0;
+      if (val > 0 && val < 50000) {
+        allPricesInFareBlock.push({ val, cur: (pm[3] || 'USD').toUpperCase() });
+      }
+    }
+    if (allPricesInFareBlock.length > 0) {
+      const maxInBlock = allPricesInFareBlock.reduce((best, cur) => (cur.val > best.val ? cur : best), allPricesInFareBlock[0]);
+      if (maxInBlock.val > cost_amount) {
+        cost_amount = maxInBlock.val;
+        cost_currency = maxInBlock.cur;
+      }
+      if (baseFareAmount === 0 && allPricesInFareBlock.length >= 2) {
+        const sortedDesc = [...allPricesInFareBlock].map(x => x.val).sort((a, b) => b - a);
+        if (sortedDesc[1] > 50 && sortedDesc[1] < sortedDesc[0]) {
+          baseFareAmount = sortedDesc[1];
+        }
+      }
     }
   }
 
@@ -829,7 +868,7 @@ function escapeImapStr(s) {
   return '"' + String(s || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 
-async function syncImapInbox({ host, port, user, password, daysBack = 30 }) {
+async function syncImapInbox({ host, port, user, password, daysBack = 180 }) {
   const client = new SimpleImapClient({ host, port: Number(port) || 993, secure: true });
   await client.connect();
   try {
@@ -841,7 +880,7 @@ async function syncImapInbox({ host, port, user, password, daysBack = 30 }) {
     const sinceStr = `${sinceDate.getDate()}-${months[sinceDate.getMonth()]}-${sinceDate.getFullYear()}`;
 
     const searchRes = await client.command(
-      `SEARCH SINCE ${sinceStr} OR SUBJECT "confirmation" OR SUBJECT "itinerary" OR SUBJECT "reservation" OR SUBJECT "booking" SUBJECT "flight"`
+      `SEARCH SINCE ${sinceStr} OR SUBJECT "confirmation" OR SUBJECT "itinerary" OR SUBJECT "reservation" OR SUBJECT "booking" OR SUBJECT "receipt" SUBJECT "flight"`
     );
     const searchLine = searchRes.payload.split(/\r?\n/).find(l => l.startsWith('* SEARCH')) || '';
     const seqNums = searchLine.replace('* SEARCH', '').trim().split(/\s+/).filter(Boolean).slice(-25);
@@ -932,8 +971,8 @@ function extractGmailPayloadParts(payload, acc = { text: '', html: '' }) {
   return acc;
 }
 
-async function syncGmailInbox({ accessToken, daysBack = 30 }) {
-  const q = encodeURIComponent(`newer_than:${daysBack}d (confirmation OR itinerary OR reservation OR booking OR e-ticket OR flight OR hotel)`);
+async function syncGmailInbox({ accessToken, daysBack = 180 }) {
+  const q = encodeURIComponent(`newer_than:${daysBack}d (confirmation OR itinerary OR reservation OR booking OR e-ticket OR flight OR hotel OR receipt)`);
   const listResp = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=25`, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });

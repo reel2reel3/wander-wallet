@@ -168,7 +168,7 @@
   function updateBadges(s) {
     const badge = document.getElementById('badge-travel-count');
     if (badge) {
-      const pendingCount = (s.travel_inbox || []).length;
+      const pendingCount = (s.travel_inbox || []).filter(i => i.status === 'pending').length;
       const resCount = (s.reservations || []).length;
       badge.textContent = pendingCount > 0 ? `${pendingCount} new` : String(resCount);
       badge.style.color = pendingCount > 0 ? 'var(--accent-amber)' : 'var(--accent-sky)';
@@ -225,9 +225,10 @@
     const totalPointsUsed = filteredRes.reduce((sum, r) => sum + (Number(r.points_used) || 0), 0);
 
     // Count reservations that are unassigned to any trip, or belong to activeTrip without a leg when a leg filter is active
+    const pendingInbox = inbox.filter(i => i.status === 'pending');
     const unassignedRes = allRes.filter(r => !r.trip_id || !trips.some(t => t.id === r.trip_id));
     const unleggedForActiveTrip = activeTrip ? allRes.filter(r => r.trip_id === activeTrip.id && !r.leg_path) : [];
-    const needsAttentionCount = inbox.length + unassignedRes.length;
+    const needsAttentionCount = pendingInbox.length + unassignedRes.length;
 
     container.innerHTML = `
       <section class="panel-card travel-hero-card">
@@ -265,9 +266,9 @@
             <span class="kpi-subtext">${totalPointsUsed > 0 ? totalPointsUsed.toLocaleString() + ' pts used' : 'Cash & card bookings'}</span>
           </div>
           <div class="kpi-card" style="cursor: pointer;" data-travel-tab="inbox" title="Click to open Central Email Import & Assignment Hub">
-            <span class="kpi-label">Email Inbox &amp; Unassigned</span>
-            <span class="kpi-value mono" style="color: ${needsAttentionCount > 0 ? 'var(--accent-amber)' : 'var(--text-primary)'};">${inbox.length} inbox • ${unassignedRes.length} unassigned</span>
-            <span class="kpi-subtext" style="color: var(--accent-sky);">Click to assign to trip/leg →</span>
+            <span class="kpi-label">Synced Emails &amp; Unassigned</span>
+            <span class="kpi-value mono" style="color: ${needsAttentionCount > 0 ? 'var(--accent-amber)' : 'var(--text-primary)'};">${inbox.length} email${inbox.length === 1 ? '' : 's'} • ${unassignedRes.length} unassigned</span>
+            <span class="kpi-subtext" style="color: var(--accent-sky);">Click to assign or match expenses →</span>
           </div>
           <div class="kpi-card" style="cursor: pointer;" data-travel-tab="vault">
             <span class="kpi-label">Document Vault</span>
@@ -346,7 +347,7 @@
       ` : ''}
 
       <div id="travel-subview-body" style="margin-top: 16px;">
-        ${travelState.subTab === 'timeline' ? renderTimelineHtml(filteredRes, trips, allRes, inbox, activeTrip, activeLegPath, unassignedRes, unleggedForActiveTrip) : ''}
+        ${travelState.subTab === 'timeline' ? renderTimelineHtml(filteredRes, trips, allRes, pendingInbox, activeTrip, activeLegPath, unassignedRes, unleggedForActiveTrip) : ''}
         ${travelState.subTab === 'inbox' ? renderInboxHtml(inbox, trips, allRes, activeTrip, activeLegPath) : ''}
         ${travelState.subTab === 'vault' ? renderVaultHtml(docs) : ''}
       </div>
@@ -592,11 +593,9 @@
 
             <div class="travel-res-footer">
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                ${(Number(r.cost_usd) > 0 || Number(r.points_used) > 0 || Number(r.points_earned) > 0) ? `
-                  <button type="button" class="btn btn-xs ${hasSyncedExpense ? '' : 'btn-primary'}" data-sync-finance="${esc(r.id)}">
-                    ${hasSyncedExpense ? '✓ Synced to Ledger (Re-sync)' : '💳 Sync to Expenses & Rewards'}
-                  </button>
-                ` : ''}
+                <button type="button" class="btn btn-xs ${hasSyncedExpense ? '' : 'btn-primary'}" data-match-expense="${esc(r.id)}">
+                  ${hasSyncedExpense ? '✓ Matched to Expense (Edit / Re-sync)' : '💳 Match / Send to Expenses'}
+                </button>
                 ${r.attachment_data ? `
                   <button type="button" class="btn btn-xs" data-view-att="${esc(r.id)}">📎 ${esc(r.attachment_name || 'View Ticket')}</button>
                 ` : ''}
@@ -681,30 +680,37 @@
           </div>
         </section>
 
-        <!-- SECTION 2: PENDING EMAIL INBOX QUEUE -->
+        <!-- SECTION 2: SYNCED EMAIL CONFIRMATIONS QUEUE -->
         <section class="panel-card">
-          <div class="panel-header" style="margin-bottom: 12px;">
+          <div class="panel-header" style="margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
             <div>
-              <h3 class="panel-title">📥 Pending Email Confirmations (${inbox.length})</h3>
-              <p class="panel-subtitle">Emails pulled from Gmail / IMAP waiting for you to choose a Trip &amp; Leg and click Approve.</p>
+              <h3 class="panel-title">📥 Synced Email Confirmations (${inbox.length})</h3>
+              <p class="panel-subtitle">Emails pulled from Gmail / IMAP. Choose a Trip &amp; Leg, check "Also match to Expense Ledger", and click Approve.</p>
             </div>
+            <button type="button" class="btn btn-xs" data-trigger-requeue-inbox="1" title="Re-scan Gmail / IMAP and place all found emails in Pending Review">
+              🔄 Re-Scan &amp; Re-Queue All Emails
+            </button>
           </div>
 
           ${inbox.length === 0 ? `
             <div style="padding: 20px; text-align: center; color: var(--text-secondary); background: var(--bg-elevated); border-radius: 10px; font-size: 13px;">
-              No pending emails in the review queue right now. Any emails you already approved are listed below in <strong>All Imported Bookings</strong>!
+              No synced emails in the queue yet. Click <strong>🔄 Pull Latest Gmail / IMAP Confirmations</strong> above to scan your inbox!
             </div>
           ` : `
             <div style="display: grid; gap: 12px;">
               ${inbox.map(item => {
                 let parsed = [];
                 try { parsed = JSON.parse(item.parsed_json || '[]'); } catch (e) {}
+                const isAlreadyImported = item.status === 'imported';
                 return `
-                  <article style="padding: 14px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 12px;">
+                  <article style="padding: 14px; background: var(--bg-elevated); border: 1px solid ${isAlreadyImported ? 'var(--border-subtle)' : 'rgba(14, 165, 233, 0.4)'}; border-radius: 12px;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
                       <div style="flex: 1; min-width: 240px;">
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                          <span class="travel-type-badge" style="background: rgba(14,165,233,0.15); color: var(--accent-sky);">
+                          <span class="travel-type-badge" style="background: ${isAlreadyImported ? 'rgba(16,185,129,0.15)' : 'rgba(14,165,233,0.15)'}; color: ${isAlreadyImported ? 'var(--accent-primary)' : 'var(--accent-sky)'};">
+                            ${isAlreadyImported ? '✓ Imported to Bookings' : '⏳ Pending Review'}
+                          </span>
+                          <span class="travel-type-badge" style="background: var(--bg-surface); color: var(--text-secondary);">
                             Parser: ${esc(item.parser_used)} (${esc(item.confidence)})
                           </span>
                           <span style="font-size: 12px; color: var(--text-secondary);">From: ${esc(item.sender)}</span>
@@ -721,14 +727,14 @@
                                 <strong>${(TYPE_META[p.type] || TYPE_META.other).icon} ${esc(p.title || 'Booking')}</strong>
                                 ${p.confirmation_code ? `<span class="mono">Conf: ${esc(p.confirmation_code)}</span>` : ''}
                                 ${p.start_datetime ? `<span>${esc(formatDateTimeShort(p.start_datetime))}</span>` : ''}
-                                ${Number(p.cost_amount) > 0 ? `<span class="mono">${esc(p.cost_currency || 'USD')} ${Number(p.cost_amount).toFixed(2)}</span>` : ''}
+                                ${Number(p.cost_amount) > 0 ? `<span class="mono" style="color: var(--accent-primary); font-weight: 700;">${esc(p.cost_currency || 'USD')} $${Number(p.cost_amount).toFixed(2)}</span>` : ''}
                               </div>
                             `).join('')}
                           </div>
                         ` : ''}
                       </div>
 
-                      <div style="display: flex; flex-direction: column; gap: 8px; min-width: 260px; background: var(--bg-surface); padding: 12px; border-radius: 10px; border: 1px solid var(--border-subtle);">
+                      <div style="display: flex; flex-direction: column; gap: 8px; min-width: 270px; background: var(--bg-surface); padding: 12px; border-radius: 10px; border: 1px solid var(--border-subtle);">
                         <div class="form-group">
                           <label class="form-label">Assign to Trip</label>
                           <select class="form-select" data-inbox-trip="${esc(item.id)}">
@@ -742,12 +748,16 @@
                             ${buildLegOptionsHtml(defaultTripObj, activeLegPath)}
                           </select>
                         </div>
+                        <label style="display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-primary); cursor: pointer; margin-top: 2px;">
+                          <input type="checkbox" data-inbox-sync-expense="${esc(item.id)}" checked />
+                          <span>💳 Also create &amp; match in Expense Ledger</span>
+                        </label>
                         <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
                           <button type="button" class="btn btn-sm btn-primary" style="flex: 1;" data-inbox-approve="${esc(item.id)}">
-                            ✓ Approve &amp; Assign (${parsed.length || 1})
+                            ${isAlreadyImported ? '➕ Import Copy &amp; Match' : `✓ Approve &amp; Assign (${parsed.length || 1})`}
                           </button>
                           <button type="button" class="btn btn-sm" data-inbox-edit="${esc(item.id)}">✏️ Edit</button>
-                          <button type="button" class="btn btn-sm btn-danger" data-inbox-dismiss="${esc(item.id)}">✕</button>
+                          <button type="button" class="btn btn-sm btn-danger" data-inbox-dismiss="${esc(item.id)}" title="Hide from queue">✕</button>
                         </div>
                       </div>
                     </div>
@@ -758,13 +768,13 @@
           `}
         </section>
 
-        <!-- SECTION 3: ALL EXISTING / IMPORTED RESERVATIONS — ASSIGN OR MOVE TO ANY TRIP & LEG -->
+        <!-- SECTION 3: ALL EXISTING / IMPORTED RESERVATIONS — ASSIGN TO TRIP/LEG & MATCH TO EXPENSES -->
         <section class="panel-card">
           <div class="panel-header" style="margin-bottom: 12px;">
             <div>
-              <h3 class="panel-title">🗂️ Assign Existing Bookings to Trips &amp; Legs (${sortedAllRes.length})</h3>
+              <h3 class="panel-title">🗂️ Assign Existing Bookings to Trips, Legs &amp; Expenses (${sortedAllRes.length})</h3>
               <p class="panel-subtitle">
-                Every flight, hotel, and booking in Wander Wallet (including previously synced Gmail reservations). Pick a Trip and Leg on any row and click <strong>✓ Save Assignment</strong>.
+                Every flight, hotel, and booking in Wander Wallet. Pick a Trip and Leg and click <strong>✓ Save Assignment</strong>, or click <strong>💳 Match to Expenses</strong> to link or send the cost to your Expense Ledger.
               </p>
             </div>
           </div>
@@ -779,33 +789,47 @@
                 const meta = TYPE_META[r.type] || TYPE_META.other;
                 const assignedTrip = trips.find(t => t.id === r.trip_id) || null;
                 const isUnassigned = !assignedTrip;
+                const hasLinkedExp = Boolean(r.linked_expense_id);
+                let det = {};
+                try { det = JSON.parse(r.details_json || '{}'); } catch (e) {}
                 return `
-                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 11px 14px; background: var(--bg-elevated); border: 1px solid ${isUnassigned ? 'rgba(245, 158, 11, 0.45)' : 'var(--border-subtle)'}; border-radius: 10px;">
-                    <div style="display: flex; flex-direction: column; gap: 3px; min-width: 220px; flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; background: var(--bg-elevated); border: 1px solid ${isUnassigned ? 'rgba(245, 158, 11, 0.45)' : 'var(--border-subtle)'}; border-radius: 10px;">
+                    <div style="display: flex; flex-direction: column; gap: 4px; min-width: 230px; flex: 1;">
                       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <span class="travel-type-badge" style="background: ${meta.color}22; color: ${meta.color};">${meta.icon} ${meta.label}</span>
                         <strong style="font-size: 14px;">${esc(r.title)}</strong>
                         ${r.confirmation_code ? `<span class="mono" style="font-size: 11.5px; padding: 1px 7px; border-radius: 6px; background: var(--bg-surface);">Conf: ${esc(r.confirmation_code)}</span>` : ''}
+                        <span class="mono" style="font-size: 13px; font-weight: 800; color: var(--accent-primary);">
+                          $${Number(r.cost_usd || r.cost_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        ${hasLinkedExp
+                          ? `<span class="kpi-tag" style="color: var(--accent-primary);">✓ Matched in Expenses</span>`
+                          : `<span class="kpi-tag" style="color: var(--text-secondary);">Not in Expenses yet</span>`}
                         ${isUnassigned ? `<span class="kpi-tag" style="color: var(--accent-amber);">⚠️ Needs Trip Assignment</span>` : ''}
                       </div>
                       <div style="font-size: 12px; color: var(--text-secondary);">
                         🕒 ${esc(formatDateTimeShort(r.start_datetime))}
                         ${r.vendor ? ` • 🏢 ${esc(r.vendor)}` : ''}
                         ${r.location_from || r.location_to ? ` • 📍 ${esc(r.location_from)}${r.location_from && r.location_to ? ' → ' : ''}${esc(r.location_to)}` : ''}
+                        ${det.fare_breakdown ? ` • 💵 ${esc(det.fare_breakdown)}` : ''}
                       </div>
                     </div>
 
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <select class="form-select" data-quick-res-trip="${esc(r.id)}" style="width: auto; min-width: 170px; padding: 6px 10px; font-size: 12.5px;">
+                    <div style="display: flex; align-items: center; gap: 7px; flex-wrap: wrap;">
+                      <select class="form-select" data-quick-res-trip="${esc(r.id)}" style="width: auto; min-width: 165px; padding: 6px 10px; font-size: 12.5px;">
                         <option value="">(Unassigned)</option>
                         ${trips.map(t => `<option value="${esc(t.id)}" ${r.trip_id === t.id ? 'selected' : ''}>🧳 ${esc(t.name)}</option>`).join('')}
                       </select>
-                      <select class="form-select" data-quick-res-leg="${esc(r.id)}" style="width: auto; min-width: 180px; padding: 6px 10px; font-size: 12.5px;">
+                      <select class="form-select" data-quick-res-leg="${esc(r.id)}" style="width: auto; min-width: 175px; padding: 6px 10px; font-size: 12.5px;">
                         ${buildLegOptionsHtml(assignedTrip, r.leg_path || '')}
                       </select>
                       <button type="button" class="btn btn-sm btn-primary" data-quick-res-save="${esc(r.id)}">
                         ✓ Save Assignment
                       </button>
+                      <button type="button" class="btn btn-sm" data-match-expense="${esc(r.id)}" style="border-color: var(--accent-primary); color: var(--accent-primary); font-weight: 700;">
+                        ${hasLinkedExp ? '💳 Matched Expense' : '💳 Match to Expenses'}
+                      </button>
+                      ${det.full_email_text ? `<button type="button" class="btn btn-sm" data-view-res-email="${esc(r.id)}" title="View Full Email">📧</button>` : ''}
                       <button type="button" class="btn btn-sm" data-edit-res="${esc(r.id)}" title="Edit full details">✏️</button>
                     </div>
                   </div>
@@ -968,18 +992,16 @@
       });
     });
 
-    container.querySelectorAll('[data-sync-finance]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-sync-finance');
-        try {
-          await travelApi(`/api/travel/reservations/${encodeURIComponent(id)}/sync-finance`, {
-            method: 'POST',
-            body: JSON.stringify({ createExpense: true, syncRewards: true })
-          });
-          toast('✓ Synced to Expenses & Rewards!');
-          render();
-        } catch (e) { toast(e.message); }
+    container.querySelectorAll('[data-match-expense]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = getAppData();
+        const r = (s.reservations || []).find(x => x.id === btn.getAttribute('data-match-expense'));
+        if (r) openMatchExpenseModal(r);
       });
+    });
+
+    container.querySelectorAll('[data-trigger-requeue-inbox]').forEach(btn => {
+      btn.addEventListener('click', () => syncInbox(true));
     });
 
     container.querySelectorAll('[data-view-att]').forEach(btn => {
@@ -1134,14 +1156,16 @@
         const id = btn.getAttribute('data-inbox-approve');
         const sel = container.querySelector(`[data-inbox-trip="${id}"]`);
         const legSel = container.querySelector(`[data-inbox-leg="${id}"]`);
+        const syncChk = container.querySelector(`[data-inbox-sync-expense="${id}"]`);
         const tripId = sel ? sel.value : '';
         const legPath = legSel ? legSel.value : '';
+        const syncToExpenses = syncChk ? syncChk.checked : true;
         try {
           await travelApi(`/api/travel/inbox/${encodeURIComponent(id)}/import`, {
             method: 'POST',
-            body: JSON.stringify({ trip_id: tripId, leg_path: legPath })
+            body: JSON.stringify({ trip_id: tripId, leg_path: legPath, syncToExpenses })
           });
-          toast('✓ Reservation(s) assigned to Trip & Leg and added to itinerary!');
+          toast(syncToExpenses ? '✓ Added to Timeline AND matched in Expense Ledger!' : '✓ Reservation(s) assigned to Trip & Leg and added to itinerary!');
           if (tripId && bridge() && bridge().setSelectedLeg) {
             bridge().setSelectedLeg(tripId, legPath);
           }
@@ -1689,12 +1713,258 @@
     });
   }
 
-  async function syncInbox() {
-    toast('🔄 Syncing email inbox for travel confirmations...');
+  function openMatchExpenseModal(reservation) {
+    if (!reservation) return;
+    const s = getAppData();
+    const trips = s.trips || [];
+    const expenses = s.expenses || [];
+    const defaultTripId = reservation.trip_id || (s.selectedTripId && s.selectedTripId !== 'all' ? s.selectedTripId : (trips[0] ? trips[0].id : ''));
+    const defaultTripObj = trips.find(t => t.id === defaultTripId) || null;
+    const defaultLegPath = reservation.leg_path || (s.selectedLegPath || '');
+    const catMap = {
+      flight: 'Flights & Transit', car: 'Flights & Transit', transit: 'Flights & Transit',
+      hotel: 'Hotels & Lodging', dining: 'Dining & Meals', activity: 'Tours & Activities',
+      cruise: 'Tours & Activities', other: 'Other Travel'
+    };
+    const defaultCat = catMap[reservation.type] || 'Flights & Transit';
+    const currentLinkedExp = reservation.linked_expense_id ? expenses.find(e => e.id === reservation.linked_expense_id) : null;
+
+    // Sort candidate expenses so same-trip or similar-amount expenses appear first
+    const sortedExpenses = [...expenses].sort((a, b) => {
+      if (a.id === reservation.linked_expense_id) return -1;
+      if (b.id === reservation.linked_expense_id) return 1;
+      const aSameTrip = a.trip_id === defaultTripId ? 1 : 0;
+      const bSameTrip = b.trip_id === defaultTripId ? 1 : 0;
+      if (bSameTrip !== aSameTrip) return bSameTrip - aSameTrip;
+      return String(b.expense_date || '').localeCompare(String(a.expense_date || ''));
+    });
+
+    const categories = ['Flights & Transit', 'Hotels & Lodging', 'Dining & Meals', 'Tours & Activities', 'Other Travel', 'Gear & Equipment', 'Local SIM & Connectivity'];
+    const resAmount = Number(reservation.cost_usd || reservation.cost_amount || 0);
+
+    const modal = showTravelModal(`💳 Match Reservation to Expense Ledger`, `
+      <div style="display: grid; gap: 16px;">
+        <!-- Reservation Summary Banner -->
+        <div class="legs-trip-overview">
+          <div>
+            <div class="legs-trip-eyebrow">EMAIL RESERVATION TO MATCH</div>
+            <div class="legs-trip-title">${esc(reservation.title)}</div>
+            <div class="legs-trip-metrics">
+              ${reservation.vendor ? `<span>🏢 ${esc(reservation.vendor)}</span><span>•</span>` : ''}
+              ${reservation.confirmation_code ? `<span class="mono">Conf: <strong>${esc(reservation.confirmation_code)}</strong></span><span>•</span>` : ''}
+              <span>🕒 ${esc(formatDateTimeShort(reservation.start_datetime))}</span>
+              <span>•</span>
+              <span class="mono" style="color: var(--accent-primary); font-weight: 800;">$${resAmount.toFixed(2)} ${esc(reservation.cost_currency || 'USD')}</span>
+            </div>
+          </div>
+          ${currentLinkedExp ? `
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span class="kpi-tag" style="color: var(--accent-primary);">✓ Linked: $${Number(currentLinkedExp.amount_usd || 0).toFixed(2)}</span>
+              <button type="button" class="btn btn-xs" id="ww-match-open-ledger">↗ View in Ledger</button>
+              <button type="button" class="btn btn-xs btn-danger" id="ww-match-unlink-btn">Unlink</button>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- OPTION 1: CREATE OR UPDATE EXPENSE IN LEDGER -->
+        <form id="ww-create-matched-exp-form" class="legs-form-card">
+          <div class="legs-form-header">
+            <div class="legs-form-title">
+              ${currentLinkedExp ? '🔄 Update Linked Expense in Ledger' : '➕ Option 1: Send / Create as Expense in Ledger'}
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label class="form-label">Expense Description *</label>
+              <input name="title" class="form-input" required value="${esc(currentLinkedExp ? currentLinkedExp.title : reservation.title)}" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Vendor / Airline / Hotel</label>
+              <input name="vendor" class="form-input" value="${esc(currentLinkedExp ? currentLinkedExp.vendor : (reservation.vendor || reservation.title))}" />
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label class="form-label">Trip *</label>
+              <select name="trip_id" id="ww-match-trip-sel" class="form-select" required>
+                ${trips.map(t => `<option value="${esc(t.id)}" ${defaultTripId === t.id ? 'selected' : ''}>🧳 ${esc(t.name)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Trip Leg / Sub-Location</label>
+              <select name="leg_path" id="ww-match-leg-sel" class="form-select">
+                ${buildLegOptionsHtml(defaultTripObj, defaultLegPath)}
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 0.8fr 0.9fr 1.1fr; gap: 10px;">
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select name="category" class="form-select">
+                ${categories.map(c => `<option value="${esc(c)}" ${(currentLinkedExp ? currentLinkedExp.category === c : defaultCat === c) ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Amount (USD) *</label>
+              <input type="number" step="0.01" name="amount_usd" class="form-input mono" required value="${Number(resAmount > 0 ? resAmount : (currentLinkedExp ? currentLinkedExp.amount_usd : 0)).toFixed(2)}" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Expense Date</label>
+              <input type="date" name="expense_date" class="form-input" value="${esc(((reservation.start_datetime || new Date().toISOString()).slice(0, 10)))}" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Payment Card</label>
+              <input name="payment_method" class="form-input" value="${esc(currentLinkedExp ? currentLinkedExp.payment_method : (reservation.payment_method || 'Amex Business Platinum'))}" />
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button type="submit" class="btn btn-primary">
+              ${currentLinkedExp ? '💾 Update Matched Expense in Ledger' : '✓ Create & Match Expense in Ledger'}
+            </button>
+          </div>
+        </form>
+
+        <!-- OPTION 2: LINK TO AN EXISTING EXPENSE ALREADY IN THE LEDGER -->
+        <form id="ww-link-existing-exp-form" class="legs-form-card">
+          <div class="legs-form-header">
+            <div class="legs-form-title">🔗 Option 2: Match to an Existing Expense Already in Your Ledger (${sortedExpenses.length})</div>
+          </div>
+          ${sortedExpenses.length === 0 ? `
+            <div style="font-size: 12.5px; color: var(--text-secondary);">No existing expenses in the ledger yet — use Option 1 above to create it.</div>
+          ` : `
+            <div class="form-group">
+              <label class="form-label">Select Existing Ledger Expense</label>
+              <select name="match_expense_id" class="form-select">
+                ${sortedExpenses.map(e => {
+                  const t = trips.find(x => x.id === e.trip_id);
+                  return `<option value="${esc(e.id)}" ${e.id === reservation.linked_expense_id ? 'selected' : ''}>
+                    ${esc(e.expense_date)} • ${esc(e.title)} (${esc(e.vendor || e.category)}) — $${Number(e.amount_usd || 0).toFixed(2)} [${esc(t ? t.name : 'Trip')}${e.leg_path ? ' / ' + esc(e.leg_path) : ''}]
+                  </option>`;
+                }).join('')}
+              </select>
+            </div>
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary); cursor: pointer;">
+              <input type="checkbox" name="updateMatchedExpense" checked />
+              <span>Sync reservation amount ($${resAmount.toFixed(2)}), trip, leg &amp; confirmation code to the matched expense</span>
+            </label>
+            <div style="display: flex; justify-content: flex-end;">
+              <button type="submit" class="btn btn-sm btn-primary">🔗 Match to Selected Expense</button>
+            </div>
+          `}
+        </form>
+      </div>
+    `, 720);
+
+    const tripSel = modal.querySelector('#ww-match-trip-sel');
+    const legSel = modal.querySelector('#ww-match-leg-sel');
+    if (tripSel && legSel) {
+      tripSel.addEventListener('change', () => {
+        const tObj = trips.find(t => t.id === tripSel.value);
+        legSel.innerHTML = buildLegOptionsHtml(tObj, '');
+      });
+    }
+
+    const btnOpenLedger = modal.querySelector('#ww-match-open-ledger');
+    if (btnOpenLedger) {
+      btnOpenLedger.addEventListener('click', () => {
+        closeTravelModal();
+        if (bridge() && bridge().switchView) {
+          if (reservation.trip_id && bridge().setSelectedLeg) {
+            bridge().setSelectedLeg(reservation.trip_id, reservation.leg_path || '');
+          }
+          bridge().switchView('dashboard');
+        }
+      });
+    }
+
+    const btnUnlink = modal.querySelector('#ww-match-unlink-btn');
+    if (btnUnlink) {
+      btnUnlink.addEventListener('click', async () => {
+        try {
+          await travelApi(`/api/travel/reservations/${encodeURIComponent(reservation.id)}/sync-finance`, {
+            method: 'POST',
+            body: JSON.stringify({ unlink: true })
+          });
+          toast('Unlinked reservation from expense');
+          closeTravelModal();
+          render();
+        } catch (err) { toast(err.message); }
+      });
+    }
+
+    modal.querySelector('#ww-create-matched-exp-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const amt = Number(fd.get('amount_usd')) || 0;
+      try {
+        await travelApi(`/api/travel/reservations/${encodeURIComponent(reservation.id)}/sync-finance`, {
+          method: 'POST',
+          body: JSON.stringify({
+            createExpense: true,
+            syncRewards: true,
+            title: fd.get('title'),
+            vendor: fd.get('vendor'),
+            trip_id: fd.get('trip_id'),
+            leg_path: fd.get('leg_path') || '',
+            category: fd.get('category'),
+            amount_original: amt,
+            amount_usd: amt,
+            currency: 'USD',
+            expense_date: fd.get('expense_date'),
+            payment_method: fd.get('payment_method')
+          })
+        });
+        toast('✓ Matched & synced to Expense Ledger!');
+        closeTravelModal();
+        render();
+      } catch (err) { toast(err.message); }
+    });
+
+    const linkForm = modal.querySelector('#ww-link-existing-exp-form');
+    if (linkForm) {
+      linkForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const matchId = fd.get('match_expense_id');
+        if (!matchId) return;
+        try {
+          await travelApi(`/api/travel/reservations/${encodeURIComponent(reservation.id)}/sync-finance`, {
+            method: 'POST',
+            body: JSON.stringify({
+              match_expense_id: matchId,
+              updateMatchedExpense: Boolean(fd.get('updateMatchedExpense')),
+              trip_id: tripSel ? tripSel.value : reservation.trip_id,
+              leg_path: legSel ? legSel.value : reservation.leg_path,
+              amount_original: resAmount,
+              amount_usd: resAmount,
+              currency: reservation.cost_currency || 'USD'
+            })
+          });
+          toast('✓ Linked reservation to existing expense in Ledger!');
+          closeTravelModal();
+          render();
+        } catch (err) { toast(err.message); }
+      });
+    }
+  }
+
+  async function syncInbox(requeueAll = false) {
+    toast('🔄 Scanning Gmail / IMAP for travel confirmations...');
     try {
-      const res = await travelApi('/api/travel/email-sync', { method: 'POST' });
-      toast(`✓ Scanned ${res.scanned} email(s), queued ${res.added} new${res.updated ? `, refreshed ${res.updated} existing` : ''}.`);
-      if (res.added > 0) travelState.subTab = 'inbox';
+      const res = await travelApi('/api/travel/email-sync', {
+        method: 'POST',
+        body: JSON.stringify({ requeueAll: Boolean(requeueAll) })
+      });
+      if (res.added > 0 || res.updated > 0) {
+        toast(`✓ Scanned ${res.scanned} email(s): ${res.added} queued, ${res.updated || 0} existing booking(s) updated!`);
+      } else {
+        toast(`✓ Scanned ${res.scanned} email(s) — all synced emails are shown below!`);
+      }
+      if (res.added > 0 || requeueAll) travelState.subTab = 'inbox';
       render();
       renderAdminEmailSync();
     } catch (e) {
