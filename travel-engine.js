@@ -105,7 +105,8 @@ function stripHtml(html) {
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|tr|li|h[1-6])>/gi, '\n')
+    .replace(/<\/(td|th)>/gi, '   ')
+    .replace(/<\/(tr|p|div|li|h[1-6]|table|section)>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
@@ -114,6 +115,7 @@ function stripHtml(html) {
     .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -430,15 +432,47 @@ function extractRegexReservations(subject = '', sender = '', text = '') {
     }
   }
 
-  // Price
+  // Price & Fare Breakdown (Prioritize TICKET AMOUNT / TOTAL AMOUNT over promo/ancillary/tax lines)
   let cost_amount = 0;
   let cost_currency = 'USD';
-  const priceMatch = combined.match(/(?:total|ticket total|amount paid|grand total|price|charged|total cost)\s*[:\-]?\s*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN|\$|€|£)?\s*([0-9,]+\.\d{2})/i)
-    || combined.match(/(\$|€|£)\s*([0-9,]+\.\d{2})/);
-  if (priceMatch) {
-    const sym = (priceMatch[1] || '$').toUpperCase();
-    cost_currency = sym === '€' ? 'EUR' : sym === '£' ? 'GBP' : (sym === '$' ? 'USD' : sym);
-    cost_amount = parseFloat(priceMatch[2].replace(/,/g, '')) || 0;
+  let baseFareAmount = 0;
+
+  const baseFareMatch = combined.match(/\bbase\s+fare[\s:|•\-]*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN|\$|€|£)?\s*([0-9,]+\.\d{2})\s*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN)?/i);
+  if (baseFareMatch) {
+    baseFareAmount = parseFloat(baseFareMatch[2].replace(/,/g, '')) || 0;
+  }
+
+  // Match all explicitly labeled total lines (e.g., "TICKET AMOUNT $375.25 USD", "Total: $375.25", "Amount Paid $375.25")
+  const totalRegex = /\b(ticket\s+amount|total\s+ticket\s+amount|grand\s+total|total\s+paid|amount\s+paid|total\s+charged|total\s+fare|total\s+amount|total\s+price|total\s+cost|total\s+due|air\s+transportation\s+charges|ticket\s+total|total)[\s:|•\-]*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN|\$|€|£)?\s*(\$|€|£)?\s*([0-9,]+\.\d{2})\s*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN)?/gi;
+  let bestPriority = 0;
+  let tm;
+  while ((tm = totalRegex.exec(combined)) !== null) {
+    const label = (tm[1] || '').toLowerCase().replace(/\s+/g, ' ');
+    const cur1 = (tm[2] || '').toUpperCase();
+    const cur2 = (tm[5] || '').toUpperCase();
+    const sym = cur2 || cur1 || '$';
+    const val = parseFloat(tm[4].replace(/,/g, '')) || 0;
+    if (val <= 0) continue;
+    // Give highest priority to explicit "ticket amount" / "grand total" / "amount paid", and prefer larger total over sub-items
+    const prio = (label.includes('ticket amount') || label.includes('grand total') || label.includes('amount paid') || label.includes('total charged')) ? 3 : 2;
+    if (prio > bestPriority || (prio === bestPriority && val > cost_amount)) {
+      bestPriority = prio;
+      cost_amount = val;
+      cost_currency = sym === '€' ? 'EUR' : sym === '£' ? 'GBP' : (sym === '$' ? 'USD' : sym);
+    }
+  }
+
+  if (cost_amount === 0 && baseFareAmount > 0) {
+    cost_amount = baseFareAmount;
+  }
+
+  if (cost_amount === 0) {
+    const fallbackPrice = combined.match(/(\$|€|£)\s*([0-9,]+\.\d{2})\s*(USD|EUR|GBP|CAD|AUD)?/i);
+    if (fallbackPrice) {
+      const sym = (fallbackPrice[3] || fallbackPrice[1] || '$').toUpperCase();
+      cost_currency = sym === '€' ? 'EUR' : sym === '£' ? 'GBP' : (sym === '$' ? 'USD' : sym);
+      cost_amount = parseFloat(fallbackPrice[2].replace(/,/g, '')) || 0;
+    }
   }
 
   // Dates:
@@ -451,8 +485,9 @@ function extractRegexReservations(subject = '', sender = '', text = '') {
   }
   const subjYear = dateMatches[0] ? Number(dateMatches[0].slice(0, 4)) : new Date().getFullYear();
 
-  // Strip issue/purchase date lines so ticket purchase dates (like "Issue Date: Sep 11") are not confused with flight dates
+  // Strip issue/purchase date lines AND "September 11th Security Fee" tax rows so they are never confused with travel dates
   const bodyWithoutIssueDates = text
+    .replace(/September\s+11(?:th)?\s+Security\s+Fee/gi, 'TSA Security Fee')
     .split(/\r?\n/)
     .filter(line => !/(?:issue\s*date|date\s*of\s*issue|purchased\s*on|booking\s*date|receipt\s*date)/i.test(line))
     .join('\n');
@@ -522,9 +557,16 @@ function extractRegexReservations(subject = '', sender = '', text = '') {
     }
   }
 
-  // Flight number, Seat, Cabin
+  // Flight number, Seat, Cabin, Fare Breakdown & Full Email Text
   const details = {};
   if (passengerName) details.passenger = passengerName;
+  if (baseFareAmount > 0 && cost_amount >= baseFareAmount) {
+    const taxes = Number((cost_amount - baseFareAmount).toFixed(2));
+    details.fare_breakdown = `Base Fare: $${baseFareAmount.toFixed(2)}${taxes > 0 ? ` + Taxes/Fees: $${taxes.toFixed(2)}` : ''}`;
+  }
+  if (text) {
+    details.full_email_text = text.slice(0, 25000);
+  }
   if (type === 'flight') {
     const deltaFlightMatch = combined.match(/\b(?:DELTA|DL|CM|UA|AA|WN|B6|AS|BA|AF|LH|LA|AV)\s*(\d{1,4})\b/i);
     if (deltaFlightMatch) {
@@ -571,11 +613,12 @@ function extractRegexReservations(subject = '', sender = '', text = '') {
 
 async function extractWithLlmFallback(subject, sender, text, rawKey, provider) {
   if (!rawKey) return null;
-  const snippet = text.slice(0, 7000);
+  const snippet = text.slice(0, 22000);
   const prompt = [
     'Extract all travel reservations from this confirmation email.',
+    'For cost_amount, always use the final TICKET AMOUNT / GRAND TOTAL / TOTAL PAID (including base fare + taxes/fees), never a small promo, insurance, or single tax fee.',
     'Return ONLY a valid JSON array of objects with these fields:',
-    'type (flight|hotel|car|transit|dining|activity|cruise|other), title, vendor, confirmation_code, start_datetime (YYYY-MM-DDTHH:mm), end_datetime (YYYY-MM-DDTHH:mm or empty), location_from, location_to, address, cancel_deadline (YYYY-MM-DD or empty), cost_amount (number), cost_currency (3-letter code), points_used (number), points_earned (number), loyalty_program, details (object with flight_number, seat, cabin, terminal, gate, room_type, car_class).',
+    'type (flight|hotel|car|transit|dining|activity|cruise|other), title, vendor, confirmation_code, start_datetime (YYYY-MM-DDTHH:mm), end_datetime (YYYY-MM-DDTHH:mm or empty), location_from, location_to, address, cancel_deadline (YYYY-MM-DD or empty), cost_amount (number), cost_currency (3-letter code), points_used (number), points_earned (number), loyalty_program, details (object with passenger, flight_number, seat, cabin, terminal, gate, room_type, car_class).',
     `Subject: ${subject}\nFrom: ${sender}\n\nEmail Body:\n${snippet}`
   ].join('\n\n');
 
@@ -633,8 +676,16 @@ async function parseTravelEmail({ rawEmail = '', subject = '', sender = '', text
     finalSender = finalSender || mime.headers.from || '';
     finalText = mime.text || '';
     finalHtml = mime.html || '';
-  } else if (finalHtml && !finalText) {
-    finalText = stripHtml(finalHtml);
+  }
+
+  // Always combine plain text AND stripped HTML so rich HTML fare tables (like Delta's TICKET AMOUNT table) are always read in full!
+  const htmlAsText = finalHtml ? stripHtml(finalHtml) : '';
+  if (htmlAsText) {
+    if (!finalText) {
+      finalText = htmlAsText;
+    } else if (!finalText.includes(htmlAsText.slice(0, 120))) {
+      finalText = `${finalText}\n\n${htmlAsText}`;
+    }
   }
 
   // 1. Schema.org JSON-LD
@@ -643,7 +694,7 @@ async function parseTravelEmail({ rawEmail = '', subject = '', sender = '', text
     return {
       subject: finalSubject,
       sender: finalSender,
-      snippet: finalText.slice(0, 400),
+      snippet: finalText.slice(0, 25000),
       reservations: schemaResults,
       parser_used: 'schema.org',
       confidence: 'high'
@@ -654,10 +705,13 @@ async function parseTravelEmail({ rawEmail = '', subject = '', sender = '', text
   if (aiKey) {
     const llmResults = await extractWithLlmFallback(finalSubject, finalSender, finalText, aiKey, aiProvider);
     if (llmResults && llmResults.length > 0) {
+      llmResults.forEach(r => {
+        r.details = { ...(r.details || {}), full_email_text: finalText.slice(0, 25000) };
+      });
       return {
         subject: finalSubject,
         sender: finalSender,
-        snippet: finalText.slice(0, 400),
+        snippet: finalText.slice(0, 25000),
         reservations: llmResults,
         parser_used: 'llm',
         confidence: 'high'
@@ -670,7 +724,7 @@ async function parseTravelEmail({ rawEmail = '', subject = '', sender = '', text
   return {
     subject: finalSubject,
     sender: finalSender,
-    snippet: finalText.slice(0, 400),
+    snippet: finalText.slice(0, 25000),
     reservations: regexResults,
     parser_used: 'regex',
     confidence: regexResults.length > 0 && regexResults[0].confirmation_code ? 'medium' : 'low'
@@ -896,12 +950,14 @@ async function syncGmailInbox({ accessToken, daysBack = 30 }) {
     const hdrs = (msgData.payload && msgData.payload.headers) || [];
     const getHdr = name => (hdrs.find(h => h.name.toLowerCase() === name) || {}).value || '';
     const parts = extractGmailPayloadParts(msgData.payload);
+    const htmlText = parts.html ? stripHtml(parts.html) : '';
+    const fullText = [parts.text, htmlText].filter(Boolean).join('\n\n');
     emails.push({
       uid: `gmail:${m.id}`,
       subject: getHdr('subject'),
       sender: getHdr('from'),
       received_at: getHdr('date'),
-      text: parts.text || stripHtml(parts.html),
+      text: fullText,
       html: parts.html
     });
   }

@@ -505,6 +505,7 @@
         if (details.room_type) detailChips.push(`🛏️ ${details.room_type}`);
         if (details.car_class) detailChips.push(`🚘 ${details.car_class}`);
         if (details.party_size) detailChips.push(`👥 Party of ${details.party_size}`);
+        if (details.fare_breakdown) detailChips.push(`💵 ${details.fare_breakdown}`);
 
         const mapQuery = encodeURIComponent(r.address || r.location_to || r.vendor || r.title);
         const hasSyncedExpense = Boolean(r.linked_expense_id);
@@ -598,6 +599,9 @@
                 ` : ''}
                 ${r.attachment_data ? `
                   <button type="button" class="btn btn-xs" data-view-att="${esc(r.id)}">📎 ${esc(r.attachment_name || 'View Ticket')}</button>
+                ` : ''}
+                ${details.full_email_text ? `
+                  <button type="button" class="btn btn-xs" data-view-res-email="${esc(r.id)}">📧 View Full Email</button>
                 ` : ''}
                 <a class="btn btn-xs" href="/api/travel/export/ics?reservationId=${encodeURIComponent(r.id)}">📅 .ics</a>
               </div>
@@ -706,7 +710,10 @@
                           <span style="font-size: 12px; color: var(--text-secondary);">From: ${esc(item.sender)}</span>
                         </div>
                         <h4 style="margin: 6px 0 4px; font-size: 15px;">${esc(item.subject || 'Travel Confirmation')}</h4>
-                        <p style="font-size: 12.5px; color: var(--text-secondary); margin: 0;">${esc((item.raw_snippet || '').slice(0, 220))}</p>
+                        <p style="font-size: 12.5px; color: var(--text-secondary); margin: 0;">${esc((item.raw_snippet || '').slice(0, 260))}${(item.raw_snippet || '').length > 260 ? '...' : ''}</p>
+                        ${item.raw_snippet ? `
+                          <button type="button" class="btn btn-xs" style="margin-top: 8px;" data-view-inbox-email="${esc(item.id)}">📧 View Full Email Text</button>
+                        ` : ''}
                         ${parsed.length > 0 ? `
                           <div class="travel-inbox-preview" style="margin-top: 10px;">
                             ${parsed.map(p => `
@@ -980,6 +987,33 @@
         const s = getAppData();
         const r = (s.reservations || []).find(x => x.id === btn.getAttribute('data-view-att'));
         if (r && r.attachment_data) openAttachmentModal(r.attachment_name || r.title, r.attachment_data);
+      });
+    });
+
+    container.querySelectorAll('[data-view-res-email]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = getAppData();
+        const r = (s.reservations || []).find(x => x.id === btn.getAttribute('data-view-res-email'));
+        if (!r) return;
+        let det = {};
+        try { det = JSON.parse(r.details_json || '{}'); } catch (e) {}
+        if (det.full_email_text) {
+          showTravelModal(`📧 Full Email — ${r.title}`, `
+            <pre style="white-space: pre-wrap; word-break: break-word; font-size: 12.5px; line-height: 1.5; background: var(--bg-elevated); padding: 14px; border-radius: 10px; border: 1px solid var(--border-subtle); max-height: 62vh; overflow-y: auto; margin: 0;">${esc(det.full_email_text)}</pre>
+          `, 760);
+        }
+      });
+    });
+
+    container.querySelectorAll('[data-view-inbox-email]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = getAppData();
+        const item = (s.travel_inbox || []).find(x => x.id === btn.getAttribute('data-view-inbox-email'));
+        if (item && item.raw_snippet) {
+          showTravelModal(`📧 Full Email — ${item.subject || 'Confirmation'}`, `
+            <pre style="white-space: pre-wrap; word-break: break-word; font-size: 12.5px; line-height: 1.5; background: var(--bg-elevated); padding: 14px; border-radius: 10px; border: 1px solid var(--border-subtle); max-height: 62vh; overflow-y: auto; margin: 0;">${esc(item.raw_snippet)}</pre>
+          `, 760);
+        }
       });
     });
 

@@ -1522,19 +1522,29 @@ async function runTravelEmailSync() {
 
       const exists = db.prepare('SELECT id, subject, status FROM travel_inbox WHERE message_uid = ?').get(em.uid);
       if (exists) {
-        // Update existing inbox item & refresh any already-imported reservation from this email with improved parsed dates/details
-        db.prepare('UPDATE travel_inbox SET parsed_json = ?, parser_used = ?, confidence = ? WHERE id = ?').run(
-          JSON.stringify(parsed.reservations), parsed.parser_used, parsed.confidence, exists.id
+        // Update existing inbox item & refresh any already-imported reservation from this email with improved parsed dates, full cost, and full email text
+        db.prepare('UPDATE travel_inbox SET raw_snippet = ?, parsed_json = ?, parser_used = ?, confidence = ? WHERE id = ?').run(
+          parsed.snippet || '', JSON.stringify(parsed.reservations), parsed.parser_used, parsed.confidence, exists.id
         );
         const cand = parsed.reservations[0];
         if (cand && (exists.subject || parsed.subject)) {
           const subjToMatch = exists.subject || parsed.subject;
+          const rates = getSettingsMap().exchange_rates || DEFAULT_RATES;
           const matchingRes = db.prepare('SELECT * FROM reservations WHERE notes LIKE ?').all(`%${subjToMatch}%`);
           for (const mr of matchingRes) {
+            const nextCur = (cand.cost_currency || mr.cost_currency || 'USD').toUpperCase();
+            const nextAmt = Number(cand.cost_amount) > 0 ? Number(cand.cost_amount) : Number(mr.cost_amount) || 0;
+            const nextUsd = Number((nextAmt * (Number(rates[nextCur]) || 1.0)).toFixed(2));
+            let prevDet = {};
+            try { prevDet = JSON.parse(mr.details_json || '{}'); } catch (e) {}
+            const mergedDet = { ...prevDet, ...(cand.details || {}) };
+            if (parsed.snippet && !mergedDet.full_email_text) {
+              mergedDet.full_email_text = parsed.snippet;
+            }
             db.prepare(`
               UPDATE reservations
               SET title = ?, vendor = ?, confirmation_code = ?, start_datetime = ?, end_datetime = ?,
-                  location_from = ?, location_to = ?, details_json = ?
+                  location_from = ?, location_to = ?, cost_amount = ?, cost_currency = ?, cost_usd = ?, details_json = ?
               WHERE id = ?
             `).run(
               cand.title || mr.title,
@@ -1544,7 +1554,10 @@ async function runTravelEmailSync() {
               cand.end_datetime || mr.end_datetime,
               cand.location_from || mr.location_from,
               cand.location_to || mr.location_to,
-              JSON.stringify({ ...(JSON.parse(mr.details_json || '{}')), ...(cand.details || {}) }),
+              nextAmt,
+              nextCur,
+              nextUsd,
+              JSON.stringify(mergedDet),
               mr.id
             );
             updatedCount++;
@@ -3005,6 +3018,20 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Wander Wallet Creator Finance Server listening on http://0.0.0.0:${PORT}`);
+  // Trigger a background email sync on startup if Gmail/IMAP is connected so existing bookings refresh with full HTML email parsing
+  setTimeout(async () => {
+    try {
+      const st = getEmailSyncStatus();
+      if (st.imap_configured || st.gmail_connected) {
+        const res = await runTravelEmailSync();
+        if (res && res.ok) {
+          console.log(`[Startup Travel Sync] Scanned ${res.scanned} email(s), queued ${res.added} new, refreshed ${res.updated || 0} existing.`);
+        }
+      }
+    } catch (e) {
+      console.error('[Startup Travel Sync] Error:', e.message);
+    }
+  }, 2500);
 });
 
 // Background Auto-Sync Scheduler for Travel Email Inbox (checks every 15 minutes)
