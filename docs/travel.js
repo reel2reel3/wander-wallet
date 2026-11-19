@@ -219,6 +219,11 @@
     const totalCommittedUsd = filteredRes.reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0);
     const totalPointsUsed = filteredRes.reduce((sum, r) => sum + (Number(r.points_used) || 0), 0);
 
+    // Count reservations that are unassigned to any trip, or belong to activeTrip without a leg when a leg filter is active
+    const unassignedRes = allRes.filter(r => !r.trip_id || !trips.some(t => t.id === r.trip_id));
+    const unleggedForActiveTrip = activeTrip ? allRes.filter(r => r.trip_id === activeTrip.id && !r.leg_path) : [];
+    const needsAttentionCount = inbox.length + unassignedRes.length;
+
     container.innerHTML = `
       <section class="panel-card travel-hero-card">
         <div class="panel-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px; flex-wrap: wrap; gap: 12px;">
@@ -228,13 +233,15 @@
             </div>
             <h2 class="panel-title" style="font-size: 20px;">Travel &amp; Itinerary Command Center</h2>
             <p class="panel-subtitle" style="margin-top: 3px;">
-              Track flights, hotels, ground transit, email confirmations, travel documents, and sync costs to your ledger.
+              Track flights, hotels, ground transit, email confirmations, travel documents, and assign bookings to trips &amp; legs.
             </p>
           </div>
           <div class="panel-actions" style="flex-wrap: wrap; gap: 8px;">
-            <button type="button" class="btn btn-sm btn-primary" id="btn-travel-add-res">+ Add Reservation</button>
-            <button type="button" class="btn btn-sm" id="btn-travel-quick-import">📥 Quick Import (Paste / .eml)</button>
-            <button type="button" class="btn btn-sm" id="btn-travel-sync-inbox">🔄 Sync Email Inbox</button>
+            <button type="button" class="btn btn-sm btn-primary" id="btn-travel-add-res" data-open-add-res="1">+ Add Reservation</button>
+            <button type="button" class="btn btn-sm" id="btn-travel-open-import-hub" data-travel-tab="inbox" style="border-color: var(--accent-sky); color: var(--accent-sky); font-weight: 700;">
+              📬 Email Import &amp; Assign Hub ${needsAttentionCount > 0 ? `(${needsAttentionCount})` : ''}
+            </button>
+            <button type="button" class="btn btn-sm" id="btn-travel-sync-inbox" data-trigger-sync-inbox="1">🔄 Sync Gmail / IMAP</button>
             <button type="button" class="btn btn-sm" id="btn-travel-export-ics">📅 Export .ics</button>
             <button type="button" class="btn btn-sm" id="btn-travel-print-sheet">🖨️ Print / Share</button>
           </div>
@@ -243,21 +250,21 @@
         <!-- KPI Strip -->
         <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-top: 14px;">
           <div class="kpi-card">
-            <span class="kpi-label">Active Bookings</span>
-            <span class="kpi-value mono">${filteredRes.length}</span>
-            <span class="kpi-subtext">${activeTrip ? esc(activeTrip.name) : 'Across all trips'}</span>
+            <span class="kpi-label">Showing Bookings</span>
+            <span class="kpi-value mono">${filteredRes.length} <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">/ ${allRes.length} total</span></span>
+            <span class="kpi-subtext">${activeTrip ? `${esc(activeTrip.name)}${activeLegPath ? ' • 📍 ' + esc(activeLegPath) : ''}` : 'Across all trips'}</span>
           </div>
           <div class="kpi-card">
             <span class="kpi-label">Committed Travel Cost</span>
             <span class="kpi-value mono" style="color: var(--accent-primary);">$${totalCommittedUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             <span class="kpi-subtext">${totalPointsUsed > 0 ? totalPointsUsed.toLocaleString() + ' pts used' : 'Cash & card bookings'}</span>
           </div>
-          <div class="kpi-card">
-            <span class="kpi-label">Pending Email Inbox</span>
-            <span class="kpi-value mono" style="color: ${inbox.length > 0 ? 'var(--accent-amber)' : 'var(--text-primary)'};">${inbox.length}</span>
-            <span class="kpi-subtext">Ready for review</span>
+          <div class="kpi-card" style="cursor: pointer;" data-travel-tab="inbox" title="Click to open Central Email Import & Assignment Hub">
+            <span class="kpi-label">Email Inbox &amp; Unassigned</span>
+            <span class="kpi-value mono" style="color: ${needsAttentionCount > 0 ? 'var(--accent-amber)' : 'var(--text-primary)'};">${inbox.length} inbox • ${unassignedRes.length} unassigned</span>
+            <span class="kpi-subtext" style="color: var(--accent-sky);">Click to assign to trip/leg →</span>
           </div>
-          <div class="kpi-card">
+          <div class="kpi-card" style="cursor: pointer;" data-travel-tab="vault">
             <span class="kpi-label">Document Vault</span>
             <span class="kpi-value mono">${docs.length}</span>
             <span class="kpi-subtext">Passports, visas &amp; passes</span>
@@ -271,7 +278,7 @@
               <span>🗓️</span><span>Timeline (${filteredRes.length})</span>
             </button>
             <button type="button" class="rewards-tab-btn ${travelState.subTab === 'inbox' ? 'active' : ''}" data-travel-tab="inbox">
-              <span>📥</span><span>Email Inbox ${inbox.length > 0 ? '(' + inbox.length + ')' : ''}</span>
+              <span>📬</span><span>Email Import &amp; Assign Hub ${needsAttentionCount > 0 ? '(' + needsAttentionCount + ')' : ''}</span>
             </button>
             <button type="button" class="rewards-tab-btn ${travelState.subTab === 'vault' ? 'active' : ''}" data-travel-tab="vault">
               <span>🛂</span><span>Document Vault (${docs.length})</span>
@@ -290,13 +297,17 @@
             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <span style="font-size: 11.5px; font-weight: 700; color: var(--text-secondary); margin-right: 4px;">🗺️ Trip Legs:</span>
               <button type="button" class="leg-filter-chip ${!activeLegPath ? 'active' : ''}" data-select-leg="">
-                Entire Trip
+                Entire Trip (${allRes.filter(r => r.trip_id === activeTrip.id).length})
               </button>
-              ${activeTripLegs.map(l => `
-                <button type="button" class="leg-filter-chip ${activeLegPath === l.path ? 'active' : ''}" data-select-leg="${esc(l.path)}">
-                  ${l.parent ? '↳ ' : '📍 '}${esc(l.path)}
-                </button>
-              `).join('')}
+              ${activeTripLegs.map(l => {
+                const matchFn = (bridge() && bridge().matchesLegFilter) ? bridge().matchesLegFilter : ((a, b) => a === b);
+                const cnt = allRes.filter(r => r.trip_id === activeTrip.id && matchFn(r.leg_path, l.path)).length;
+                return `
+                  <button type="button" class="leg-filter-chip ${activeLegPath === l.path ? 'active' : ''}" data-select-leg="${esc(l.path)}">
+                    ${l.parent ? '↳ ' : '📍 '}${esc(l.path)} (${cnt})
+                  </button>
+                `;
+              }).join('')}
             </div>
             <button type="button" class="btn btn-xs" data-manage-trip-legs="${esc(activeTrip.id)}">+ Add / Edit Legs</button>
           </div>
@@ -315,8 +326,8 @@
       ` : ''}
 
       <div id="travel-subview-body" style="margin-top: 16px;">
-        ${travelState.subTab === 'timeline' ? renderTimelineHtml(filteredRes, trips) : ''}
-        ${travelState.subTab === 'inbox' ? renderInboxHtml(inbox, trips) : ''}
+        ${travelState.subTab === 'timeline' ? renderTimelineHtml(filteredRes, trips, allRes, inbox, activeTrip, activeLegPath, unassignedRes, unleggedForActiveTrip) : ''}
+        ${travelState.subTab === 'inbox' ? renderInboxHtml(inbox, trips, allRes, activeTrip, activeLegPath) : ''}
         ${travelState.subTab === 'vault' ? renderVaultHtml(docs) : ''}
       </div>
     `;
@@ -324,18 +335,117 @@
     bindTravelViewEvents(container);
   }
 
-  function renderTimelineHtml(reservations, trips) {
+  function buildLegOptionsHtml(tripObj, selectedLegPath) {
+    const legs = (tripObj && bridge() && bridge().getTripLegs) ? bridge().getTripLegs(tripObj) : [];
+    return `<option value="">(Entire Trip / No Specific Leg)</option>` + legs.map(l => {
+      const prefix = l.parent ? '\u00A0\u00A0└─ ' : '📍 ';
+      return `<option value="${esc(l.path)}" ${selectedLegPath === l.path ? 'selected' : ''}>${prefix}${esc(l.path)}</option>`;
+    }).join('');
+  }
+
+  function normalizeDateTimeLocal(val, fallbackNow = false) {
+    let raw = String(val || '').trim();
+    if (!raw) {
+      return fallbackNow ? new Date().toISOString().slice(0, 16) : '';
+    }
+    raw = raw.replace(' ', 'T').replace(/Z$/i, '');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      return `${raw}T12:00`;
+    }
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw)) {
+      return raw.slice(0, 16);
+    }
+    const parsed = new Date(raw);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 16);
+    }
+    return fallbackNow ? new Date().toISOString().slice(0, 16) : '';
+  }
+
+  function renderTimelineHtml(reservations, trips, allRes = [], inbox = [], activeTrip = null, activeLegPath = '', unassignedRes = [], unleggedForActiveTrip = []) {
+    // Show a prominent banner if there are pending inbox items or unassigned/un-legged reservations hidden by the current filter
+    const hiddenByLegFilter = (activeTrip && activeLegPath) ? unleggedForActiveTrip : [];
+    const showAssignHelper = inbox.length > 0 || unassignedRes.length > 0 || hiddenByLegFilter.length > 0;
+
+    let helperBannerHtml = '';
+    if (showAssignHelper) {
+      const targetTripName = activeTrip ? activeTrip.name : (trips[0] ? trips[0].name : 'Trip');
+      const targetLabel = activeTrip
+        ? `${activeTrip.name}${activeLegPath ? ' → 📍 ' + activeLegPath : ''}`
+        : targetTripName;
+      const quickAssignable = [...unassignedRes, ...hiddenByLegFilter];
+
+      helperBannerHtml = `
+        <section class="panel-card" style="margin-bottom: 16px; border: 1px solid rgba(14, 165, 233, 0.4); background: linear-gradient(135deg, rgba(14, 165, 233, 0.09) 0%, rgba(16, 185, 129, 0.07) 100%);">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div>
+              <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--accent-sky);">
+                📬 EMAIL RESERVATIONS &amp; TRIP / LEG ASSIGNMENT
+              </div>
+              <div style="font-size: 14.5px; font-weight: 750; color: var(--text-primary); margin-top: 2px;">
+                ${inbox.length > 0 ? `<strong>${inbox.length}</strong> pending email confirmation${inbox.length === 1 ? '' : 's'} in Inbox` : ''}
+                ${inbox.length > 0 && quickAssignable.length > 0 ? ' • ' : ''}
+                ${unassignedRes.length > 0 ? `<strong>${unassignedRes.length}</strong> imported booking${unassignedRes.length === 1 ? '' : 's'} not assigned to a trip yet` : ''}
+                ${unassignedRes.length === 0 && hiddenByLegFilter.length > 0 ? `<strong>${hiddenByLegFilter.length}</strong> booking${hiddenByLegFilter.length === 1 ? '' : 's'} on ${esc(activeTrip.name)} without a leg assigned` : ''}
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" data-travel-tab="inbox">
+              📬 Open Central Email Import &amp; Assign Hub →
+            </button>
+          </div>
+
+          ${quickAssignable.length > 0 ? `
+            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-subtle); display: grid; gap: 8px;">
+              ${quickAssignable.map(r => {
+                const meta = TYPE_META[r.type] || TYPE_META.other;
+                const defaultTId = r.trip_id || (activeTrip ? activeTrip.id : (trips[0] ? trips[0].id : ''));
+                const tObj = trips.find(t => t.id === defaultTId);
+                return `
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span class="travel-type-badge" style="background: ${meta.color}22; color: ${meta.color};">${meta.icon} ${meta.label}</span>
+                      <strong>${esc(r.title)}</strong>
+                      ${r.confirmation_code ? `<span class="mono" style="font-size: 12px; color: var(--text-secondary);">Conf: ${esc(r.confirmation_code)}</span>` : ''}
+                      <span style="font-size: 12px; color: var(--text-secondary);">${esc(formatDateTimeShort(r.start_datetime))}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                      <select class="form-select" data-quick-res-trip="${esc(r.id)}" style="width: auto; min-width: 155px; padding: 5px 9px; font-size: 12px;">
+                        <option value="">(Unassigned)</option>
+                        ${trips.map(t => `<option value="${esc(t.id)}" ${defaultTId === t.id ? 'selected' : ''}>🧳 ${esc(t.name)}</option>`).join('')}
+                      </select>
+                      <select class="form-select" data-quick-res-leg="${esc(r.id)}" style="width: auto; min-width: 165px; padding: 5px 9px; font-size: 12px;">
+                        ${buildLegOptionsHtml(tObj, activeLegPath || r.leg_path || '')}
+                      </select>
+                      <button type="button" class="btn btn-xs btn-primary" data-quick-res-save="${esc(r.id)}">
+                        ✓ Assign
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          ` : ''}
+        </section>
+      `;
+    }
+
     if (reservations.length === 0) {
       return `
+        ${helperBannerHtml}
         <section class="panel-card" style="text-align: center; padding: 40px 20px;">
           <div style="font-size: 36px; margin-bottom: 10px;">🧳</div>
-          <h3 style="margin-bottom: 6px;">No reservations yet</h3>
-          <p style="color: var(--text-secondary); max-width: 460px; margin: 0 auto 18px;">
-            Add a flight, hotel, rental car, or activity manually, paste a confirmation email, or sync your Gmail/IMAP inbox.
+          <h3 style="margin-bottom: 6px;">No reservations matching current filter</h3>
+          <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto 18px;">
+            ${activeTrip
+              ? `No bookings assigned to <strong>${esc(activeTrip.name)}${activeLegPath ? ' (' + esc(activeLegPath) + ')' : ''}</strong> yet. Add a reservation below or open the <strong>Central Email Import &amp; Assign Hub</strong> to assign your synced email confirmations.`
+              : 'Add a flight, hotel, rental car, or activity manually, paste a confirmation email, or sync your Gmail/IMAP inbox.'}
           </p>
           <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-            <button type="button" class="btn btn-primary" onclick="window.WWTravel.openReservationModal()">+ Add Reservation</button>
-            <button type="button" class="btn" onclick="window.WWTravel.openQuickImportModal()">📥 Paste Confirmation Email</button>
+            <button type="button" class="btn btn-primary" data-open-add-res="1">+ Add Reservation</button>
+            <button type="button" class="btn" data-travel-tab="inbox" style="border-color: var(--accent-sky); color: var(--accent-sky); font-weight: 700;">
+              📬 Open Email Import &amp; Assign Hub
+            </button>
+            <button type="button" class="btn" data-open-quick-import="1">📥 Quick Paste Email / .eml</button>
           </div>
         </section>
       `;
@@ -349,7 +459,7 @@
       groups.get(dayKey).push(r);
     }
 
-    let html = '<div class="travel-timeline">';
+    let html = helperBannerHtml + '<div class="travel-timeline">';
     for (const [dayKey, items] of groups.entries()) {
       html += `
         <div class="travel-day-group">
@@ -385,7 +495,7 @@
                 <span class="travel-type-badge" style="background: ${meta.color}22; color: ${meta.color};">
                   ${meta.icon} ${meta.label}
                 </span>
-                ${tripObj ? `<span class="travel-trip-pill">🧳 ${esc(tripObj.name)}</span>` : ''}
+                ${tripObj ? `<span class="travel-trip-pill">🧳 ${esc(tripObj.name)}</span>` : `<span class="travel-trip-pill" style="color: var(--accent-amber);">⚠️ Unassigned Trip</span>`}
                 ${r.leg_path ? `<span class="travel-trip-pill" style="background: rgba(16,185,129,0.12); color: var(--accent-primary);">📍 ${esc(r.leg_path)}</span>` : ''}
                 ${r.status && r.status !== 'confirmed' ? `<span class="travel-status-pill status-${esc(r.status)}">${esc(r.status)}</span>` : ''}
               </div>
@@ -443,6 +553,21 @@
 
             ${r.notes ? `<div style="font-size: 12.5px; color: var(--text-secondary); margin-top: 6px;">${esc(r.notes)}</div>` : ''}
 
+            <!-- Inline Quick Trip & Leg Assignment Bar -->
+            <div style="margin-top: 10px; padding: 8px 10px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+              <span style="font-size: 11.5px; font-weight: 700; color: var(--text-secondary);">🗺️ Trip &amp; Leg Assignment:</span>
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <select class="form-select" data-quick-res-trip="${esc(r.id)}" style="width: auto; min-width: 155px; padding: 4px 8px; font-size: 12px;">
+                  <option value="">(Unassigned)</option>
+                  ${trips.map(t => `<option value="${esc(t.id)}" ${r.trip_id === t.id ? 'selected' : ''}>🧳 ${esc(t.name)}</option>`).join('')}
+                </select>
+                <select class="form-select" data-quick-res-leg="${esc(r.id)}" style="width: auto; min-width: 165px; padding: 4px 8px; font-size: 12px;">
+                  ${buildLegOptionsHtml(tripObj, r.leg_path || '')}
+                </select>
+                <button type="button" class="btn btn-xs btn-primary" data-quick-res-save="${esc(r.id)}">💾 Update Trip/Leg</button>
+              </div>
+            </div>
+
             <div class="travel-res-footer">
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 ${(Number(r.cost_usd) > 0 || Number(r.points_used) > 0 || Number(r.points_earned) > 0) ? `
@@ -456,7 +581,7 @@
                 <a class="btn btn-xs" href="/api/travel/export/ics?reservationId=${encodeURIComponent(r.id)}">📅 .ics</a>
               </div>
               <div style="display: flex; gap: 6px;">
-                <button type="button" class="btn btn-xs" data-edit-res="${esc(r.id)}">✏️ Edit</button>
+                <button type="button" class="btn btn-xs" data-edit-res="${esc(r.id)}">✏️ Edit Details</button>
                 <button type="button" class="btn btn-xs btn-danger" data-del-res="${esc(r.id)}">🗑️</button>
               </div>
             </div>
@@ -469,69 +594,198 @@
     return html;
   }
 
-  function renderInboxHtml(inbox, trips) {
-    if (inbox.length === 0) {
-      return `
-        <section class="panel-card" style="text-align: center; padding: 40px 20px;">
-          <div style="font-size: 36px; margin-bottom: 10px;">📭</div>
-          <h3 style="margin-bottom: 6px;">Pending Email Inbox is clear</h3>
-          <p style="color: var(--text-secondary); max-width: 480px; margin: 0 auto 18px;">
-            Connect Gmail OAuth or IMAP in <strong>Admin</strong> to auto-pull confirmation emails, or use <strong>Quick Import</strong> to paste any confirmation email.
-          </p>
-          <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-            <button type="button" class="btn btn-primary" onclick="window.WWTravel.syncInbox()">🔄 Sync Email Inbox Now</button>
-            <button type="button" class="btn" onclick="window.WWTravel.openQuickImportModal()">📥 Paste Email / .eml</button>
-          </div>
-        </section>
-      `;
-    }
+  function renderInboxHtml(inbox, trips, allRes = [], activeTrip = null, activeLegPath = '') {
+    const defaultTripId = activeTrip ? activeTrip.id : (trips[0] ? trips[0].id : '');
+    const defaultTripObj = trips.find(t => t.id === defaultTripId) || null;
+    const sortedAllRes = [...allRes].sort((a, b) => {
+      // Unassigned or unlegged first so they are easy to organize
+      const aUn = (!a.trip_id ? 2 : 0) + (!a.leg_path ? 1 : 0);
+      const bUn = (!b.trip_id ? 2 : 0) + (!b.leg_path ? 1 : 0);
+      if (bUn !== aUn) return bUn - aUn;
+      return String(a.start_datetime).localeCompare(String(b.start_datetime));
+    });
 
     return `
-      <div style="display: grid; gap: 14px;">
-        ${inbox.map(item => {
-          let parsed = [];
-          try { parsed = JSON.parse(item.parsed_json || '[]'); } catch (e) {}
-          const first = parsed[0] || {};
-          return `
-            <article class="panel-card">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
-                <div>
-                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <span class="travel-type-badge" style="background: rgba(14,165,233,0.15); color: var(--accent-sky);">
-                      Parser: ${esc(item.parser_used)} (${esc(item.confidence)})
-                    </span>
-                    <span style="font-size: 12px; color: var(--text-secondary);">From: ${esc(item.sender)}</span>
-                  </div>
-                  <h3 style="margin: 6px 0 4px;">${esc(item.subject || 'Travel Confirmation')}</h3>
-                  <p style="font-size: 12.5px; color: var(--text-secondary); margin: 0;">${esc((item.raw_snippet || '').slice(0, 220))}</p>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 8px; min-width: 230px;">
-                  <select class="form-control" data-inbox-trip="${esc(item.id)}">
-                    <option value="">(Unassigned / No Trip)</option>
-                    ${trips.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}
-                  </select>
-                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    <button type="button" class="btn btn-sm btn-primary" data-inbox-approve="${esc(item.id)}">✓ Approve &amp; Add (${parsed.length || 1})</button>
-                    <button type="button" class="btn btn-sm" data-inbox-edit="${esc(item.id)}">✏️ Edit First</button>
-                    <button type="button" class="btn btn-sm btn-danger" data-inbox-dismiss="${esc(item.id)}">✕</button>
-                  </div>
-                </div>
+      <div style="display: grid; gap: 18px;">
+        <!-- SECTION 1: CENTRAL EMAIL IMPORT & PASTE STUDIO -->
+        <section class="panel-card" style="border: 1px solid rgba(14, 165, 233, 0.35);">
+          <div class="panel-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+            <div>
+              <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-sky);">
+                📬 CENTRAL EMAIL IMPORT &amp; ASSIGNMENT HUB
               </div>
-              ${parsed.length > 0 ? `
-                <div class="travel-inbox-preview">
-                  ${parsed.map(p => `
-                    <div class="travel-inbox-cand">
-                      <strong>${(TYPE_META[p.type] || TYPE_META.other).icon} ${esc(p.title || 'Booking')}</strong>
-                      ${p.confirmation_code ? `<span class="mono">Conf: ${esc(p.confirmation_code)}</span>` : ''}
-                      ${p.start_datetime ? `<span>${esc(formatDateTimeShort(p.start_datetime))}</span>` : ''}
-                      ${Number(p.cost_amount) > 0 ? `<span class="mono">${esc(p.cost_currency || 'USD')} ${Number(p.cost_amount).toFixed(2)}</span>` : ''}
+              <h3 class="panel-title" style="margin-top: 2px;">Import Confirmation Emails Directly to a Trip &amp; Leg</h3>
+              <p class="panel-subtitle">
+                Pull confirmation emails from Gmail / IMAP or paste any confirmation email below and assign it straight to a Trip and Country / City Leg.
+              </p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-sm btn-primary" data-trigger-sync-inbox="1">🔄 Pull Latest Gmail / IMAP Confirmations</button>
+              <button type="button" class="btn btn-sm" data-open-add-res="1">+ Manual Reservation</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">
+            <div class="form-group">
+              <label class="form-label">1. Assign Imported Email To Trip</label>
+              <select id="ww-hub-import-trip" class="form-select">
+                <option value="">(Unassigned / Decide Later)</option>
+                ${trips.map(t => `<option value="${esc(t.id)}" ${defaultTripId === t.id ? 'selected' : ''}>🧳 ${esc(t.name)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">2. Assign To Trip Leg / Sub-Location</label>
+              <select id="ww-hub-import-leg" class="form-select">
+                ${buildLegOptionsHtml(defaultTripObj, activeLegPath)}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">3. Or Upload Saved .eml / .txt File</label>
+              <input type="file" id="ww-hub-eml-file" class="form-input" accept=".eml,.txt,.html" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label class="form-label">Paste Airline, Hotel, Rental Car, or Tour Confirmation Email Text</label>
+            <textarea id="ww-hub-paste-body" class="form-textarea" rows="4" placeholder="Paste any confirmation email text here (e.g. flight numbers, hotel check-in dates, confirmation code) and click Parse &amp; Add to Trip/Leg..."></textarea>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-sm" id="ww-hub-queue-btn">📥 Parse &amp; Hold in Review Queue</button>
+            <button type="button" class="btn btn-sm btn-primary" id="ww-hub-direct-import-btn">⚡ Parse &amp; Add Directly to Selected Trip &amp; Leg</button>
+          </div>
+        </section>
+
+        <!-- SECTION 2: PENDING EMAIL INBOX QUEUE -->
+        <section class="panel-card">
+          <div class="panel-header" style="margin-bottom: 12px;">
+            <div>
+              <h3 class="panel-title">📥 Pending Email Confirmations (${inbox.length})</h3>
+              <p class="panel-subtitle">Emails pulled from Gmail / IMAP waiting for you to choose a Trip &amp; Leg and click Approve.</p>
+            </div>
+          </div>
+
+          ${inbox.length === 0 ? `
+            <div style="padding: 20px; text-align: center; color: var(--text-secondary); background: var(--bg-elevated); border-radius: 10px; font-size: 13px;">
+              No pending emails in the review queue right now. Any emails you already approved are listed below in <strong>All Imported Bookings</strong>!
+            </div>
+          ` : `
+            <div style="display: grid; gap: 12px;">
+              ${inbox.map(item => {
+                let parsed = [];
+                try { parsed = JSON.parse(item.parsed_json || '[]'); } catch (e) {}
+                return `
+                  <article style="padding: 14px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+                      <div style="flex: 1; min-width: 240px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                          <span class="travel-type-badge" style="background: rgba(14,165,233,0.15); color: var(--accent-sky);">
+                            Parser: ${esc(item.parser_used)} (${esc(item.confidence)})
+                          </span>
+                          <span style="font-size: 12px; color: var(--text-secondary);">From: ${esc(item.sender)}</span>
+                        </div>
+                        <h4 style="margin: 6px 0 4px; font-size: 15px;">${esc(item.subject || 'Travel Confirmation')}</h4>
+                        <p style="font-size: 12.5px; color: var(--text-secondary); margin: 0;">${esc((item.raw_snippet || '').slice(0, 220))}</p>
+                        ${parsed.length > 0 ? `
+                          <div class="travel-inbox-preview" style="margin-top: 10px;">
+                            ${parsed.map(p => `
+                              <div class="travel-inbox-cand">
+                                <strong>${(TYPE_META[p.type] || TYPE_META.other).icon} ${esc(p.title || 'Booking')}</strong>
+                                ${p.confirmation_code ? `<span class="mono">Conf: ${esc(p.confirmation_code)}</span>` : ''}
+                                ${p.start_datetime ? `<span>${esc(formatDateTimeShort(p.start_datetime))}</span>` : ''}
+                                ${Number(p.cost_amount) > 0 ? `<span class="mono">${esc(p.cost_currency || 'USD')} ${Number(p.cost_amount).toFixed(2)}</span>` : ''}
+                              </div>
+                            `).join('')}
+                          </div>
+                        ` : ''}
+                      </div>
+
+                      <div style="display: flex; flex-direction: column; gap: 8px; min-width: 260px; background: var(--bg-surface); padding: 12px; border-radius: 10px; border: 1px solid var(--border-subtle);">
+                        <div class="form-group">
+                          <label class="form-label">Assign to Trip</label>
+                          <select class="form-select" data-inbox-trip="${esc(item.id)}">
+                            <option value="">(Unassigned / No Trip)</option>
+                            ${trips.map(t => `<option value="${esc(t.id)}" ${defaultTripId === t.id ? 'selected' : ''}>🧳 ${esc(t.name)}</option>`).join('')}
+                          </select>
+                        </div>
+                        <div class="form-group">
+                          <label class="form-label">Assign to Trip Leg / Stop</label>
+                          <select class="form-select" data-inbox-leg="${esc(item.id)}">
+                            ${buildLegOptionsHtml(defaultTripObj, activeLegPath)}
+                          </select>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
+                          <button type="button" class="btn btn-sm btn-primary" style="flex: 1;" data-inbox-approve="${esc(item.id)}">
+                            ✓ Approve &amp; Assign (${parsed.length || 1})
+                          </button>
+                          <button type="button" class="btn btn-sm" data-inbox-edit="${esc(item.id)}">✏️ Edit</button>
+                          <button type="button" class="btn btn-sm btn-danger" data-inbox-dismiss="${esc(item.id)}">✕</button>
+                        </div>
+                      </div>
                     </div>
-                  `).join('')}
-                </div>
-              ` : ''}
-            </article>
-          `;
-        }).join('')}
+                  </article>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </section>
+
+        <!-- SECTION 3: ALL EXISTING / IMPORTED RESERVATIONS — ASSIGN OR MOVE TO ANY TRIP & LEG -->
+        <section class="panel-card">
+          <div class="panel-header" style="margin-bottom: 12px;">
+            <div>
+              <h3 class="panel-title">🗂️ Assign Existing Bookings to Trips &amp; Legs (${sortedAllRes.length})</h3>
+              <p class="panel-subtitle">
+                Every flight, hotel, and booking in Wander Wallet (including previously synced Gmail reservations). Pick a Trip and Leg on any row and click <strong>✓ Save Assignment</strong>.
+              </p>
+            </div>
+          </div>
+
+          ${sortedAllRes.length === 0 ? `
+            <div style="padding: 20px; text-align: center; color: var(--text-secondary); background: var(--bg-elevated); border-radius: 10px; font-size: 13px;">
+              No reservations stored yet. Click <strong>🔄 Pull Latest Gmail / IMAP Confirmations</strong> above or <strong>+ Manual Reservation</strong>.
+            </div>
+          ` : `
+            <div style="display: grid; gap: 8px;">
+              ${sortedAllRes.map(r => {
+                const meta = TYPE_META[r.type] || TYPE_META.other;
+                const assignedTrip = trips.find(t => t.id === r.trip_id) || null;
+                const isUnassigned = !assignedTrip;
+                return `
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 11px 14px; background: var(--bg-elevated); border: 1px solid ${isUnassigned ? 'rgba(245, 158, 11, 0.45)' : 'var(--border-subtle)'}; border-radius: 10px;">
+                    <div style="display: flex; flex-direction: column; gap: 3px; min-width: 220px; flex: 1;">
+                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span class="travel-type-badge" style="background: ${meta.color}22; color: ${meta.color};">${meta.icon} ${meta.label}</span>
+                        <strong style="font-size: 14px;">${esc(r.title)}</strong>
+                        ${r.confirmation_code ? `<span class="mono" style="font-size: 11.5px; padding: 1px 7px; border-radius: 6px; background: var(--bg-surface);">Conf: ${esc(r.confirmation_code)}</span>` : ''}
+                        ${isUnassigned ? `<span class="kpi-tag" style="color: var(--accent-amber);">⚠️ Needs Trip Assignment</span>` : ''}
+                      </div>
+                      <div style="font-size: 12px; color: var(--text-secondary);">
+                        🕒 ${esc(formatDateTimeShort(r.start_datetime))}
+                        ${r.vendor ? ` • 🏢 ${esc(r.vendor)}` : ''}
+                        ${r.location_from || r.location_to ? ` • 📍 ${esc(r.location_from)}${r.location_from && r.location_to ? ' → ' : ''}${esc(r.location_to)}` : ''}
+                      </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <select class="form-select" data-quick-res-trip="${esc(r.id)}" style="width: auto; min-width: 170px; padding: 6px 10px; font-size: 12.5px;">
+                        <option value="">(Unassigned)</option>
+                        ${trips.map(t => `<option value="${esc(t.id)}" ${r.trip_id === t.id ? 'selected' : ''}>🧳 ${esc(t.name)}</option>`).join('')}
+                      </select>
+                      <select class="form-select" data-quick-res-leg="${esc(r.id)}" style="width: auto; min-width: 180px; padding: 6px 10px; font-size: 12.5px;">
+                        ${buildLegOptionsHtml(assignedTrip, r.leg_path || '')}
+                      </select>
+                      <button type="button" class="btn btn-sm btn-primary" data-quick-res-save="${esc(r.id)}">
+                        ✓ Save Assignment
+                      </button>
+                      <button type="button" class="btn btn-sm" data-edit-res="${esc(r.id)}" title="Edit full details">✏️</button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          `}
+        </section>
       </div>
     `;
   }
@@ -626,15 +880,6 @@
       });
     }
 
-    const btnAdd = container.querySelector('#btn-travel-add-res');
-    if (btnAdd) btnAdd.addEventListener('click', () => openReservationModal());
-
-    const btnQuick = container.querySelector('#btn-travel-quick-import');
-    if (btnQuick) btnQuick.addEventListener('click', () => openQuickImportModal());
-
-    const btnSync = container.querySelector('#btn-travel-sync-inbox');
-    if (btnSync) btnSync.addEventListener('click', () => syncInbox());
-
     const btnIcs = container.querySelector('#btn-travel-export-ics');
     if (btnIcs) {
       btnIcs.addEventListener('click', () => {
@@ -701,18 +946,134 @@
       });
     });
 
-    // Inbox actions
+    // Dynamic Trip -> Leg dropdown synchronization on existing reservations
+    container.querySelectorAll('[data-quick-res-trip]').forEach(tripSelect => {
+      tripSelect.addEventListener('change', () => {
+        const resId = tripSelect.getAttribute('data-quick-res-trip');
+        const s = getAppData();
+        const tripObj = (s.trips || []).find(t => t.id === tripSelect.value);
+        const legSelect = tripSelect.parentElement.querySelector(`[data-quick-res-leg="${resId}"]`) || container.querySelector(`[data-quick-res-leg="${resId}"]`);
+        if (legSelect) {
+          legSelect.innerHTML = buildLegOptionsHtml(tripObj, '');
+        }
+      });
+    });
+
+    container.querySelectorAll('[data-quick-res-save]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const resId = btn.getAttribute('data-quick-res-save');
+        const scope = btn.parentElement || container;
+        const tripSelEl = scope.querySelector(`[data-quick-res-trip="${resId}"]`) || container.querySelector(`[data-quick-res-trip="${resId}"]`);
+        const legSelEl = scope.querySelector(`[data-quick-res-leg="${resId}"]`) || container.querySelector(`[data-quick-res-leg="${resId}"]`);
+        const nextTripId = tripSelEl ? tripSelEl.value : '';
+        const nextLegPath = legSelEl ? legSelEl.value : '';
+        try {
+          await travelApi(`/api/travel/reservations/${encodeURIComponent(resId)}`, {
+            method: 'PUT',
+            body: JSON.stringify({ trip_id: nextTripId, leg_path: nextLegPath })
+          });
+          const s = getAppData();
+          const tObj = (s.trips || []).find(t => t.id === nextTripId);
+          toast(`✓ Assigned to ${tObj ? tObj.name : 'Unassigned'}${nextLegPath ? ' (' + nextLegPath + ')' : ''}`);
+          render();
+        } catch (err) {
+          toast(err.message);
+        }
+      });
+    });
+
+    // Central Email Import Studio inside #view-travel Inbox tab
+    const hubImportTrip = container.querySelector('#ww-hub-import-trip');
+    const hubImportLeg = container.querySelector('#ww-hub-import-leg');
+    if (hubImportTrip && hubImportLeg) {
+      hubImportTrip.addEventListener('change', () => {
+        const s = getAppData();
+        const tObj = (s.trips || []).find(t => t.id === hubImportTrip.value);
+        hubImportLeg.innerHTML = buildLegOptionsHtml(tObj, '');
+      });
+    }
+
+    const hubEmlFile = container.querySelector('#ww-hub-eml-file');
+    if (hubEmlFile) {
+      hubEmlFile.addEventListener('change', async e => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const txt = await file.text();
+        const pasteEl = container.querySelector('#ww-hub-paste-body');
+        if (pasteEl) pasteEl.value = txt;
+      });
+    }
+
+    const handleHubEmailParse = async (directImport) => {
+      const pasteEl = container.querySelector('#ww-hub-paste-body');
+      const bodyText = pasteEl ? pasteEl.value.trim() : '';
+      if (!bodyText) {
+        toast('Please paste a confirmation email or upload a .eml file first.');
+        if (pasteEl) pasteEl.focus();
+        return;
+      }
+      const tripId = hubImportTrip ? hubImportTrip.value : '';
+      const legPath = hubImportLeg ? hubImportLeg.value : '';
+      const isRawEml = /^(Return-Path:|Received:|MIME-Version:|From:|Subject:)/im.test(bodyText);
+      try {
+        const res = await travelApi('/api/travel/parse', {
+          method: 'POST',
+          body: JSON.stringify({
+            rawEmail: isRawEml ? bodyText : '',
+            text: isRawEml ? '' : bodyText,
+            directImport,
+            queueInInbox: !directImport,
+            trip_id: tripId,
+            leg_path: legPath
+          })
+        });
+        if (directImport && res.importedCount > 0) {
+          toast(`✓ Imported ${res.importedCount} booking(s) directly to Trip & Leg!`);
+          if (tripId && bridge() && bridge().setSelectedLeg) {
+            bridge().setSelectedLeg(tripId, legPath);
+          }
+          travelState.subTab = 'timeline';
+        } else {
+          toast('✓ Email parsed and added to Pending Email Confirmations below!');
+        }
+        render();
+      } catch (err) {
+        toast(err.message);
+      }
+    };
+
+    const btnHubQueue = container.querySelector('#ww-hub-queue-btn');
+    if (btnHubQueue) btnHubQueue.addEventListener('click', () => handleHubEmailParse(false));
+    const btnHubDirect = container.querySelector('#ww-hub-direct-import-btn');
+    if (btnHubDirect) btnHubDirect.addEventListener('click', () => handleHubEmailParse(true));
+
+    // Inbox Trip -> Leg dynamic sync & actions
+    container.querySelectorAll('[data-inbox-trip]').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const id = sel.getAttribute('data-inbox-trip');
+        const s = getAppData();
+        const tObj = (s.trips || []).find(t => t.id === sel.value);
+        const legSel = container.querySelector(`[data-inbox-leg="${id}"]`);
+        if (legSel) legSel.innerHTML = buildLegOptionsHtml(tObj, '');
+      });
+    });
+
     container.querySelectorAll('[data-inbox-approve]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-inbox-approve');
         const sel = container.querySelector(`[data-inbox-trip="${id}"]`);
+        const legSel = container.querySelector(`[data-inbox-leg="${id}"]`);
         const tripId = sel ? sel.value : '';
+        const legPath = legSel ? legSel.value : '';
         try {
           await travelApi(`/api/travel/inbox/${encodeURIComponent(id)}/import`, {
             method: 'POST',
-            body: JSON.stringify({ trip_id: tripId })
+            body: JSON.stringify({ trip_id: tripId, leg_path: legPath })
           });
-          toast('✓ Reservation(s) added to itinerary!');
+          toast('✓ Reservation(s) assigned to Trip & Leg and added to itinerary!');
+          if (tripId && bridge() && bridge().setSelectedLeg) {
+            bridge().setSelectedLeg(tripId, legPath);
+          }
           travelState.subTab = 'timeline';
           render();
         } catch (e) { toast(e.message); }
@@ -729,9 +1090,11 @@
         try { parsed = JSON.parse(item.parsed_json || '[]'); } catch (e) {}
         const cand = parsed[0] || { title: item.subject };
         const sel = container.querySelector(`[data-inbox-trip="${id}"]`);
+        const legSel = container.querySelector(`[data-inbox-leg="${id}"]`);
         openReservationModal({
           ...cand,
           trip_id: sel ? sel.value : '',
+          leg_path: legSel ? legSel.value : '',
           details_json: JSON.stringify(cand.details || {}),
           _inboxId: id
         });
@@ -868,11 +1231,11 @@
           </div>
           <div>
             <label class="form-label">Start Date &amp; Time *</label>
-            <input type="datetime-local" name="start_datetime" class="form-control" required value="${esc(((existing && existing.start_datetime) || new Date().toISOString().slice(0, 16)).slice(0, 16))}" />
+            <input type="datetime-local" name="start_datetime" class="form-control" required value="${esc(normalizeDateTimeLocal(existing && existing.start_datetime, true))}" />
           </div>
           <div>
             <label class="form-label">End / Check-out</label>
-            <input type="datetime-local" name="end_datetime" class="form-control" value="${esc(((existing && existing.end_datetime) || '').slice(0, 16))}" />
+            <input type="datetime-local" name="end_datetime" class="form-control" value="${esc(normalizeDateTimeLocal(existing && existing.end_datetime, false))}" />
           </div>
         </div>
 
@@ -1030,6 +1393,9 @@
         }
         closeTravelModal();
         travelState.subTab = 'timeline';
+        if (payload.trip_id && bridge() && bridge().setSelectedLeg) {
+          bridge().setSelectedLeg(payload.trip_id, payload.leg_path || '');
+        }
         render();
       } catch (err) { toast(err.message); }
     });
@@ -1875,6 +2241,18 @@
   document.addEventListener('click', e => {
     if (e.target.closest('#btn-open-fx-rates-modal')) {
       openFxRatesModal();
+      return;
+    }
+    if (e.target.closest('[data-open-add-res]')) {
+      openReservationModal();
+      return;
+    }
+    if (e.target.closest('[data-open-quick-import]')) {
+      openQuickImportModal();
+      return;
+    }
+    if (e.target.closest('[data-trigger-sync-inbox]')) {
+      syncInbox();
       return;
     }
     const selLegBtn = e.target.closest('[data-select-leg]');

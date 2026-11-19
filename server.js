@@ -2625,6 +2625,39 @@ const server = http.createServer(async (req, res) => {
         aiProvider
       });
 
+      if (b.directImport && Array.isArray(parsed.reservations) && parsed.reservations.length > 0) {
+        const tripId = b.trip_id || '';
+        const legPath = String(b.leg_path || '').trim();
+        const rates = getSettingsMap().exchange_rates || DEFAULT_RATES;
+        const now = new Date().toISOString();
+        const ins = db.prepare(`
+          INSERT INTO reservations (
+            id, trip_id, leg_path, type, title, vendor, confirmation_code, status,
+            start_datetime, end_datetime, timezone, location_from, location_to, address,
+            details_json, cancel_deadline, is_refundable, cost_amount, cost_currency, cost_usd,
+            payment_method, points_used, points_earned, loyalty_program, linked_expense_id,
+            attachment_data, attachment_name, notes, source, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, '', ?, ?, ?, ?, ?, 1, ?, ?, ?, '', ?, ?, ?, '', '', '', ?, 'email', ?)
+        `);
+        for (const c of parsed.reservations) {
+          const rid = 'res-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex');
+          const cur = (c.cost_currency || 'USD').toUpperCase();
+          const amt = Number(c.cost_amount) || 0;
+          const usd = Number((amt * (Number(rates[cur]) || 1.0)).toFixed(2));
+          ins.run(
+            rid, tripId, legPath, c.type || 'other', c.title || parsed.subject || 'Imported Reservation',
+            c.vendor || '', c.confirmation_code || '',
+            c.start_datetime || now.slice(0, 16), c.end_datetime || '',
+            c.location_from || '', c.location_to || '', c.address || '',
+            JSON.stringify(c.details || {}), c.cancel_deadline || '',
+            amt, cur, usd, Number(c.points_used) || 0, Number(c.points_earned) || 0,
+            c.loyalty_program || '', c.notes || `Imported from: ${parsed.subject || 'Email'}`, now
+          );
+        }
+        markServerModified();
+        return sendJson(res, 200, { ok: true, importedCount: parsed.reservations.length, parsed, bootstrap: getBootstrapData() });
+      }
+
       if (b.queueInInbox) {
         const inboxId = 'tinbox-' + Date.now() + '-' + crypto.randomBytes(2).toString('hex');
         db.prepare(`
@@ -2660,16 +2693,17 @@ const server = http.createServer(async (req, res) => {
         const b = await readJsonBody(req);
         const candidates = Array.isArray(b.reservations) ? b.reservations : JSON.parse(item.parsed_json || '[]');
         const tripId = b.trip_id || '';
+        const legPath = String(b.leg_path || '').trim();
         const rates = getSettingsMap().exchange_rates || DEFAULT_RATES;
         const now = new Date().toISOString();
         const ins = db.prepare(`
           INSERT INTO reservations (
-            id, trip_id, type, title, vendor, confirmation_code, status,
+            id, trip_id, leg_path, type, title, vendor, confirmation_code, status,
             start_datetime, end_datetime, timezone, location_from, location_to, address,
             details_json, cancel_deadline, is_refundable, cost_amount, cost_currency, cost_usd,
             payment_method, points_used, points_earned, loyalty_program, linked_expense_id,
             attachment_data, attachment_name, notes, source, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, '', ?, ?, ?, ?, ?, 1, ?, ?, ?, '', ?, ?, ?, '', '', '', ?, 'email', ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmed', ?, ?, '', ?, ?, ?, ?, ?, 1, ?, ?, ?, '', ?, ?, ?, '', '', '', ?, 'email', ?)
         `);
 
         for (const c of candidates) {
@@ -2678,7 +2712,8 @@ const server = http.createServer(async (req, res) => {
           const amt = Number(c.cost_amount) || 0;
           const usd = Number((amt * (Number(rates[cur]) || 1.0)).toFixed(2));
           ins.run(
-            rid, tripId, c.type || 'other', c.title || item.subject || 'Imported Reservation',
+            rid, tripId, c.leg_path !== undefined ? String(c.leg_path || '').trim() : legPath,
+            c.type || 'other', c.title || item.subject || 'Imported Reservation',
             c.vendor || '', c.confirmation_code || '',
             c.start_datetime || now.slice(0, 16), c.end_datetime || '',
             c.location_from || '', c.location_to || '', c.address || '',
