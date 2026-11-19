@@ -782,17 +782,17 @@
   // Modals (Dynamic Overlay)
   // ---------------------------------------------------------------------------
 
-  function showTravelModal(title, bodyHtml) {
+  function showTravelModal(title, bodyHtml, maxWidth = 700) {
     closeTravelModal();
     const backdrop = document.createElement('div');
     backdrop.id = 'ww-travel-modal-backdrop';
-    backdrop.className = 'modal-backdrop';
+    backdrop.className = 'modal-backdrop open';
     backdrop.style.display = 'flex';
     backdrop.innerHTML = `
-      <div class="modal-card" style="max-width: 680px; width: 95%; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-dialog modal-card" style="max-width: ${maxWidth}px; width: 95%; max-height: 90vh; overflow-y: auto;">
         <div class="modal-header">
-          <h3>${esc(title)}</h3>
-          <button type="button" class="modal-close" id="ww-travel-modal-close">&times;</button>
+          <h3 class="modal-title" style="margin: 0;">${esc(title)}</h3>
+          <button type="button" class="modal-close" id="ww-travel-modal-close" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">${bodyHtml}</div>
       </div>
@@ -1509,7 +1509,7 @@
   // Manage Trip Legs / Sub-Locations Modal (Country / City Hierarchy)
   // ---------------------------------------------------------------------------
 
-  function openManageLegsModal(tripId, editingLegId = null) {
+  function openManageLegsModal(tripId, editingLegId = null, prefillParent = '') {
     const s = getAppData();
     const trips = s.trips || [];
     const targetTripId = tripId || (s.selectedTripId && s.selectedTripId !== 'all' ? s.selectedTripId : (trips[0] ? trips[0].id : ''));
@@ -1522,107 +1522,206 @@
     const legs = (bridge() && bridge().getTripLegs) ? bridge().getTripLegs(trip) : [];
     const topLevelLegs = legs.filter(l => !l.parent);
     const editingLeg = editingLegId ? legs.find(l => l.id === editingLegId) : null;
-
-    // Organize legs hierarchically: each top-level leg followed by its children, then any orphan sub-legs
-    const orderedLegs = [];
-    const seen = new Set();
-    topLevelLegs.forEach(parent => {
-      orderedLegs.push(parent);
-      seen.add(parent.id);
-      legs.filter(c => c.parent === parent.path).forEach(child => {
-        orderedLegs.push(child);
-        seen.add(child.id);
-      });
-    });
-    legs.forEach(l => {
-      if (!seen.has(l.id)) orderedLegs.push(l);
-    });
+    const activeParentVal = editingLeg ? (editingLeg.parent || '') : (prefillParent || '');
 
     const allExp = (s.expenses || []).filter(e => e.trip_id === trip.id);
     const allRes = (s.reservations || []).filter(r => r.trip_id === trip.id);
+    const totalTripSpent = allExp.reduce((sum, e) => sum + (Number(e.amount_usd) || 0), 0);
+    const matchFn = (bridge() && bridge().matchesLegFilter) ? bridge().matchesLegFilter : ((a, b) => a === b);
+    const currentActiveLeg = (s.selectedTripId === trip.id) ? (s.selectedLegPath || '') : '';
+
+    // Group into tree: each top-level leg + its children, plus any unparented sub-legs
+    const assignedIds = new Set();
+    const treeGroups = topLevelLegs.map(parent => {
+      assignedIds.add(parent.id);
+      const children = legs.filter(c => c.parent === parent.path);
+      children.forEach(c => assignedIds.add(c.id));
+      return { parent, children };
+    });
+    legs.forEach(l => {
+      if (!assignedIds.has(l.id)) {
+        treeGroups.push({ parent: l, children: [] });
+      }
+    });
+
+    const renderLegStatsRow = (legObj, isChild) => {
+      const legExp = allExp.filter(e => matchFn(e.leg_path, legObj.path));
+      const legSpent = legExp.reduce((acc, e) => acc + (Number(e.amount_usd) || 0), 0);
+      const legResCount = allRes.filter(r => matchFn(r.leg_path, legObj.path)).length;
+      const isSelected = currentActiveLeg === legObj.path;
+      const budgetUsd = Number(legObj.budget_usd) || 0;
+      const pct = budgetUsd > 0 ? Math.min(100, Math.round((legSpent / budgetUsd) * 100)) : 0;
+
+      return `
+        <div class="leg-modern-card ${isChild ? 'is-child' : 'is-parent'} ${isSelected ? 'is-active-filter' : ''}">
+          <div class="leg-modern-left">
+            <div class="leg-modern-icon">${isChild ? '🏙️' : '🌍'}</div>
+            <div class="leg-modern-info">
+              <div class="leg-modern-title-row">
+                <span class="leg-modern-name">${esc(isChild ? legObj.name : legObj.path)}</span>
+                ${isChild ? `<span class="leg-path-badge">${esc(legObj.path)}</span>` : ''}
+                ${legObj.currency ? `<span class="leg-meta-pill mono">💱 ${esc(legObj.currency)}</span>` : ''}
+                ${budgetUsd > 0 ? `<span class="leg-meta-pill budget mono">🎯 $${budgetUsd.toLocaleString()}</span>` : ''}
+                ${isSelected ? `<span class="leg-meta-pill active-pill">● Active Filter</span>` : ''}
+              </div>
+              <div class="leg-modern-sub">
+                <span><strong>$${legSpent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> across ${legExp.length} expense${legExp.length === 1 ? '' : 's'}</span>
+                <span>•</span>
+                <span><strong>${legResCount}</strong> booking${legResCount === 1 ? '' : 's'}</span>
+                ${budgetUsd > 0 ? `<span>•</span><span>${pct}% of leg budget</span>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="leg-modern-actions">
+            ${!isChild ? `
+              <button type="button" class="leg-action-btn add-sub" data-leg-add-child="${esc(legObj.path)}" title="Add a city or stop inside ${esc(legObj.name)}">
+                + City / Stop
+              </button>
+            ` : ''}
+            <button type="button" class="leg-action-btn ${isSelected ? 'primary' : ''}" data-leg-view="${esc(legObj.path)}" title="Filter Ledger & Itinerary to ${esc(legObj.path)}">
+              ${isSelected ? '✓ Viewing' : '👁️ View'}
+            </button>
+            <button type="button" class="leg-action-btn icon-only" data-leg-edit="${esc(legObj.id)}" title="Edit Leg">✏️</button>
+            <button type="button" class="leg-action-btn icon-only danger" data-leg-del="${esc(legObj.id)}" title="Delete Leg">🗑️</button>
+          </div>
+        </div>
+      `;
+    };
 
     const modal = showTravelModal(`🗺️ Trip Legs & Locations — ${trip.name}`, `
-      <div style="display: grid; gap: 14px;">
-        <div style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.45;">
-          Organize <strong>${esc(trip.name)}</strong> into countries, regions, or city stops (e.g. <code>Panama</code>, <code>Argentina</code> → <code>Argentina / Buenos Aires</code>, or <code>Bangkok</code>, <code>Chiang Mai</code>). Toggle any leg in the top bar or ledger to isolate its expenses and bookings.
+      <div class="legs-manager-wrap">
+        <!-- Top Trip Overview Banner -->
+        <div class="legs-trip-overview">
+          <div>
+            <div class="legs-trip-eyebrow">ACTIVE TRIP HIERARCHY</div>
+            <div class="legs-trip-title">${esc(trip.name)} <span class="legs-trip-dest">(${esc(trip.destination || 'Multi-Stop')})</span></div>
+            <div class="legs-trip-metrics">
+              <span><strong>${legs.length}</strong> configured leg${legs.length === 1 ? '' : 's'}</span>
+              <span>•</span>
+              <span>Total Spent: <strong class="mono">$${totalTripSpent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></span>
+              ${Number(trip.budget_usd) > 0 ? `<span>•</span><span>Trip Budget: <strong class="mono">$${Number(trip.budget_usd).toLocaleString()}</strong></span>` : ''}
+            </div>
+          </div>
+          <button type="button" class="leg-action-btn ${!currentActiveLeg ? 'primary' : ''}" id="ww-leg-view-entire-trip">
+            ${!currentActiveLeg ? '✓ Viewing Entire Trip' : '🌐 View Entire Trip'}
+          </button>
         </div>
 
-        <form id="ww-leg-form" style="padding: 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 10px; display: grid; gap: 10px;">
-          <div style="font-size: 12.5px; font-weight: 700; color: var(--accent-primary);">
-            ${editingLeg ? `✏️ Edit Leg: ${esc(editingLeg.path)}` : '+ Add New Trip Leg / Stop'}
-          </div>
-          <div style="display: grid; grid-template-columns: 1.3fr 1.2fr; gap: 10px;">
-            <div>
-              <label class="form-label">Location / Leg Name *</label>
-              <input name="name" class="form-control" required placeholder="e.g. Argentina, Buenos Aires, Bangkok" value="${esc(editingLeg ? editingLeg.name : '')}" />
+        <!-- Modern Add / Edit Leg Form Card -->
+        <form id="ww-leg-form" class="legs-form-card ${editingLeg ? 'is-editing' : ''}">
+          <div class="legs-form-header">
+            <div class="legs-form-title">
+              ${editingLeg
+                ? `✏️ Editing Leg: <span style="color: var(--accent-sky);">${esc(editingLeg.path)}</span>`
+                : (activeParentVal
+                    ? `🏙️ Add City / Stop inside <span style="color: var(--accent-sky);">${esc(activeParentVal)}</span>`
+                    : '➕ Add New Country, Region, or City Stop')}
             </div>
-            <div>
-              <label class="form-label">Parent Country / Region (Optional)</label>
-              <select name="parent" class="form-control">
-                <option value="">(Top-Level Country / Region / Stop)</option>
+            ${(editingLeg || activeParentVal) ? `
+              <button type="button" class="btn btn-xs" id="ww-leg-cancel-edit">Reset Form</button>
+            ` : ''}
+          </div>
+
+          <div class="legs-form-grid-top">
+            <div class="form-group">
+              <label class="form-label">Location / Leg Name *</label>
+              <input
+                id="ww-leg-name-input"
+                name="name"
+                class="form-input"
+                required
+                placeholder="${activeParentVal ? 'e.g. Buenos Aires, Mendoza, Chiang Mai' : 'e.g. Panama, Argentina, Thailand'}"
+                value="${esc(editingLeg ? editingLeg.name : '')}"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Hierarchy Level / Parent Country</label>
+              <select name="parent" id="ww-leg-parent-select" class="form-select">
+                <option value="">🌍 Top-Level Country / Region</option>
                 ${topLevelLegs
                   .filter(p => !editingLeg || p.id !== editingLeg.id)
-                  .map(p => `<option value="${esc(p.path)}" ${(editingLeg && editingLeg.parent === p.path) ? 'selected' : ''}>📍 ${esc(p.path)}</option>`)
+                  .map(p => `<option value="${esc(p.path)}" ${activeParentVal === p.path ? 'selected' : ''}>↳ Inside ${esc(p.path)}</option>`)
                   .join('')}
               </select>
             </div>
           </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end;">
-            <div>
-              <label class="form-label">Default Currency (Optional)</label>
-              <input name="currency" class="form-control mono" placeholder="${esc(trip.default_currency || 'USD')}" value="${esc(editingLeg ? (editingLeg.currency || '') : '')}" />
+
+          <div class="legs-form-grid-bottom">
+            <div class="form-group">
+              <label class="form-label">Local Currency (Optional)</label>
+              <input
+                name="currency"
+                list="ww-leg-currency-list"
+                class="form-input mono"
+                placeholder="${esc(trip.default_currency || 'USD')} (e.g. ARS, PAB, THB)"
+                value="${esc(editingLeg ? (editingLeg.currency || '') : '')}"
+              />
+              <datalist id="ww-leg-currency-list">
+                <option value="USD">USD — US Dollar</option>
+                <option value="ARS">ARS — Argentine Peso</option>
+                <option value="PAB">PAB — Panamanian Balboa</option>
+                <option value="BRL">BRL — Brazilian Real</option>
+                <option value="CLP">CLP — Chilean Peso</option>
+                <option value="PEN">PEN — Peruvian Sol</option>
+                <option value="COP">COP — Colombian Peso</option>
+                <option value="THB">THB — Thai Baht</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="JPY">JPY — Japanese Yen</option>
+                <option value="GBP">GBP — British Pound</option>
+                <option value="CAD">CAD — Canadian Dollar</option>
+                <option value="MXN">MXN — Mexican Peso</option>
+              </datalist>
             </div>
-            <div>
-              <label class="form-label">Sub-Budget USD (Optional)</label>
-              <input type="number" step="1" name="budget_usd" class="form-control mono" placeholder="0 = use trip budget" value="${editingLeg && editingLeg.budget_usd ? Number(editingLeg.budget_usd) : ''}" />
+            <div class="form-group">
+              <label class="form-label">Leg Sub-Budget USD (Optional)</label>
+              <input
+                type="number"
+                step="1"
+                min="0"
+                name="budget_usd"
+                class="form-input mono"
+                placeholder="Optional cap (e.g. 1500)"
+                value="${editingLeg && editingLeg.budget_usd ? Number(editingLeg.budget_usd) : ''}"
+              />
             </div>
-            <div style="display: flex; gap: 6px;">
-              ${editingLeg ? `<button type="button" class="btn btn-sm" id="ww-leg-cancel-edit">Cancel</button>` : ''}
-              <button type="submit" class="btn btn-sm btn-primary">${editingLeg ? '💾 Update Leg' : '+ Add Leg'}</button>
+            <div class="legs-form-submit-col">
+              <button type="submit" class="btn btn-primary legs-submit-btn">
+                ${editingLeg ? '💾 Save Changes' : '+ Add to Trip'}
+              </button>
             </div>
           </div>
         </form>
 
-        <div>
-          <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-bottom: 8px;">
-            Configured Legs (${orderedLegs.length})
+        <!-- Configured Legs Tree -->
+        <div class="legs-list-section">
+          <div class="legs-list-header">
+            <span class="legs-list-heading">Configured Countries &amp; City Stops (${legs.length})</span>
+            <span class="legs-list-tip">Tip: Click <strong>+ City / Stop</strong> on any country to nest cities inside it</span>
           </div>
-          ${orderedLegs.length === 0 ? `
-            <div style="padding: 20px; text-align: center; color: var(--text-secondary); background: var(--bg-elevated); border-radius: 8px; font-size: 13px;">
-              No sub-legs added yet. Add countries or cities above to break down this trip!
+
+          ${treeGroups.length === 0 ? `
+            <div class="legs-empty-state">
+              <div style="font-size: 28px; margin-bottom: 6px;">🧭</div>
+              <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">No trip legs added yet</div>
+              <div>Add your first country or city stop above (for example <strong>Panama</strong> or <strong>Argentina</strong>) to organize expenses and reservations by leg.</div>
             </div>
           ` : `
-            <div style="display: grid; gap: 6px;">
-              ${orderedLegs.map(l => {
-                const matchFn = (bridge() && bridge().matchesLegFilter) ? bridge().matchesLegFilter : ((a, b) => a === b);
-                const legExp = allExp.filter(e => matchFn(e.leg_path, l.path));
-                const legSpent = legExp.reduce((s, e) => s + (Number(e.amount_usd) || 0), 0);
-                const legResCount = allRes.filter(r => matchFn(r.leg_path, l.path)).length;
-                return `
-                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; background: var(--bg-elevated); border: 1px solid var(--border-subtle); border-radius: 8px; ${l.parent ? 'margin-left: 22px; border-left: 3px solid var(--accent-sky);' : 'border-left: 3px solid var(--accent-primary);'}">
-                    <div>
-                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <strong style="font-size: 13.5px;">${l.parent ? '↳ ' : '📍 '}${esc(l.path)}</strong>
-                        ${l.currency ? `<span class="kpi-tag mono">${esc(l.currency)}</span>` : ''}
-                        ${Number(l.budget_usd) > 0 ? `<span class="kpi-tag mono" style="color: var(--accent-primary);">Budget: $${Number(l.budget_usd).toLocaleString()}</span>` : ''}
-                      </div>
-                      <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">
-                        ${legExp.length} expense${legExp.length === 1 ? '' : 's'} ($${legSpent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) • ${legResCount} booking${legResCount === 1 ? '' : 's'}
-                      </div>
+            <div class="legs-tree-stack">
+              ${treeGroups.map(group => `
+                <div class="leg-tree-group">
+                  ${renderLegStatsRow(group.parent, Boolean(group.parent.parent))}
+                  ${group.children.length > 0 ? `
+                    <div class="leg-children-branch">
+                      ${group.children.map(child => renderLegStatsRow(child, true)).join('')}
                     </div>
-                    <div style="display: flex; gap: 6px; align-items: center;">
-                      <button type="button" class="btn btn-xs" data-leg-view="${esc(l.path)}" title="Filter workspace to this leg">👁️ View</button>
-                      <button type="button" class="btn btn-xs" data-leg-edit="${esc(l.id)}">✏️</button>
-                      <button type="button" class="btn btn-xs btn-danger" data-leg-del="${esc(l.id)}">🗑️</button>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
+                  ` : ''}
+                </div>
+              `).join('')}
             </div>
           `}
         </div>
       </div>
-    `);
+    `, 740);
 
     const refreshExpenseLegDropdownIfOpen = (selectedLegPath) => {
       const expTripSel = document.getElementById('exp-trip');
@@ -1641,10 +1740,33 @@
       }
     };
 
+    if (prefillParent || editingLeg) {
+      setTimeout(() => {
+        const inp = modal.querySelector('#ww-leg-name-input');
+        if (inp) inp.focus();
+      }, 40);
+    }
+
+    const btnEntire = modal.querySelector('#ww-leg-view-entire-trip');
+    if (btnEntire) {
+      btnEntire.addEventListener('click', () => {
+        if (bridge() && bridge().setSelectedLeg) {
+          bridge().setSelectedLeg(trip.id, '');
+        }
+        closeTravelModal();
+      });
+    }
+
     const btnCancelEdit = modal.querySelector('#ww-leg-cancel-edit');
     if (btnCancelEdit) {
-      btnCancelEdit.addEventListener('click', () => openManageLegsModal(trip.id, null));
+      btnCancelEdit.addEventListener('click', () => openManageLegsModal(trip.id, null, ''));
     }
+
+    modal.querySelectorAll('[data-leg-add-child]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openManageLegsModal(trip.id, null, btn.getAttribute('data-leg-add-child'));
+      });
+    });
 
     modal.querySelector('#ww-leg-form').addEventListener('submit', async e => {
       e.preventDefault();
@@ -1701,7 +1823,7 @@
         if (bridge() && bridge().applyBootstrapData) bridge().applyBootstrapData(data);
         refreshExpenseLegDropdownIfOpen(newPath);
         toast(editingLeg ? `✓ Updated leg "${newPath}"` : `✓ Added leg "${newPath}"`);
-        openManageLegsModal(trip.id, null);
+        openManageLegsModal(trip.id, null, '');
       } catch (err) {
         toast(err.message);
       }
@@ -1709,7 +1831,7 @@
 
     modal.querySelectorAll('[data-leg-edit]').forEach(btn => {
       btn.addEventListener('click', () => {
-        openManageLegsModal(trip.id, btn.getAttribute('data-leg-edit'));
+        openManageLegsModal(trip.id, btn.getAttribute('data-leg-edit'), '');
       });
     });
 
@@ -1742,7 +1864,7 @@
           if (bridge() && bridge().applyBootstrapData) bridge().applyBootstrapData(data);
           refreshExpenseLegDropdownIfOpen('');
           toast(`Removed leg "${target.path}"`);
-          openManageLegsModal(trip.id, null);
+          openManageLegsModal(trip.id, null, '');
         } catch (err) {
           toast(err.message);
         }

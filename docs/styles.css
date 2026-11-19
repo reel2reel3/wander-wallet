@@ -4212,3 +4212,397 @@ body {
   background: rgba(245, 184, 46, 0.14);
   color: #ffffff;
 }
+
+/* ============================================================================
+   Modernized Travel Modals & Hierarchical Trip Legs Manager
+   ============================================================================ */
+
+.modal-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-card .modal-header {
+  padding: 18px 24px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-card .modal-body {
+  padding: 20px 24px 24px;
+}
+
+.modal-card .form-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  padding: 9px 12px;
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-control:focus,
+.modal-card .form-input:focus,
+.modal-card .form-select:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+}
+
+/* Trip Legs Manager Layout */
+.legs-manager-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.legs-trip-overview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.11) 0%, rgba(14, 165, 233, 0.09) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.legs-trip-eyebrow {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+  margin-bottom: 2px;
+}
+
+.legs-trip-title {
+  font-size: 16.5px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.legs-trip-dest {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.legs-trip-metrics {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.legs-form-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.legs-form-card.is-editing {
+  border-color: var(--accent-sky);
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.15);
+}
+
+.legs-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.legs-form-title {
+  font-size: 13.5px;
+  font-weight: 750;
+  color: var(--text-primary);
+}
+
+.legs-form-grid-top {
+  display: grid;
+  grid-template-columns: 1.25fr 1.15fr;
+  gap: 12px;
+}
+
+.legs-form-grid-bottom {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.legs-form-submit-col {
+  display: flex;
+  align-items: flex-end;
+}
+
+.legs-submit-btn {
+  height: 39px;
+  padding: 0 18px;
+  font-weight: 700;
+  border-radius: 9px;
+  white-space: nowrap;
+}
+
+.legs-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.legs-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.legs-list-heading {
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+}
+
+.legs-list-tip {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.legs-empty-state {
+  padding: 28px 20px;
+  text-align: center;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.legs-tree-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.leg-tree-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.leg-children-branch {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-left: 24px;
+  padding-left: 14px;
+  border-left: 2px solid rgba(14, 165, 233, 0.35);
+}
+
+.leg-modern-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 15px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  transition: border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.leg-modern-card.is-parent {
+  border-left: 4px solid var(--accent-primary);
+}
+
+.leg-modern-card.is-child {
+  border-left: 4px solid var(--accent-sky);
+  padding: 10px 14px;
+}
+
+.leg-modern-card.is-active-filter {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.18);
+}
+
+.leg-modern-card:hover {
+  border-color: var(--border-strong);
+}
+
+.leg-modern-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.leg-modern-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.leg-modern-card.is-child .leg-modern-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
+}
+
+.leg-modern-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.leg-modern-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.leg-modern-name {
+  font-size: 14.5px;
+  font-weight: 750;
+  color: var(--text-primary);
+}
+
+.leg-path-badge {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  padding: 1px 7px;
+  border-radius: 99px;
+}
+
+.leg-meta-pill {
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.leg-meta-pill.budget {
+  color: var(--accent-primary);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.leg-meta-pill.active-pill {
+  background: var(--accent-primary-soft);
+  color: var(--accent-primary);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.leg-modern-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.leg-modern-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.leg-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 11px;
+  font-size: 12px;
+  font-weight: 650;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.leg-action-btn:hover {
+  border-color: var(--accent-primary);
+  background: var(--bg-hover);
+}
+
+.leg-action-btn.add-sub {
+  color: var(--accent-sky);
+  border-color: rgba(14, 165, 233, 0.35);
+}
+
+.leg-action-btn.add-sub:hover {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: var(--accent-sky);
+}
+
+.leg-action-btn.primary {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #ffffff;
+}
+
+.leg-action-btn.icon-only {
+  width: 32px;
+  padding: 0;
+}
+
+.leg-action-btn.danger:hover {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+@media (max-width: 640px) {
+  .legs-form-grid-top,
+  .legs-form-grid-bottom {
+    grid-template-columns: 1fr;
+  }
+}
