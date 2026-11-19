@@ -2838,6 +2838,7 @@
   function renderTripContextBanner() {
     const banner = document.getElementById('trip-context-banner');
     if (!banner) return;
+    banner.classList.remove('leg-banner-mode');
     if (state.selectedTripId === 'all') {
       const totalDays = state.trips.reduce((acc, t) => acc + computeDaysBetween(t.start_date, t.end_date), 0);
       const totalReceipts = state.expenses.filter(e => e.receipt_data).length;
@@ -2878,16 +2879,19 @@
     const displayCurrency = (activeLeg && activeLeg.currency) ? activeLeg.currency : trip.default_currency;
     const fxRate = state.settings.exchange_rates[displayCurrency] || 1;
     const displayBudget = (activeLeg && activeLeg.budget_usd > 0) ? activeLeg.budget_usd : trip.budget_usd;
-    const tripExps = state.expenses.filter(e => e.trip_id === trip.id);
+    const isTravelView = state.activeView === 'travel';
+    const countItems = isTravelView
+      ? (state.reservations || []).filter(r => r.trip_id === trip.id)
+      : state.expenses.filter(e => e.trip_id === trip.id);
 
     const legsBarHtml = `
       <div class="trip-legs-bar" style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-subtle); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
         <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); margin-right: 4px;">🗺️ Trip Legs:</span>
         <button type="button" class="leg-filter-chip ${!state.selectedLegPath ? 'active' : ''}" data-select-leg="">
-          🌎 Entire Trip (${tripExps.length})
+          🌎 Entire Trip (${countItems.length})
         </button>
         ${legs.map(l => {
-          const count = tripExps.filter(e => matchesLegFilter(e.leg_path || '', l.path)).length;
+          const count = countItems.filter(item => matchesLegFilter(item.leg_path || '', l.path)).length;
           const isChild = Boolean(l.parent);
           return `
             <button type="button" class="leg-filter-chip ${state.selectedLegPath === l.path ? 'active' : ''}" data-select-leg="${escapeHtml(l.path)}">
@@ -2901,16 +2905,51 @@
       </div>
     `;
 
+    // When viewing a specific Trip Leg (e.g. "Panama"), show a focused Leg Banner
+    // instead of the full main-trip context banner.
+    if (activeLeg) {
+      banner.classList.add('leg-banner-mode');
+      const parentBreadcrumb = activeLeg.parent
+        ? `<span class="leg-banner-sep">/</span><span class="leg-banner-parent">${escapeHtml(activeLeg.parent)}</span>`
+        : '';
+      const actionButtonsHtml = isTravelView
+        ? `<button type="button" class="btn btn-sm btn-primary" data-open-add-res="1">+ Add Reservation</button>`
+        : `
+          <button type="button" class="btn btn-sm btn-primary" id="btn-leg-banner-add-expense">+ Add Expense</button>
+          <button type="button" class="btn btn-sm" data-open-add-res="1">+ Add Reservation</button>
+        `;
+
+      banner.innerHTML = `
+        <div class="leg-banner-inner">
+          <div class="leg-banner-header">
+            <div class="leg-banner-title-group">
+              <div class="leg-banner-breadcrumb">
+                <button type="button" class="leg-banner-back-btn" data-select-leg="" title="Return to Entire Trip (${escapeHtml(trip.name)})">
+                  ← ${escapeHtml(trip.name)}
+                </button>
+                ${parentBreadcrumb}
+              </div>
+              <h2 class="leg-banner-title">📍 ${escapeHtml(activeLeg.name)}</h2>
+            </div>
+            <div class="leg-banner-actions">
+              ${actionButtonsHtml}
+            </div>
+          </div>
+          ${legsBarHtml}
+        </div>
+      `;
+      return;
+    }
+
     banner.innerHTML = `
       <div class="trip-context-info" style="flex: 1;">
         <div class="trip-context-eyebrow">
           <span class="status-badge ${escapeHtml(trip.status)}">${escapeHtml(trip.status)}</span>
           <span>📍 ${escapeHtml(trip.destination)}</span>
-          ${activeLeg ? `<span>•</span><span style="color: var(--accent-amber); font-weight: 700;">🗺️ Leg: ${escapeHtml(trip.name)} / ${escapeHtml(activeLeg.path)}</span>` : ''}
           <span>•</span>
           <span class="mono">${escapeHtml(trip.start_date)} → ${escapeHtml(trip.end_date)} (${days} days)</span>
         </div>
-        <h2 class="trip-context-title">${escapeHtml(trip.name)}${activeLeg ? ` <span style="color: var(--accent-sky); font-weight: 600; font-size: 0.85em;">/ ${escapeHtml(activeLeg.path)}</span>` : ''}</h2>
+        <h2 class="trip-context-title">${escapeHtml(trip.name)}</h2>
         <p class="trip-context-notes">${escapeHtml(trip.notes || 'Trip expense tracking, receipts & budget burn rate.')}</p>
         ${legsBarHtml}
       </div>
@@ -2920,7 +2959,7 @@
           <span class="meta-stat-val mono">${escapeHtml(displayCurrency)} (${fxRate === 1 ? '1.00' : fxRate})</span>
         </div>
         <div class="meta-stat">
-          <span class="meta-stat-label">${activeLeg && activeLeg.budget_usd > 0 ? 'Leg Budget' : 'Trip Budget'}</span>
+          <span class="meta-stat-label">Trip Budget</span>
           <span class="meta-stat-val tabular">${fmtUsdCompact(displayBudget)}</span>
         </div>
         <button type="button" class="btn btn-sm" data-trip-ai-advisor="${escapeHtml(trip.id)}" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(14, 165, 233, 0.16)); border: 1px solid rgba(139, 92, 246, 0.4); font-weight: 700; color: var(--text-primary);" title="Generate AI hotel, flight & rewards plan for this trip">✨ AI Rewards Plan</button>
@@ -3769,6 +3808,7 @@
     if (bannerEl) {
       bannerEl.style.display = (viewName === 'hub' || viewName === 'visited-places') ? 'none' : '';
     }
+    renderTripContextBanner();
 
     document.querySelectorAll('[data-view]').forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-view') === viewName);
@@ -14608,7 +14648,7 @@
       }
 
       // Quick Add Expense buttons
-      if (e.target.closest('#btn-sidebar-quick-add, #btn-topbar-quick-add, #btn-ledger-add-expense, #btn-mobile-fab-add, #btn-help-quick-expense, #btn-help-step-expense')) {
+      if (e.target.closest('#btn-sidebar-quick-add, #btn-topbar-quick-add, #btn-ledger-add-expense, #btn-leg-banner-add-expense, #btn-mobile-fab-add, #btn-help-quick-expense, #btn-help-step-expense')) {
         e.preventDefault();
         openExpenseModal(null);
         return;

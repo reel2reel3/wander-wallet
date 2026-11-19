@@ -3749,6 +3749,85 @@ body {
   color: #fff;
 }
 
+/* Focused Trip Leg Banner (replaces full trip header + command center on leg views) */
+.trip-context-banner.leg-banner-mode {
+  padding: 16px 22px;
+  border-left: 4px solid var(--accent-primary);
+  background: linear-gradient(135deg, var(--bg-surface) 0%, rgba(16, 185, 129, 0.06) 100%);
+}
+
+.leg-banner-inner {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.leg-banner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.leg-banner-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.leg-banner-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.leg-banner-back-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent-sky);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.15s ease;
+}
+
+.leg-banner-back-btn:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.leg-banner-sep {
+  color: var(--text-muted);
+}
+
+.leg-banner-parent {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.leg-banner-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.leg-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 /* ============================================================================
    Visited U.S. States & World Countries Interactive Map Tracker
    ============================================================================ */

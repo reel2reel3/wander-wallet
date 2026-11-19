@@ -232,8 +232,17 @@
     const unassignedRes = allRes.filter(r => !r.trip_id || !trips.some(t => t.id === r.trip_id));
     const unleggedForActiveTrip = activeTrip ? allRes.filter(r => r.trip_id === activeTrip.id && !r.leg_path) : [];
     const needsAttentionCount = pendingInbox.length + unassignedRes.length;
+    const isLegView = Boolean(activeTrip && activeLegPath);
 
-    container.innerHTML = `
+    const heroCardHtml = isLegView ? (
+      travelState.subTab !== 'timeline' ? `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <button type="button" class="btn btn-sm" data-travel-tab="timeline">
+            ← Back to ${esc(activeLegPath)} Timeline (${filteredRes.length})
+          </button>
+        </div>
+      ` : ''
+    ) : `
       <section class="panel-card travel-hero-card">
         <div class="panel-header" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px; flex-wrap: wrap; gap: 12px;">
           <div>
@@ -337,6 +346,10 @@
           </div>
         ` : ''}
       </section>
+    `;
+
+    container.innerHTML = `
+      ${heroCardHtml}
 
       ${alerts.length > 0 && travelState.subTab === 'timeline' ? `
         <div class="travel-alerts-stack">
@@ -349,7 +362,7 @@
         </div>
       ` : ''}
 
-      <div id="travel-subview-body" style="margin-top: 16px;">
+      <div id="travel-subview-body" style="margin-top: ${isLegView && alerts.length === 0 && travelState.subTab === 'timeline' ? '0' : '16px'};">
         ${travelState.subTab === 'timeline' ? renderTimelineHtml(filteredRes, trips, allRes, pendingInbox, activeTrip, activeLegPath, unassignedRes, unleggedForActiveTrip) : ''}
         ${travelState.subTab === 'inbox' ? renderInboxHtml(inbox, trips, allRes, activeTrip, activeLegPath) : ''}
         ${travelState.subTab === 'vault' ? renderVaultHtml(docs) : ''}
