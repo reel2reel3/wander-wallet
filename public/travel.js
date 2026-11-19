@@ -25,6 +25,9 @@
 
   const travelState = {
     subTab: 'timeline', // 'timeline' | 'inbox' | 'vault'
+    layoutMode: 'cards', // 'cards' | 'tripit' | 'calendar' | 'passes' | 'table'
+    groupCompanions: true, // Automatically combine bookings sharing the same confirmation # (e.g. Jim & Karen)
+    calendarMonth: '', // YYYY-MM
     selectedTripId: 'all',
     searchQuery: '',
     hidePrintPrices: false
@@ -383,19 +386,79 @@
     return fallbackNow ? new Date().toISOString().slice(0, 16) : '';
   }
 
+  function extractPassengerName(r, det) {
+    if (det && det.passenger) return String(det.passenger).trim();
+    const m = String(r.title || '').match(/\(([^)]+)\)\s*$/);
+    if (m && m[1] && !/^[A-Z]{2}\s*\d+$/i.test(m[1])) return m[1].trim();
+    return '';
+  }
+
+  function groupCompanionReservations(list) {
+    if (!travelState.groupCompanions) {
+      return list.map(r => ({ ...r, _groupedIds: [r.id], _travelers: [] }));
+    }
+    const out = [];
+    const byKey = new Map();
+    for (const r of list) {
+      const conf = String(r.confirmation_code || '').trim().toUpperCase();
+      if (!conf || conf.length < 4) {
+        out.push({ ...r, _groupedIds: [r.id], _travelers: [] });
+        continue;
+      }
+      const dayKey = String(r.start_datetime || '').slice(0, 13);
+      const key = `${r.type}|${conf}|${dayKey}|${r.location_from || ''}|${r.location_to || ''}`;
+      if (!byKey.has(key)) {
+        let det = {};
+        try { det = JSON.parse(r.details_json || '{}'); } catch (e) {}
+        const pName = extractPassengerName(r, det);
+        const clone = {
+          ...r,
+          _groupedIds: [r.id],
+          _groupedItems: [r],
+          _travelers: pName ? [pName] : []
+        };
+        byKey.set(key, clone);
+        out.push(clone);
+      } else {
+        const group = byKey.get(key);
+        group._groupedIds.push(r.id);
+        group._groupedItems.push(r);
+        let det = {};
+        try { det = JSON.parse(r.details_json || '{}'); } catch (e) {}
+        const pName = extractPassengerName(r, det);
+        if (pName && !group._travelers.includes(pName)) {
+          group._travelers.push(pName);
+        }
+        group.cost_amount = Number(((Number(group.cost_amount) || 0) + (Number(r.cost_amount) || 0)).toFixed(2));
+        group.cost_usd = Number(((Number(group.cost_usd) || 0) + (Number(r.cost_usd) || 0)).toFixed(2));
+        group.points_used = (Number(group.points_used) || 0) + (Number(r.points_used) || 0);
+        group.points_earned = (Number(group.points_earned) || 0) + (Number(r.points_earned) || 0);
+        if (!group.linked_expense_id && r.linked_expense_id) {
+          group.linked_expense_id = r.linked_expense_id;
+        }
+        const baseTitle = String(group.title || '').replace(/\s*\([^)]+\)\s*$/, '').trim();
+        if (group._travelers.length > 1) {
+          group.title = `${baseTitle} (${group._travelers.join(' & ')})`;
+        }
+      }
+    }
+    return out;
+  }
+
+  function formatTimeOnly(dt) {
+    if (!dt || dt.length <= 10) return '';
+    const d = new Date(dt);
+    if (isNaN(d.getTime())) return dt.slice(11, 16);
+    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
   function renderTimelineHtml(reservations, trips, allRes = [], inbox = [], activeTrip = null, activeLegPath = '', unassignedRes = [], unleggedForActiveTrip = []) {
-    // Show a prominent banner if there are pending inbox items or unassigned/un-legged reservations hidden by the current filter
     const hiddenByLegFilter = (activeTrip && activeLegPath) ? unleggedForActiveTrip : [];
     const showAssignHelper = inbox.length > 0 || unassignedRes.length > 0 || hiddenByLegFilter.length > 0;
 
     let helperBannerHtml = '';
     if (showAssignHelper) {
-      const targetTripName = activeTrip ? activeTrip.name : (trips[0] ? trips[0].name : 'Trip');
-      const targetLabel = activeTrip
-        ? `${activeTrip.name}${activeLegPath ? ' → 📍 ' + activeLegPath : ''}`
-        : targetTripName;
       const quickAssignable = [...unassignedRes, ...hiddenByLegFilter];
-
       helperBannerHtml = `
         <section class="panel-card" style="margin-bottom: 16px; border: 1px solid rgba(14, 165, 233, 0.4); background: linear-gradient(135deg, rgba(14, 165, 233, 0.09) 0%, rgba(16, 185, 129, 0.07) 100%);">
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
@@ -472,7 +535,86 @@
       `;
     }
 
-    // Group by date
+    const displayList = groupCompanionReservations(reservations);
+    const companionPairsCount = reservations.length - displayList.length;
+
+    const layoutSwitcherHtml = `
+      <div class="itinerary-view-switcher-bar">
+        <div class="itinerary-view-pills">
+          <span class="itinerary-view-label">VIEW AS:</span>
+          <button type="button" class="itinerary-view-pill ${travelState.layoutMode === 'cards' ? 'active' : ''}" data-travel-layout="cards">
+            📋 Detailed Cards
+          </button>
+          <button type="button" class="itinerary-view-pill ${travelState.layoutMode === 'tripit' ? 'active' : ''}" data-travel-layout="tripit">
+            ⚡ TripIt Condensed
+          </button>
+          <button type="button" class="itinerary-view-pill ${travelState.layoutMode === 'calendar' ? 'active' : ''}" data-travel-layout="calendar">
+            📅 Calendar
+          </button>
+          <button type="button" class="itinerary-view-pill ${travelState.layoutMode === 'passes' ? 'active' : ''}" data-travel-layout="passes">
+            🎫 Boarding &amp; Check-In Passes
+          </button>
+          <button type="button" class="itinerary-view-pill ${travelState.layoutMode === 'table' ? 'active' : ''}" data-travel-layout="table">
+            📊 Table
+          </button>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <button
+            type="button"
+            class="itinerary-companion-toggle ${travelState.groupCompanions ? 'active' : ''}"
+            id="btn-toggle-group-companions"
+            title="Automatically combine bookings that share the same confirmation number (e.g. Jim &amp; Karen on the same flight)"
+          >
+            <span>👥 Combine Same Conf #</span>
+            <span class="companion-toggle-badge">${travelState.groupCompanions ? 'ON' : 'OFF'}</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    let bodyViewHtml = '';
+    if (travelState.layoutMode === 'tripit') {
+      bodyViewHtml = renderTripItCondensedHtml(displayList, trips);
+    } else if (travelState.layoutMode === 'calendar') {
+      bodyViewHtml = renderCalendarLayoutHtml(displayList, trips);
+    } else if (travelState.layoutMode === 'passes') {
+      bodyViewHtml = renderBoardingPassesHtml(displayList, trips);
+    } else if (travelState.layoutMode === 'table') {
+      bodyViewHtml = renderTableLayoutHtml(displayList, trips);
+    } else {
+      bodyViewHtml = renderDetailedCardsHtml(displayList, trips);
+    }
+
+    return helperBannerHtml + layoutSwitcherHtml + bodyViewHtml;
+  }
+
+  function buildCleanDetailChips(r, details) {
+    const chips = [];
+    if (r._groupedIds && r._groupedIds.length > 1) {
+      chips.push(`👥 ${r._groupedIds.length} Travelers: ${r._travelers.join(' & ')}`);
+    } else if (details.passenger) {
+      chips.push(`👤 ${details.passenger}`);
+    }
+    if (details.flight_number) chips.push(`✈️ ${details.flight_number}`);
+    if (details.terminal) chips.push(`Terminal ${details.terminal}`);
+    if (details.gate) chips.push(`Gate ${details.gate}`);
+    if (details.seat && (!details.cabin || String(details.seat).toLowerCase() !== String(details.cabin).toLowerCase())) {
+      chips.push(`Seat ${details.seat}`);
+    }
+    if (details.cabin) chips.push(details.cabin);
+    if (details.room_type) chips.push(`🛏️ ${details.room_type}`);
+    if (details.car_class) chips.push(`🚘 ${details.car_class}`);
+    if (details.party_size) chips.push(`👥 Party of ${details.party_size}`);
+    if (r._groupedIds && r._groupedIds.length > 1 && Number(r.cost_usd) > 0) {
+      const perPerson = (Number(r.cost_usd) / r._groupedIds.length).toFixed(2);
+      chips.push(`💵 ${r._groupedIds.length} × $${perPerson} = $${Number(r.cost_usd).toFixed(2)}`);
+    } else if (details.fare_breakdown) {
+      chips.push(`💵 ${details.fare_breakdown}`);
+    }
+    return chips;
+  }
+
+  function renderDetailedCardsHtml(reservations, trips) {
     const groups = new Map();
     for (const r of reservations) {
       const dayKey = (r.start_datetime || '').slice(0, 10) || 'unscheduled';
@@ -480,13 +622,13 @@
       groups.get(dayKey).push(r);
     }
 
-    let html = helperBannerHtml + '<div class="travel-timeline">';
+    let html = '<div class="travel-timeline">';
     for (const [dayKey, items] of groups.entries()) {
       html += `
         <div class="travel-day-group">
           <div class="travel-day-header">
             <span class="travel-day-pill">📅 ${esc(formatDayHeader(dayKey))}</span>
-            <span class="travel-day-count">${items.length} booking${items.length > 1 ? 's' : ''}</span>
+            <span class="travel-day-count">${items.length} item${items.length > 1 ? 's' : ''}</span>
           </div>
           <div class="travel-day-cards">
       `;
@@ -495,21 +637,10 @@
         const tripObj = trips.find(t => t.id === r.trip_id);
         let details = {};
         try { details = JSON.parse(r.details_json || '{}'); } catch (e) {}
-
-        const detailChips = [];
-        if (details.passenger) detailChips.push(`👤 ${details.passenger}`);
-        if (details.flight_number) detailChips.push(`✈️ ${details.flight_number}`);
-        if (details.terminal) detailChips.push(`Terminal ${details.terminal}`);
-        if (details.gate) detailChips.push(`Gate ${details.gate}`);
-        if (details.seat) detailChips.push(`Seat ${details.seat}`);
-        if (details.cabin) detailChips.push(details.cabin);
-        if (details.room_type) detailChips.push(`🛏️ ${details.room_type}`);
-        if (details.car_class) detailChips.push(`🚘 ${details.car_class}`);
-        if (details.party_size) detailChips.push(`👥 Party of ${details.party_size}`);
-        if (details.fare_breakdown) detailChips.push(`💵 ${details.fare_breakdown}`);
-
+        const detailChips = buildCleanDetailChips(r, details);
         const mapQuery = encodeURIComponent(r.address || r.location_to || r.vendor || r.title);
         const hasSyncedExpense = Boolean(r.linked_expense_id);
+        const isCombinedGroup = r._groupedIds && r._groupedIds.length > 1;
 
         html += `
           <article class="panel-card travel-res-card" style="border-left: 4px solid ${meta.color};">
@@ -518,6 +649,7 @@
                 <span class="travel-type-badge" style="background: ${meta.color}22; color: ${meta.color};">
                   ${meta.icon} ${meta.label}
                 </span>
+                ${isCombinedGroup ? `<span class="travel-trip-pill" style="background: rgba(14,165,233,0.16); color: var(--accent-sky); font-weight: 700;">👥 Combined (${r._groupedIds.length} Travelers)</span>` : ''}
                 ${tripObj ? `<span class="travel-trip-pill">🧳 ${esc(tripObj.name)}</span>` : `<span class="travel-trip-pill" style="color: var(--accent-amber);">⚠️ Unassigned Trip</span>`}
                 ${r.leg_path ? `<span class="travel-trip-pill" style="background: rgba(16,185,129,0.12); color: var(--accent-primary);">📍 ${esc(r.leg_path)}</span>` : ''}
                 ${r.status && r.status !== 'confirmed' ? `<span class="travel-status-pill status-${esc(r.status)}">${esc(r.status)}</span>` : ''}
@@ -554,7 +686,7 @@
                     $${Number(r.cost_usd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   <div style="font-size: 11px; color: var(--text-secondary);">
-                    ${r.cost_currency !== 'USD' ? `${Number(r.cost_amount).toLocaleString()} ${esc(r.cost_currency)}` : (r.payment_method ? esc(r.payment_method) : 'Total Cost')}
+                    ${isCombinedGroup ? `Combined (${r._groupedIds.length} tickets)` : (r.cost_currency !== 'USD' ? `${Number(r.cost_amount).toLocaleString()} ${esc(r.cost_currency)}` : (r.payment_method ? esc(r.payment_method) : 'Total Cost'))}
                   </div>
                 ` : ''}
                 ${Number(r.points_used) > 0 ? `<div style="font-size: 11.5px; color: var(--accent-amber); font-weight: 600;">💎 ${Number(r.points_used).toLocaleString()} pts redeemed</div>` : ''}
@@ -587,7 +719,7 @@
                 <select class="form-select" data-quick-res-leg="${esc(r.id)}" style="width: auto; min-width: 165px; padding: 4px 8px; font-size: 12px;">
                   ${buildLegOptionsHtml(tripObj, r.leg_path || '')}
                 </select>
-                <button type="button" class="btn btn-xs btn-primary" data-quick-res-save="${esc(r.id)}">💾 Update Trip/Leg</button>
+                <button type="button" class="btn btn-xs btn-primary" data-quick-res-save="${esc(r.id)}" data-grouped-ids="${esc((r._groupedIds || [r.id]).join(','))}">💾 Update Trip/Leg</button>
               </div>
             </div>
 
@@ -596,6 +728,11 @@
                 <button type="button" class="btn btn-xs ${hasSyncedExpense ? '' : 'btn-primary'}" data-match-expense="${esc(r.id)}">
                   ${hasSyncedExpense ? '✓ Matched to Expense (Edit / Re-sync)' : '💳 Match / Send to Expenses'}
                 </button>
+                ${isCombinedGroup ? `
+                  <button type="button" class="btn btn-xs" style="border-color: var(--accent-sky); color: var(--accent-sky); font-weight: 700;" data-merge-companions="${esc(r._groupedIds.join(','))}" title="Permanently merge these ${r._groupedIds.length} companion tickets into a single $${Number(r.cost_usd).toFixed(2)} reservation &amp; expense">
+                    🔗 Permanently Merge Into 1 Booking ($${Number(r.cost_usd).toFixed(2)})
+                  </button>
+                ` : ''}
                 ${r.attachment_data ? `
                   <button type="button" class="btn btn-xs" data-view-att="${esc(r.id)}">📎 ${esc(r.attachment_name || 'View Ticket')}</button>
                 ` : ''}
@@ -616,6 +753,324 @@
     }
     html += '</div>';
     return html;
+  }
+
+  // VIEW 2: TripIt-Style Condensed Chronological Feed
+  function renderTripItCondensedHtml(reservations, trips) {
+    const groups = new Map();
+    for (const r of reservations) {
+      const dayKey = (r.start_datetime || '').slice(0, 10) || 'unscheduled';
+      if (!groups.has(dayKey)) groups.set(dayKey, []);
+      groups.get(dayKey).push(r);
+    }
+
+    let html = '<div class="tripit-condensed-feed">';
+    for (const [dayKey, items] of groups.entries()) {
+      const dayTotal = items.reduce((s, r) => s + (Number(r.cost_usd) || 0), 0);
+      html += `
+        <div class="tripit-day-section">
+          <div class="tripit-day-banner">
+            <span>📅 ${esc(formatDayHeader(dayKey)).toUpperCase()}</span>
+            <span class="mono">${items.length} booking${items.length > 1 ? 's' : ''}${dayTotal > 0 ? ` • $${dayTotal.toFixed(2)}` : ''}</span>
+          </div>
+          <div class="tripit-items-list">
+      `;
+      for (const r of items) {
+        const meta = TYPE_META[r.type] || TYPE_META.other;
+        const tripObj = trips.find(t => t.id === r.trip_id);
+        let details = {};
+        try { details = JSON.parse(r.details_json || '{}'); } catch (e) {}
+        const startT = formatTimeOnly(r.start_datetime) || 'All Day';
+        const endT = formatTimeOnly(r.end_datetime);
+        const isCombinedGroup = r._groupedIds && r._groupedIds.length > 1;
+        const subMeta = [];
+        if (r.vendor) subMeta.push(r.vendor);
+        if (details.flight_number) subMeta.push(details.flight_number);
+        if (details.cabin) subMeta.push(details.cabin);
+        if (r._travelers && r._travelers.length > 0) subMeta.push(`👥 ${r._travelers.join(' & ')}`);
+        else if (details.passenger) subMeta.push(`👤 ${details.passenger}`);
+        if (r.leg_path) subMeta.push(`📍 ${r.leg_path}`);
+        else if (tripObj) subMeta.push(`🧳 ${tripObj.name}`);
+
+        html += `
+          <div class="tripit-row">
+            <div class="tripit-time-col mono">
+              <div class="tripit-time-start">${esc(startT)}</div>
+              ${endT ? `<div class="tripit-time-end">→ ${esc(endT)}</div>` : ''}
+            </div>
+            <div class="tripit-icon-col">
+              <div class="tripit-icon-circle" style="background: ${meta.color}22; color: ${meta.color}; border-color: ${meta.color};">
+                ${meta.icon}
+              </div>
+              <div class="tripit-track-line"></div>
+            </div>
+            <div class="tripit-main-col">
+              <div class="tripit-title-line">
+                <strong class="tripit-item-title">${esc(r.title)}</strong>
+                ${r.location_from || r.location_to ? `<span class="tripit-route-pill mono">${esc(r.location_from)}${r.location_from && r.location_to ? ' → ' : ''}${esc(r.location_to)}</span>` : ''}
+                ${r.confirmation_code ? `<button type="button" class="travel-conf-chip" style="padding: 1px 7px; font-size: 11px;" data-copy-conf="${esc(r.confirmation_code)}">Conf: <strong class="mono">${esc(r.confirmation_code)}</strong> 📋</button>` : ''}
+                ${isCombinedGroup ? `<span class="kpi-tag" style="color: var(--accent-sky);">👥 ${r._groupedIds.length} Travelers Combined</span>` : ''}
+              </div>
+              <div class="tripit-sub-line">
+                ${esc(subMeta.join('  •  '))}
+              </div>
+            </div>
+            <div class="tripit-right-col">
+              ${Number(r.cost_usd) > 0 ? `<div class="mono tripit-cost">$${Number(r.cost_usd).toFixed(2)}</div>` : ''}
+              <div class="tripit-actions">
+                ${isCombinedGroup ? `<button type="button" class="btn btn-xs" style="border-color: var(--accent-sky); color: var(--accent-sky);" data-merge-companions="${esc(r._groupedIds.join(','))}" title="Permanently merge into 1 booking">🔗 Merge</button>` : ''}
+                <button type="button" class="btn btn-xs ${r.linked_expense_id ? '' : 'btn-primary'}" data-match-expense="${esc(r.id)}" title="Match or send to Expense Ledger">
+                  ${r.linked_expense_id ? '✓💳' : '💳'}
+                </button>
+                ${details.full_email_text ? `<button type="button" class="btn btn-xs" data-view-res-email="${esc(r.id)}" title="View Full Email">📧</button>` : ''}
+                <button type="button" class="btn btn-xs" data-edit-res="${esc(r.id)}" title="Edit">✏️</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      html += '</div></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // VIEW 3: Interactive Monthly Calendar Grid
+  function renderCalendarLayoutHtml(reservations) {
+    // Default calendarMonth to first reservation's month (e.g., 2027-01)
+    if (!travelState.calendarMonth || !/^\d{4}-\d{2}$/.test(travelState.calendarMonth)) {
+      const firstDate = (reservations[0] && reservations[0].start_datetime || '').slice(0, 7);
+      travelState.calendarMonth = /^\d{4}-\d{2}$/.test(firstDate) ? firstDate : new Date().toISOString().slice(0, 7);
+    }
+    const [yrStr, moStr] = travelState.calendarMonth.split('-');
+    const year = parseInt(yrStr, 10);
+    const monthIdx = parseInt(moStr, 10) - 1;
+    const firstOfMonth = new Date(year, monthIdx, 1);
+    const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+    const startWeekday = firstOfMonth.getDay(); // 0=Sun..6=Sat
+    const monthLabel = firstOfMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+
+    // Build day -> bookings map
+    const dayMap = new Map();
+    for (const r of reservations) {
+      const startDay = (r.start_datetime || '').slice(0, 10);
+      if (!startDay) continue;
+      if (!dayMap.has(startDay)) dayMap.set(startDay, []);
+      dayMap.get(startDay).push(r);
+
+      // If hotel stay spans multiple nights, show check-in/stay pills across covered nights
+      if (r.type === 'hotel' && r.end_datetime && r.end_datetime.slice(0, 10) > startDay) {
+        const endDay = r.end_datetime.slice(0, 10);
+        let cur = new Date(startDay + 'T12:00:00');
+        const endD = new Date(endDay + 'T12:00:00');
+        cur.setDate(cur.getDate() + 1);
+        while (cur <= endD) {
+          const dStr = cur.toISOString().slice(0, 10);
+          if (!dayMap.has(dStr)) dayMap.set(dStr, []);
+          dayMap.get(dStr).push({ ...r, _isContinuation: dStr < endDay, _isCheckout: dStr === endDay });
+          cur.setDate(cur.getDate() + 1);
+        }
+      }
+    }
+
+    // Distinct booking months for quick jump pills
+    const bookingMonths = Array.from(new Set(reservations.map(r => (r.start_datetime || '').slice(0, 7)).filter(m => /^\d{4}-\d{2}$/.test(m)))).sort();
+
+    let cellsHtml = '';
+    for (let i = 0; i < startWeekday; i++) {
+      cellsHtml += `<div class="itinerary-cal-cell empty"></div>`;
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dStr = `${year}-${String(monthIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const evts = dayMap.get(dStr) || [];
+      cellsHtml += `
+        <div class="itinerary-cal-cell ${evts.length > 0 ? 'has-events' : ''}">
+          <div class="itinerary-cal-day-num">${day}</div>
+          <div class="itinerary-cal-events">
+            ${evts.map(r => {
+              const meta = TYPE_META[r.type] || TYPE_META.other;
+              const tStr = r._isCheckout ? 'Check-out' : (r._isContinuation ? 'Stay' : formatTimeOnly(r.start_datetime));
+              return `
+                <button
+                  type="button"
+                  class="itinerary-cal-event-pill"
+                  style="border-left: 3px solid ${meta.color}; background: ${meta.color}1c;"
+                  data-edit-res="${esc(r.id)}"
+                  title="${esc(r.title)} ${r.confirmation_code ? '(Conf: ' + r.confirmation_code + ')' : ''} — Click to view/edit"
+                >
+                  <span>${meta.icon}</span>
+                  <span class="cal-evt-text">
+                    ${tStr ? `<strong>${esc(tStr)}</strong> ` : ''}${esc(r.location_from && r.location_to ? `${r.location_from}→${r.location_to}` : r.title)}
+                  </span>
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <section class="panel-card itinerary-calendar-card">
+        <div class="itinerary-cal-header">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <h3 style="margin: 0; font-size: 18px;">📅 ${esc(monthLabel)}</h3>
+            ${bookingMonths.length > 0 ? `
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                ${bookingMonths.map(bm => `
+                  <button type="button" class="leg-filter-chip ${bm === travelState.calendarMonth ? 'active' : ''}" data-cal-jump="${esc(bm)}">
+                    ${esc(bm)}
+                  </button>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button type="button" class="btn btn-sm" id="btn-cal-prev-month">◀ Prev Month</button>
+            <button type="button" class="btn btn-sm" id="btn-cal-first-booking">Jump to Trip Start</button>
+            <button type="button" class="btn btn-sm" id="btn-cal-next-month">Next Month ▶</button>
+          </div>
+        </div>
+        <div class="itinerary-cal-weekdays">
+          <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+        </div>
+        <div class="itinerary-cal-grid">
+          ${cellsHtml}
+        </div>
+      </section>
+    `;
+  }
+
+  // VIEW 4: Boarding & Check-In Passes (Apple Wallet / Airport Boarding Pass Grid)
+  function renderBoardingPassesHtml(reservations, trips) {
+    return `
+      <div class="boarding-passes-grid">
+        ${reservations.map(r => {
+          const meta = TYPE_META[r.type] || TYPE_META.other;
+          const tripObj = trips.find(t => t.id === r.trip_id);
+          let details = {};
+          try { details = JSON.parse(r.details_json || '{}'); } catch (e) {}
+          const travelers = (r._travelers && r._travelers.length > 0) ? r._travelers.join(' & ') : (details.passenger || 'Primary Traveler');
+          const fromCode = r.location_from || (r.type === 'hotel' ? 'CHECK-IN' : 'START');
+          const toCode = r.location_to || (r.type === 'hotel' ? 'CHECK-OUT' : (r.vendor || 'DEST'));
+
+          return `
+            <article class="boarding-pass-card">
+              <div class="bp-top-strip" style="background: ${meta.color};">
+                <span>${meta.icon} ${esc(r.vendor || meta.label).toUpperCase()}</span>
+                <span class="mono">${esc(details.flight_number || details.cabin || meta.label)}</span>
+              </div>
+              <div class="bp-body">
+                <div class="bp-route-row">
+                  <div class="bp-code-block">
+                    <div class="bp-iata mono">${esc(fromCode)}</div>
+                    <div class="bp-time">${esc(formatDateTimeShort(r.start_datetime))}</div>
+                  </div>
+                  <div class="bp-arrow-mid">${meta.icon} ➔</div>
+                  <div class="bp-code-block" style="text-align: right;">
+                    <div class="bp-iata mono">${esc(toCode)}</div>
+                    <div class="bp-time">${esc(r.end_datetime ? formatDateTimeShort(r.end_datetime) : (r.leg_path || (tripObj ? tripObj.name : '')))}</div>
+                  </div>
+                </div>
+
+                <div class="bp-divider-perf"></div>
+
+                <div class="bp-meta-grid">
+                  <div>
+                    <div class="bp-meta-lbl">TRAVELER(S)</div>
+                    <div class="bp-meta-val">👥 ${esc(travelers)}</div>
+                  </div>
+                  <div>
+                    <div class="bp-meta-lbl">CONFIRMATION #</div>
+                    <div class="bp-meta-val mono" style="color: var(--accent-primary); font-size: 15px;">${esc(r.confirmation_code || 'N/A')}</div>
+                  </div>
+                  <div>
+                    <div class="bp-meta-lbl">CLASS / ROOM</div>
+                    <div class="bp-meta-val">${esc(details.cabin || details.room_type || details.car_class || 'Confirmed')}</div>
+                  </div>
+                  <div>
+                    <div class="bp-meta-lbl">TOTAL COST</div>
+                    <div class="bp-meta-val mono">$${Number(r.cost_usd || 0).toFixed(2)}</div>
+                  </div>
+                </div>
+
+                <div class="bp-footer-actions">
+                  <button type="button" class="btn btn-xs ${r.linked_expense_id ? '' : 'btn-primary'}" data-match-expense="${esc(r.id)}">
+                    ${r.linked_expense_id ? '✓ Expense Matched' : '💳 Match Expense'}
+                  </button>
+                  ${details.full_email_text ? `<button type="button" class="btn btn-xs" data-view-res-email="${esc(r.id)}">📧 Email</button>` : ''}
+                  <button type="button" class="btn btn-xs" data-edit-res="${esc(r.id)}">✏️ Edit</button>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  // VIEW 5: Compact Spreadsheet Table View
+  function renderTableLayoutHtml(reservations, trips) {
+    const totalUsd = reservations.reduce((s, r) => s + (Number(r.cost_usd) || 0), 0);
+    return `
+      <section class="panel-card" style="padding: 0; overflow: hidden;">
+        <div class="table-responsive">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>Date &amp; Time</th>
+                <th>Type</th>
+                <th>Booking / Route</th>
+                <th>Traveler(s)</th>
+                <th>Vendor &amp; Flight/Room</th>
+                <th>Conf #</th>
+                <th>Trip / Leg</th>
+                <th style="text-align: right;">Cost (USD)</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reservations.map(r => {
+                const meta = TYPE_META[r.type] || TYPE_META.other;
+                const tripObj = trips.find(t => t.id === r.trip_id);
+                let details = {};
+                try { details = JSON.parse(r.details_json || '{}'); } catch (e) {}
+                const travelers = (r._travelers && r._travelers.length > 0) ? r._travelers.join(' & ') : (details.passenger || '—');
+                return `
+                  <tr>
+                    <td class="mono" style="white-space: nowrap;">${esc(formatDateTimeShort(r.start_datetime))}</td>
+                    <td><span class="travel-type-badge" style="background: ${meta.color}22; color: ${meta.color};">${meta.icon} ${meta.label}</span></td>
+                    <td>
+                      <strong>${esc(r.title)}</strong>
+                      ${r.location_from || r.location_to ? `<div style="font-size: 11.5px; color: var(--text-secondary);">📍 ${esc(r.location_from)} → ${esc(r.location_to)}</div>` : ''}
+                    </td>
+                    <td>${esc(travelers)}</td>
+                    <td>${esc([r.vendor, details.flight_number, details.cabin].filter(Boolean).join(' • ') || '—')}</td>
+                    <td class="mono"><strong>${esc(r.confirmation_code || '—')}</strong></td>
+                    <td>
+                      ${tripObj ? `<div>🧳 ${esc(tripObj.name)}</div>` : '<span style="color: var(--accent-amber);">Unassigned</span>'}
+                      ${r.leg_path ? `<div style="font-size: 11.5px; color: var(--accent-primary);">📍 ${esc(r.leg_path)}</div>` : ''}
+                    </td>
+                    <td class="mono" style="text-align: right; font-weight: 700;">$${Number(r.cost_usd || 0).toFixed(2)}</td>
+                    <td style="text-align: right; white-space: nowrap;">
+                      <button type="button" class="btn btn-xs ${r.linked_expense_id ? '' : 'btn-primary'}" data-match-expense="${esc(r.id)}" title="Match to Expense Ledger">${r.linked_expense_id ? '✓💳' : '💳'}</button>
+                      <button type="button" class="btn btn-xs" data-edit-res="${esc(r.id)}">✏️</button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="background: var(--bg-elevated); font-weight: 800;">
+                <td colspan="7" style="text-align: right;">Total Committed Travel Cost (${reservations.length} item${reservations.length === 1 ? '' : 's'}):</td>
+                <td class="mono" style="text-align: right; color: var(--accent-primary); font-size: 15px;">$${totalUsd.toFixed(2)}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+    `;
   }
 
   function renderInboxHtml(inbox, trips, allRes = [], activeTrip = null, activeLegPath = '') {
@@ -770,13 +1225,24 @@
 
         <!-- SECTION 3: ALL EXISTING / IMPORTED RESERVATIONS — ASSIGN TO TRIP/LEG & MATCH TO EXPENSES -->
         <section class="panel-card">
-          <div class="panel-header" style="margin-bottom: 12px;">
+          <div class="panel-header" style="margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
             <div>
               <h3 class="panel-title">🗂️ Assign Existing Bookings to Trips, Legs &amp; Expenses (${sortedAllRes.length})</h3>
               <p class="panel-subtitle">
                 Every flight, hotel, and booking in Wander Wallet. Pick a Trip and Leg and click <strong>✓ Save Assignment</strong>, or click <strong>💳 Match to Expenses</strong> to link or send the cost to your Expense Ledger.
               </p>
             </div>
+            ${(() => {
+              const grouped = groupCompanionReservations(sortedAllRes).filter(g => g._groupedIds && g._groupedIds.length > 1);
+              if (grouped.length === 0) return '';
+              return `<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                ${grouped.map(g => `
+                  <button type="button" class="btn btn-xs btn-primary" data-merge-companions="${esc(g._groupedIds.join(','))}">
+                    🔗 Merge ${g._groupedIds.length} "${esc(g.confirmation_code)}" Bookings (${esc((g._travelers || []).join(' & '))}) → $${Number(g.cost_usd || 0).toFixed(2)}
+                  </button>
+                `).join('')}
+              </div>`;
+            })()}
           </div>
 
           ${sortedAllRes.length === 0 ? `
@@ -906,6 +1372,78 @@
         render();
       });
     });
+
+    container.querySelectorAll('[data-travel-layout]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        travelState.layoutMode = btn.getAttribute('data-travel-layout') || 'cards';
+        render();
+      });
+    });
+
+    const btnToggleCompanions = container.querySelector('#btn-toggle-group-companions');
+    if (btnToggleCompanions) {
+      btnToggleCompanions.addEventListener('click', () => {
+        travelState.groupCompanions = !travelState.groupCompanions;
+        toast(travelState.groupCompanions
+          ? '👥 Combined companion tickets sharing the same Confirmation #'
+          : '👥 Showing each passenger ticket separately');
+        render();
+      });
+    }
+
+    container.querySelectorAll('[data-merge-companions]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const ids = (btn.getAttribute('data-merge-companions') || '').split(',').map(s => s.trim()).filter(Boolean);
+        if (ids.length < 2) return;
+        try {
+          await travelApi('/api/travel/reservations/merge', {
+            method: 'POST',
+            body: JSON.stringify({ ids })
+          });
+          toast('✓ Permanently merged companion bookings into 1 combined reservation & expense!');
+          render();
+        } catch (err) {
+          toast(err.message);
+        }
+      });
+    });
+
+    container.querySelectorAll('[data-cal-jump]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        travelState.calendarMonth = btn.getAttribute('data-cal-jump') || '';
+        render();
+      });
+    });
+
+    const btnCalPrev = container.querySelector('#btn-cal-prev-month');
+    if (btnCalPrev) {
+      btnCalPrev.addEventListener('click', () => {
+        const cur = travelState.calendarMonth || new Date().toISOString().slice(0, 7);
+        const [y, m] = cur.split('-').map(Number);
+        const prev = new Date(y, m - 2, 1);
+        travelState.calendarMonth = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+        render();
+      });
+    }
+
+    const btnCalNext = container.querySelector('#btn-cal-next-month');
+    if (btnCalNext) {
+      btnCalNext.addEventListener('click', () => {
+        const cur = travelState.calendarMonth || new Date().toISOString().slice(0, 7);
+        const [y, m] = cur.split('-').map(Number);
+        const next = new Date(y, m, 1);
+        travelState.calendarMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+        render();
+      });
+    }
+
+    const btnCalFirst = container.querySelector('#btn-cal-first-booking');
+    if (btnCalFirst) {
+      btnCalFirst.addEventListener('click', () => {
+        travelState.calendarMonth = '';
+        render();
+      });
+    }
 
     const tripSel = container.querySelector('#travel-trip-filter');
     if (tripSel) {
@@ -1055,16 +1593,20 @@
     container.querySelectorAll('[data-quick-res-save]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const resId = btn.getAttribute('data-quick-res-save');
+        const groupedIdsRaw = btn.getAttribute('data-grouped-ids') || resId;
+        const targetIds = groupedIdsRaw.split(',').map(s => s.trim()).filter(Boolean);
         const scope = btn.parentElement || container;
         const tripSelEl = scope.querySelector(`[data-quick-res-trip="${resId}"]`) || container.querySelector(`[data-quick-res-trip="${resId}"]`);
         const legSelEl = scope.querySelector(`[data-quick-res-leg="${resId}"]`) || container.querySelector(`[data-quick-res-leg="${resId}"]`);
         const nextTripId = tripSelEl ? tripSelEl.value : '';
         const nextLegPath = legSelEl ? legSelEl.value : '';
         try {
-          await travelApi(`/api/travel/reservations/${encodeURIComponent(resId)}`, {
-            method: 'PUT',
-            body: JSON.stringify({ trip_id: nextTripId, leg_path: nextLegPath })
-          });
+          for (const id of targetIds) {
+            await travelApi(`/api/travel/reservations/${encodeURIComponent(id)}`, {
+              method: 'PUT',
+              body: JSON.stringify({ trip_id: nextTripId, leg_path: nextLegPath })
+            });
+          }
           const s = getAppData();
           const tObj = (s.trips || []).find(t => t.id === nextTripId);
           toast(`✓ Assigned to ${tObj ? tObj.name : 'Unassigned'}${nextLegPath ? ' (' + nextLegPath + ')' : ''}`);

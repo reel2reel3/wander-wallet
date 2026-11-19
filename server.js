@@ -2595,6 +2595,82 @@ const server = http.createServer(async (req, res) => {
     // Travel & Itinerary Endpoints
     // -------------------------------------------------------------------------
 
+    if (pathname === '/api/travel/reservations/merge' && method === 'POST') {
+      const b = await readJsonBody(req);
+      const ids = Array.isArray(b.ids) ? b.ids.filter(Boolean) : [];
+      if (ids.length < 2) {
+        return sendJson(res, 400, { error: 'At least 2 reservations are required to merge.' });
+      }
+      const rows = ids.map(id => db.prepare('SELECT * FROM reservations WHERE id = ?').get(id)).filter(Boolean);
+      if (rows.length < 2) {
+        return sendJson(res, 404, { error: 'Could not find reservations to merge.' });
+      }
+      const primary = rows[0];
+      const others = rows.slice(1);
+      const passengers = [];
+      let mergedDetails = {};
+      for (const r of rows) {
+        let det = {};
+        try { det = JSON.parse(r.details_json || '{}'); } catch (e) {}
+        mergedDetails = { ...det, ...mergedDetails };
+        if (det.passenger && !passengers.includes(det.passenger)) {
+          passengers.push(det.passenger);
+        } else {
+          const m = (r.title || '').match(/\(([^)]+)\)\s*$/);
+          if (m && m[1] && !passengers.includes(m[1].trim())) {
+            passengers.push(m[1].trim());
+          }
+        }
+      }
+      if (mergedDetails.seat && mergedDetails.cabin && String(mergedDetails.seat).toLowerCase() === String(mergedDetails.cabin).toLowerCase()) {
+        delete mergedDetails.seat;
+      }
+      const totalCostAmt = Number(rows.reduce((sum, r) => sum + (Number(r.cost_amount) || 0), 0).toFixed(2));
+      const totalCostUsd = Number(rows.reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0).toFixed(2));
+      const totalPtsUsed = rows.reduce((sum, r) => sum + (Number(r.points_used) || 0), 0);
+      const totalPtsEarned = rows.reduce((sum, r) => sum + (Number(r.points_earned) || 0), 0);
+
+      let baseTitle = (primary.title || 'Reservation').replace(/\s*\([^)]+\)\s*$/, '').trim();
+      const passengerStr = passengers.join(' & ');
+      const mergedTitle = passengerStr ? `${baseTitle} (${passengerStr})` : baseTitle;
+      if (passengerStr) mergedDetails.passenger = passengerStr;
+      mergedDetails.traveler_count = rows.length;
+      mergedDetails.fare_breakdown = `${rows.length} Travelers ($${(totalCostUsd / rows.length).toFixed(2)} ea) • Total: $${totalCostUsd.toFixed(2)}`;
+
+      // If any of the merged reservations had linked expenses, consolidate into one linked expense
+      const linkedExpIds = rows.map(r => r.linked_expense_id).filter(Boolean);
+      let keepExpId = linkedExpIds[0] || '';
+      if (keepExpId) {
+        db.prepare(`
+          UPDATE expenses
+          SET title = ?, amount_original = ?, amount_usd = ?
+          WHERE id = ?
+        `).run(mergedTitle, totalCostAmt, totalCostUsd, keepExpId);
+        for (const extraExpId of linkedExpIds.slice(1)) {
+          if (extraExpId !== keepExpId) {
+            db.prepare('DELETE FROM expenses WHERE id = ?').run(extraExpId);
+          }
+        }
+      }
+
+      db.prepare(`
+        UPDATE reservations
+        SET title = ?, cost_amount = ?, cost_usd = ?, points_used = ?, points_earned = ?,
+            linked_expense_id = ?, details_json = ?
+        WHERE id = ?
+      `).run(
+        mergedTitle, totalCostAmt, totalCostUsd, totalPtsUsed, totalPtsEarned,
+        keepExpId, JSON.stringify(mergedDetails), primary.id
+      );
+
+      for (const o of others) {
+        db.prepare('DELETE FROM reservations WHERE id = ?').run(o.id);
+      }
+
+      markServerModified();
+      return sendJson(res, 200, { ok: true, id: primary.id, bootstrap: getBootstrapData() });
+    }
+
     if (pathname === '/api/travel/reservations' && method === 'POST') {
       const b = await readJsonBody(req);
       const id = b.id || ('res-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex'));
