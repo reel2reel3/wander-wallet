@@ -326,8 +326,31 @@ function extractSchemaOrgReservations(html) {
 // Deterministic Regex / Template Extractor
 // ---------------------------------------------------------------------------
 
-function parseNaturalDate(dateStr) {
+const MONTH_INDEX = {
+  JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06',
+  JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12'
+};
+
+function parseIataCompactDate(str, fallbackYear) {
+  if (!str) return '';
+  // Matches 05JAN27, 05JAN2027, 05 JAN 27, 05-JAN-2027, 5 Jan 2027
+  const m = String(str).match(/\b(\d{1,2})[\s\-]*(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[\s\-,]*(\d{2}|\d{4})?\b/i);
+  if (!m) return '';
+  const day = String(m[1]).padStart(2, '0');
+  const mon = MONTH_INDEX[m[2].slice(0, 3).toUpperCase()];
+  if (!mon) return '';
+  let yr = fallbackYear || new Date().getFullYear();
+  if (m[3]) {
+    yr = m[3].length === 2 ? Number('20' + m[3]) : Number(m[3]);
+  }
+  if (yr < 2020 || yr > 2035) return '';
+  return `${yr}-${mon}-${day}`;
+}
+
+function parseNaturalDate(dateStr, defaultYear) {
   if (!dateStr) return '';
+  const iata = parseIataCompactDate(dateStr, defaultYear);
+  if (iata) return iata;
   const cleaned = dateStr.replace(/(\d+)(st|nd|rd|th)/gi, '$1').trim();
   const d = new Date(cleaned);
   if (!isNaN(d.getTime())) {
@@ -339,13 +362,33 @@ function parseNaturalDate(dateStr) {
   return '';
 }
 
+function formatTitleCaseName(raw) {
+  return String(raw || '')
+    .trim()
+    .split(/\s+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function parseTimeTo24h(timeStr) {
+  if (!timeStr) return '';
+  const m = String(timeStr).trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|A|P|N)?$/i);
+  if (!m) return '';
+  let hr = parseInt(m[1], 10);
+  const min = m[2];
+  const mer = (m[3] || '').toUpperCase();
+  if ((mer === 'PM' || mer === 'P' || mer === 'N') && hr < 12) hr += 12;
+  if ((mer === 'AM' || mer === 'A') && hr === 12) hr = 0;
+  if (hr < 0 || hr > 23) return '';
+  return `${String(hr).padStart(2, '0')}:${min}`;
+}
+
 function extractRegexReservations(subject = '', sender = '', text = '') {
   const combined = `${subject}\n${sender}\n${text}`;
-  const lower = combined.toLowerCase();
 
   // Detect type
   let type = 'other';
-  if (/(flight|boarding|e-ticket|airline|airways|record locator|pnr|depart|airport|delta|united|american airlines|southwest|jetblue|alaska air|british airways|lufthansa|air france)/i.test(combined)) {
+  if (/(flight|boarding|e-ticket|airline|airways|record locator|pnr|depart|airport|delta|united|american airlines|southwest|jetblue|alaska air|british airways|lufthansa|air france|copa)/i.test(combined)) {
     type = 'flight';
   } else if (/(hotel|check-in|check in|check-out|check out|marriott|hilton|hyatt|ihg|airbnb|vrbo|resort|inn|suites|lodging|room type)/i.test(combined)) {
     type = 'hotel';
@@ -359,15 +402,29 @@ function extractRegexReservations(subject = '', sender = '', text = '') {
     type = 'activity';
   }
 
-  // Confirmation code
+  // Passenger name (e.g. "Your Flight Receipt - KAREN HOCHMUTH 05JAN27" or "Passenger: KAREN HOCHMUTH")
+  let passengerName = '';
+  const subjPassengerMatch = subject.match(/Flight Receipt\s*[-–:]\s*([A-Z][A-Z\s.'-]{2,40}?)\s+\d{1,2}\s*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/i);
+  if (subjPassengerMatch) {
+    passengerName = formatTitleCaseName(subjPassengerMatch[1]);
+  } else {
+    const bodyPassengerMatch = combined.match(/(?:Passenger(?:\s+Name)?|Traveler)\s*[:\-]\s*([A-Z][A-Za-z\s.'-]{2,35})/i);
+    if (bodyPassengerMatch) {
+      passengerName = formatTitleCaseName(bodyPassengerMatch[1].split(/\r?\n/)[0]);
+    }
+  }
+
+  // Confirmation code (Prioritize 6-character alphanumeric Airline PNR / Record Locator)
   let confirmation_code = '';
   const confPatterns = [
-    /(?:confirmation|record locator|booking ref(?:erence)?|reservation|itinerary|pnr|reference)\s*(?:code|number|no\.?|#|id)?\s*[:\-]?\s*([A-Z0-9]{5,12})\b/i,
-    /\b(?:conf(?:irmation)?)\s*#\s*([A-Z0-9-]{5,15})\b/i
+    /(?:confirmation|record locator|booking ref(?:erence)?|reservation|pnr)\s*(?:code|number|no\.?|#)?\s*[:\-]?\s*\b([A-Z0-9]{6})\b/i,
+    /(?:confirmation|record locator|booking ref(?:erence)?|reservation|itinerary|pnr|reference)\s*(?:code|number|no\.?|#|id)?\s*[:\-]?\s*\b([A-Z0-9]{5,10})\b/i,
+    /\b(?:conf(?:irmation)?)\s*#\s*([A-Z0-9-]{5,12})\b/i
   ];
+  const badConfWords = /^(NUMBER|CODE|EMAIL|BELOW|DETAILS|RECEIPT|FLIGHT|DELTA|TICKET|STATUS|AMOUNT|POINTS|MILES)$/i;
   for (const pat of confPatterns) {
     const m = combined.match(pat);
-    if (m && m[1] && !/^(NUMBER|CODE|EMAIL|BELOW|DETAILS)$/i.test(m[1])) {
+    if (m && m[1] && !badConfWords.test(m[1])) {
       confirmation_code = m[1].toUpperCase();
       break;
     }
@@ -376,7 +433,7 @@ function extractRegexReservations(subject = '', sender = '', text = '') {
   // Price
   let cost_amount = 0;
   let cost_currency = 'USD';
-  const priceMatch = combined.match(/(?:total|amount paid|grand total|price|charged|total cost)\s*[:\-]?\s*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN|\$|€|£)?\s*([0-9,]+\.\d{2})/i)
+  const priceMatch = combined.match(/(?:total|ticket total|amount paid|grand total|price|charged|total cost)\s*[:\-]?\s*(USD|EUR|GBP|CAD|AUD|JPY|ARS|BRL|MXN|\$|€|£)?\s*([0-9,]+\.\d{2})/i)
     || combined.match(/(\$|€|£)\s*([0-9,]+\.\d{2})/);
   if (priceMatch) {
     const sym = (priceMatch[1] || '$').toUpperCase();
@@ -384,18 +441,51 @@ function extractRegexReservations(subject = '', sender = '', text = '') {
     cost_amount = parseFloat(priceMatch[2].replace(/,/g, '')) || 0;
   }
 
-  // Dates
+  // Dates:
+  // 1. Check Subject line FIRST (e.g. "05JAN27" in "Your Flight Receipt - KAREN HOCHMUTH 05JAN27")
   const dateMatches = [];
-  const isoDates = combined.match(/\b(202[4-9]-\d{2}-\d{2})\b/g) || [];
-  for (const d of isoDates) dateMatches.push(d);
-  const textDates = combined.match(/\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+202[4-9])?\b/gi) || [];
+  const subjIataMatches = subject.match(/\b\d{1,2}[\s\-]*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[\s\-,]*202[4-9]|\b\d{1,2}[\s\-]*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[\s\-]*2[4-9]\b/gi) || [];
+  for (const sm of subjIataMatches) {
+    const p = parseIataCompactDate(sm);
+    if (p && !dateMatches.includes(p)) dateMatches.push(p);
+  }
+  const subjYear = dateMatches[0] ? Number(dateMatches[0].slice(0, 4)) : new Date().getFullYear();
+
+  // Strip issue/purchase date lines so ticket purchase dates (like "Issue Date: Sep 11") are not confused with flight dates
+  const bodyWithoutIssueDates = text
+    .split(/\r?\n/)
+    .filter(line => !/(?:issue\s*date|date\s*of\s*issue|purchased\s*on|booking\s*date|receipt\s*date)/i.test(line))
+    .join('\n');
+
+  // 2. Check IATA compact dates in body (e.g. 05JAN27, 05 JAN 2027, Tue, 05JAN)
+  const iataBodyMatches = bodyWithoutIssueDates.match(/\b\d{1,2}[\s\-]*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*(?:[\s\-,]*(?:202[4-9]|2[4-9]))?\b/gi) || [];
+  for (const im of iataBodyMatches) {
+    const p = parseIataCompactDate(im, subjYear);
+    if (p && !dateMatches.includes(p)) dateMatches.push(p);
+  }
+
+  // 3. Check ISO dates (2027-01-05)
+  const isoDates = bodyWithoutIssueDates.match(/\b(202[4-9]-\d{2}-\d{2})\b/g) || [];
+  for (const d of isoDates) {
+    if (!dateMatches.includes(d)) dateMatches.push(d);
+  }
+
+  // 4. Check Month-first natural dates (January 5, 2027)
+  const textDates = bodyWithoutIssueDates.match(/\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+202[4-9])?\b/gi) || [];
   for (const td of textDates) {
-    const parsed = parseNaturalDate(td.includes('202') ? td : `${td}, ${new Date().getFullYear()}`);
+    const parsed = parseNaturalDate(td.includes('202') ? td : `${td}, ${subjYear}`, subjYear);
     if (parsed && !dateMatches.includes(parsed)) dateMatches.push(parsed);
   }
 
   const startDate = dateMatches[0] || new Date().toISOString().slice(0, 10);
-  const endDate = dateMatches[1] || '';
+  // Any subsequent date in the email that is earlier than startDate is a purchase/issue date, never an end/arrival date
+  const validEndDates = dateMatches.slice(1).filter(d => d >= startDate);
+  const endDate = validEndDates[0] || '';
+
+  // Extract Departure & Arrival Times (e.g. "6:00 AM", "8:15A", "1:45 PM", "4:20P")
+  const rawTimes = bodyWithoutIssueDates.match(/\b(\d{1,2}:\d{2}\s*(?:AM|PM|A|P|N))\b/gi) || [];
+  const startTime = parseTimeTo24h(rawTimes[0]) || (type === 'hotel' ? '15:00' : '09:00');
+  const endTime = parseTimeTo24h(rawTimes[1]) || (type === 'hotel' ? '11:00' : '12:00');
 
   // Airport route for flights
   let location_from = '';
@@ -403,36 +493,55 @@ function extractRegexReservations(subject = '', sender = '', text = '') {
   let title = subject ? subject.replace(/^(re:|fwd?:)\s*/i, '').trim().slice(0, 80) : 'Travel Reservation';
 
   if (type === 'flight') {
-    const routeMatch = combined.match(/\b([A-Z]{3})\s*(?:->|→|to|-|–)\s*([A-Z]{3})\b/);
-    if (routeMatch) {
-      location_from = routeMatch[1];
-      location_to = routeMatch[2];
-      title = `Flight ${location_from} → ${location_to}`;
+    // Match explicit routes like BUF -> PTY, BUF to PTY, or Depart BUF ... Arrive PTY
+    const routeMatch = combined.match(/\b([A-Z]{3})\s*(?:->|→|to|-|–)\s*([A-Z]{3})\b/)
+      || combined.match(/(?:depart(?:ing|ure)?|from|origin)\s*[:\-]?\s*(?:[A-Za-z\s]+\()?([A-Z]{3})\)?[\s\S]{1,80}?(?:arriv(?:ing|al|e)?|to|destination)\s*[:\-]?\s*(?:[A-Za-z\s]+\()?([A-Z]{3})\)?/i);
+    const bannedCodes = /^(USD|EUR|CAD|JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC|MON|TUE|WED|THU|FRI|SAT|SUN|EST|EDT|CST|CDT|MST|MDT|PST|PDT|GMT|UTC|PNR|TAX|FEE|BAG|VIP|TSA|THE|AND|FOR|YOU)$/;
+    if (routeMatch && !bannedCodes.test(routeMatch[1].toUpperCase()) && !bannedCodes.test(routeMatch[2].toUpperCase())) {
+      location_from = routeMatch[1].toUpperCase();
+      location_to = routeMatch[2].toUpperCase();
+    }
+    if (location_from && location_to) {
+      title = `Flight ${location_from} → ${location_to}${passengerName ? ` (${passengerName})` : ''}`;
+    } else if (passengerName) {
+      title = `Flight — ${passengerName}`;
     }
   }
 
-  // Vendor guess from sender
+  // Vendor guess from sender or body
   let vendor = '';
-  const senderMatch = sender.match(/^"?([^"<@]+)"?\s*</);
-  if (senderMatch) {
-    vendor = senderMatch[1].trim();
-  } else if (sender.includes('@')) {
-    const dom = sender.split('@')[1].split('.')[0];
-    vendor = dom.charAt(0).toUpperCase() + dom.slice(1);
+  if (/delta/i.test(sender) || /delta air lines/i.test(combined)) {
+    vendor = 'Delta Air Lines';
+  } else {
+    const senderMatch = sender.match(/^"?([^"<@]+)"?\s*</);
+    if (senderMatch) {
+      vendor = senderMatch[1].trim();
+    } else if (sender.includes('@')) {
+      const dom = sender.split('@')[1].split('.')[0];
+      vendor = dom.charAt(0).toUpperCase() + dom.slice(1);
+    }
   }
 
-  // Flight number
-  const flightNumMatch = combined.match(/\b([A-Z]{2}\s?\d{2,4})\b/);
+  // Flight number, Seat, Cabin
   const details = {};
-  if (type === 'flight' && flightNumMatch) {
-    details.flight_number = flightNumMatch[1].replace(/\s+/, ' ');
+  if (passengerName) details.passenger = passengerName;
+  if (type === 'flight') {
+    const deltaFlightMatch = combined.match(/\b(?:DELTA|DL|CM|UA|AA|WN|B6|AS|BA|AF|LH|LA|AV)\s*(\d{1,4})\b/i);
+    if (deltaFlightMatch) {
+      const carrier = deltaFlightMatch[0].match(/^[A-Za-z]+/)[0].toUpperCase();
+      details.flight_number = `${carrier === 'DELTA' ? 'DL' : carrier} ${deltaFlightMatch[1]}`;
+    }
+    const seatMatch = combined.match(/\bSeat(?:\s*Assignment)?\s*[:\-]?\s*(\d{1,2}[A-J])\b/i);
+    if (seatMatch) details.seat = seatMatch[1].toUpperCase();
+    const cabinMatch = combined.match(/\b(Delta One|First Class|Business Class|Comfort\+|Main Cabin|Premium Select|Basic Economy)\b/i);
+    if (cabinMatch) details.cabin = cabinMatch[1];
   }
 
   // Cancel deadline
   let cancel_deadline = '';
   const cancelMatch = combined.match(/free cancellation (?:until|before|by)\s+([A-Za-z]+\s+\d{1,2},?\s+202[4-9]|202[4-9]-\d{2}-\d{2})/i);
   if (cancelMatch) {
-    cancel_deadline = parseNaturalDate(cancelMatch[1]);
+    cancel_deadline = parseNaturalDate(cancelMatch[1], subjYear);
   }
 
   if (!confirmation_code && dateMatches.length === 0 && type === 'other') {
@@ -444,8 +553,8 @@ function extractRegexReservations(subject = '', sender = '', text = '') {
     title,
     vendor,
     confirmation_code,
-    start_datetime: `${startDate}T${type === 'hotel' ? '15:00' : '09:00'}`,
-    end_datetime: endDate ? `${endDate}T${type === 'hotel' ? '11:00' : '12:00'}` : '',
+    start_datetime: `${startDate}T${startTime}`,
+    end_datetime: endDate ? `${endDate}T${endTime}` : (rawTimes[1] ? `${startDate}T${endTime}` : ''),
     location_from,
     location_to,
     address: '',
@@ -932,6 +1041,8 @@ function analyzeTripAlerts(trip, reservations) {
 module.exports = {
   initTravelSchema,
   parseTravelEmail,
+  parseIataCompactDate,
+  formatTitleCaseName,
   syncImapInbox,
   getGmailAuthUrl,
   exchangeGmailCode,

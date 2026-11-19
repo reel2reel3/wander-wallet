@@ -199,6 +199,11 @@
       travelState.selectedTripId = 'all';
     }
 
+    // Guard against browser password-manager autofilling an email address (e.g. user@gmail.com) into the reservation search filter
+    if (travelState.searchQuery && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(travelState.searchQuery.trim())) {
+      travelState.searchQuery = '';
+    }
+
     const activeLegPath = (travelState.selectedTripId !== 'all' && s.selectedTripId === travelState.selectedTripId) ? (s.selectedLegPath || '') : '';
     const filteredRes = allRes.filter(r => {
       if (travelState.selectedTripId !== 'all' && r.trip_id !== travelState.selectedTripId) return false;
@@ -207,7 +212,7 @@
       }
       if (travelState.searchQuery) {
         const q = travelState.searchQuery.toLowerCase();
-        const hay = `${r.title} ${r.vendor} ${r.confirmation_code} ${r.location_from} ${r.location_to} ${r.address} ${r.leg_path || ''}`.toLowerCase();
+        const hay = `${r.title} ${r.vendor} ${r.confirmation_code} ${r.location_from} ${r.location_to} ${r.address} ${r.leg_path || ''} ${r.notes || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -289,7 +294,22 @@
               <option value="all">All Trips (${allRes.length})</option>
               ${trips.map(t => `<option value="${esc(t.id)}" ${travelState.selectedTripId === t.id ? 'selected' : ''}>${esc(t.name)} (${esc(t.start_date)})</option>`).join('')}
             </select>
-            <input type="search" id="travel-search-input" class="form-control" placeholder="Search confirmation #, airline, hotel..." value="${esc(travelState.searchQuery)}" style="min-width: 210px;" />
+            <input
+              type="search"
+              id="travel-search-input"
+              name="ww_travel_res_search_filter"
+              autocomplete="off"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              data-form-type="other"
+              readonly
+              onfocus="this.removeAttribute('readonly');"
+              class="form-control"
+              placeholder="Search confirmation #, airline, hotel..."
+              value="${esc(travelState.searchQuery)}"
+              style="min-width: 210px;"
+            />
+            ${travelState.searchQuery ? `<button type="button" class="btn btn-xs" id="btn-travel-clear-search" title="Clear search filter">✕ Clear</button>` : ''}
           </div>
         </div>
         ${activeTrip ? `
@@ -476,6 +496,7 @@
         try { details = JSON.parse(r.details_json || '{}'); } catch (e) {}
 
         const detailChips = [];
+        if (details.passenger) detailChips.push(`👤 ${details.passenger}`);
         if (details.flight_number) detailChips.push(`✈️ ${details.flight_number}`);
         if (details.terminal) detailChips.push(`Terminal ${details.terminal}`);
         if (details.gate) detailChips.push(`Gate ${details.gate}`);
@@ -870,13 +891,29 @@
     const searchInput = container.querySelector('#travel-search-input');
     if (searchInput) {
       searchInput.addEventListener('input', () => {
-        travelState.searchQuery = searchInput.value;
+        const val = searchInput.value || '';
+        // Ignore browser password-manager autofill of an email address when input isn't actively typed
+        if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) {
+          searchInput.value = '';
+          travelState.searchQuery = '';
+          return;
+        }
+        travelState.searchQuery = val;
         render();
         const nextInput = document.getElementById('travel-search-input');
         if (nextInput) {
+          nextInput.removeAttribute('readonly');
           nextInput.focus();
           nextInput.setSelectionRange(nextInput.value.length, nextInput.value.length);
         }
+      });
+    }
+
+    const btnClearSearch = container.querySelector('#btn-travel-clear-search');
+    if (btnClearSearch) {
+      btnClearSearch.addEventListener('click', () => {
+        travelState.searchQuery = '';
+        render();
       });
     }
 
@@ -1183,13 +1220,16 @@
   }
 
   function openReservationModal(existing = null) {
+    if (existing && (existing instanceof Event || existing.nativeEvent)) {
+      existing = null;
+    }
     const s = getAppData();
     const trips = s.trips || [];
     const isEdit = Boolean(existing && existing.id);
     let details = {};
     try { details = JSON.parse((existing && existing.details_json) || '{}'); } catch (e) {}
     const defaultTrip = (existing && existing.trip_id) || (travelState.selectedTripId !== 'all' ? travelState.selectedTripId : (trips[0] ? trips[0].id : ''));
-    const defaultLegPath = (existing && existing.leg_path) !== undefined ? (existing.leg_path || '') : (s.selectedLegPath || '');
+    const defaultLegPath = (existing && existing.leg_path !== undefined) ? (existing.leg_path || '') : (s.selectedLegPath || '');
 
     const modal = showTravelModal(isEdit ? 'Edit Reservation' : 'Add Travel Reservation', `
       <form id="ww-res-form" style="display: grid; gap: 12px;">
@@ -1619,7 +1659,7 @@
     toast('🔄 Syncing email inbox for travel confirmations...');
     try {
       const res = await travelApi('/api/travel/email-sync', { method: 'POST' });
-      toast(`✓ Scanned ${res.scanned} email(s), queued ${res.added} new booking(s).`);
+      toast(`✓ Scanned ${res.scanned} email(s), queued ${res.added} new${res.updated ? `, refreshed ${res.updated} existing` : ''}.`);
       if (res.added > 0) travelState.subTab = 'inbox';
       render();
       renderAdminEmailSync();

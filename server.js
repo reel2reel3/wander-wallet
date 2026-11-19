@@ -1395,6 +1395,66 @@ function getEmailSyncStatus() {
   };
 }
 
+function repairExistingIataReservations() {
+  try {
+    const allRes = db.prepare('SELECT * FROM reservations').all();
+    const allInbox = db.prepare('SELECT * FROM travel_inbox').all();
+    const updRes = db.prepare(`
+      UPDATE reservations
+      SET title = ?, start_datetime = ?, end_datetime = ?, details_json = ?
+      WHERE id = ?
+    `);
+    for (const r of allRes) {
+      const sourceText = `${r.notes || ''} ${r.title || ''}`;
+      const iataMatch = sourceText.match(/\b(\d{1,2}\s*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*\s*2[4-9]|\d{1,2}\s*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*\s*202[4-9])\b/i);
+      if (iataMatch && travelEngine.parseIataCompactDate) {
+        const correctDate = travelEngine.parseIataCompactDate(iataMatch[1]);
+        if (correctDate && (!(r.start_datetime || '').startsWith(correctDate) || (r.end_datetime && r.end_datetime < correctDate))) {
+          const timePart = (r.start_datetime && r.start_datetime.includes('T')) ? r.start_datetime.split('T')[1] : '09:00';
+          const nextStart = `${correctDate}T${timePart}`;
+          const nextEnd = (r.end_datetime && r.end_datetime >= nextStart) ? r.end_datetime : '';
+          let nextTitle = r.title;
+          let det = {};
+          try { det = JSON.parse(r.details_json || '{}'); } catch (e) {}
+          const passMatch = sourceText.match(/Flight Receipt\s*[-–:]\s*([A-Z][A-Z\s.'-]{2,40}?)\s+\d{1,2}\s*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/i);
+          if (passMatch && travelEngine.formatTitleCaseName) {
+            const pName = travelEngine.formatTitleCaseName(passMatch[1]);
+            det.passenger = pName;
+            if (!nextTitle.includes(pName)) {
+              nextTitle = `${nextTitle} (${pName})`;
+            }
+          }
+          updRes.run(nextTitle, nextStart, nextEnd, JSON.stringify(det), r.id);
+        }
+      }
+    }
+    // Also repair any pending travel_inbox items whose subject has an IATA date
+    const updInbox = db.prepare('UPDATE travel_inbox SET parsed_json = ? WHERE id = ?');
+    for (const item of allInbox) {
+      const iataMatch = (item.subject || '').match(/\b(\d{1,2}\s*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*\s*2[4-9]|\d{1,2}\s*(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*\s*202[4-9])\b/i);
+      if (iataMatch && travelEngine.parseIataCompactDate) {
+        const correctDate = travelEngine.parseIataCompactDate(iataMatch[1]);
+        if (correctDate) {
+          let parsed = [];
+          try { parsed = JSON.parse(item.parsed_json || '[]'); } catch (e) {}
+          let changed = false;
+          for (const c of parsed) {
+            if (c.start_datetime && !c.start_datetime.startsWith(correctDate)) {
+              const tPart = c.start_datetime.includes('T') ? c.start_datetime.split('T')[1] : '09:00';
+              c.start_datetime = `${correctDate}T${tPart}`;
+              changed = true;
+            }
+          }
+          if (changed) updInbox.run(JSON.stringify(parsed), item.id);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('repairExistingIataReservations error:', e.message);
+  }
+}
+repairExistingIataReservations();
+
 let isTravelSyncRunning = false;
 async function runTravelEmailSync() {
   if (isTravelSyncRunning) {
@@ -1442,14 +1502,13 @@ async function runTravelEmailSync() {
     }
 
     let addedCount = 0;
+    let updatedCount = 0;
     const insInbox = db.prepare(`
       INSERT INTO travel_inbox (id, message_uid, subject, sender, received_at, raw_snippet, parsed_json, parser_used, confidence, status, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
     `);
 
     for (const em of fetchedEmails) {
-      const exists = db.prepare('SELECT id FROM travel_inbox WHERE message_uid = ?').get(em.uid);
-      if (exists) continue;
       const parsed = await travelEngine.parseTravelEmail({
         rawEmail: em.rawEmail || '',
         subject: em.subject || '',
@@ -1460,6 +1519,40 @@ async function runTravelEmailSync() {
         aiProvider
       });
       if (!parsed.reservations || parsed.reservations.length === 0) continue;
+
+      const exists = db.prepare('SELECT id, subject, status FROM travel_inbox WHERE message_uid = ?').get(em.uid);
+      if (exists) {
+        // Update existing inbox item & refresh any already-imported reservation from this email with improved parsed dates/details
+        db.prepare('UPDATE travel_inbox SET parsed_json = ?, parser_used = ?, confidence = ? WHERE id = ?').run(
+          JSON.stringify(parsed.reservations), parsed.parser_used, parsed.confidence, exists.id
+        );
+        const cand = parsed.reservations[0];
+        if (cand && (exists.subject || parsed.subject)) {
+          const subjToMatch = exists.subject || parsed.subject;
+          const matchingRes = db.prepare('SELECT * FROM reservations WHERE notes LIKE ?').all(`%${subjToMatch}%`);
+          for (const mr of matchingRes) {
+            db.prepare(`
+              UPDATE reservations
+              SET title = ?, vendor = ?, confirmation_code = ?, start_datetime = ?, end_datetime = ?,
+                  location_from = ?, location_to = ?, details_json = ?
+              WHERE id = ?
+            `).run(
+              cand.title || mr.title,
+              cand.vendor || mr.vendor,
+              (cand.confirmation_code && cand.confirmation_code.length >= 6) ? cand.confirmation_code : mr.confirmation_code,
+              cand.start_datetime || mr.start_datetime,
+              cand.end_datetime || mr.end_datetime,
+              cand.location_from || mr.location_from,
+              cand.location_to || mr.location_to,
+              JSON.stringify({ ...(JSON.parse(mr.details_json || '{}')), ...(cand.details || {}) }),
+              mr.id
+            );
+            updatedCount++;
+          }
+        }
+        continue;
+      }
+
       const inboxId = 'tinbox-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex');
       insInbox.run(
         inboxId, em.uid, parsed.subject || 'Travel Email', parsed.sender || '',
@@ -1469,12 +1562,13 @@ async function runTravelEmailSync() {
       addedCount++;
     }
 
+    repairExistingIataReservations();
     const upsert = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
     upsert.run('travel_last_sync_at', new Date().toISOString());
-    upsert.run('travel_last_sync_summary', `Scanned ${fetchedEmails.length} email(s), queued ${addedCount} new booking(s).${errors.length ? ' Errors: ' + errors.join('; ') : ''}`);
+    upsert.run('travel_last_sync_summary', `Scanned ${fetchedEmails.length} email(s), queued ${addedCount} new, refreshed ${updatedCount} existing.${errors.length ? ' Errors: ' + errors.join('; ') : ''}`);
     markServerModified();
 
-    return { ok: true, scanned: fetchedEmails.length, added: addedCount, errors };
+    return { ok: true, scanned: fetchedEmails.length, added: addedCount, updated: updatedCount, errors };
   } finally {
     isTravelSyncRunning = false;
   }
