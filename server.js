@@ -28,9 +28,10 @@ if (!fs.existsSync(DATA_DIR)) {
 const dbPath = path.join(DATA_DIR, 'finance.db');
 const db = new DatabaseSync(dbPath);
 
-// Enable WAL mode and foreign keys
+// Enable WAL mode, full crash durability, and foreign keys
 db.exec(`
   PRAGMA journal_mode = WAL;
+  PRAGMA synchronous = FULL;
   PRAGMA foreign_keys = ON;
 
   CREATE TABLE IF NOT EXISTS settings (
@@ -1953,21 +1954,41 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, getBootstrapData());
     }
 
-    // Full Two-Way Sync / Auto-Heal Endpoint (restores client local backup if container restarted)
+    // Full Two-Way Sync / Auto-Heal Endpoint (only restores client backup if server DB is brand-new / uninitialized)
     if (pathname === '/api/sync' && method === 'POST') {
       const body = await readJsonBody(req);
       const now = new Date().toISOString();
 
+      // Safety guard: Never let a stale browser localStorage overwrite an already-initialized persistent SQLite database
+      const existingModRow = db.prepare("SELECT value FROM settings WHERE key = 'user_modified'").get();
+      const serverAlreadyModified = Boolean(existingModRow && existingModRow.value === 'true');
+      if (serverAlreadyModified && !body.force_restore) {
+        return sendJson(res, 200, getBootstrapData());
+      }
+
       if (Array.isArray(body.trips) && (body.trips.length > 0 || body.user_modified)) {
+        const existingTripsMap = new Map(
+          db.prepare('SELECT id, cover_photo, legs_json FROM trips').all().map(r => [r.id, r])
+        );
+        const existingExpMap = new Map(
+          db.prepare('SELECT id, leg_path FROM expenses').all().map(r => [r.id, r])
+        );
+
         db.exec('PRAGMA foreign_keys = OFF;');
         db.exec('DELETE FROM trips;');
         const insTrip = db.prepare(`
-          INSERT OR REPLACE INTO trips (id, name, destination, country_code, default_currency, start_date, end_date, budget_usd, video_count, status, notes, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT OR REPLACE INTO trips (id, name, destination, country_code, default_currency, start_date, end_date, budget_usd, video_count, status, notes, cover_photo, legs_json, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         for (const t of body.trips) {
+          const tripId = t.id || ('trip-' + Date.now() + Math.random().toString(36).slice(2, 5));
+          const prevTrip = existingTripsMap.get(tripId) || {};
+          const coverPhoto = t.cover_photo !== undefined ? String(t.cover_photo || '') : (prevTrip.cover_photo || '');
+          const legsJson = Array.isArray(t.legs)
+            ? JSON.stringify(t.legs)
+            : (typeof t.legs_json === 'string' && t.legs_json ? t.legs_json : (prevTrip.legs_json || '[]'));
           insTrip.run(
-            t.id || ('trip-' + Date.now() + Math.random().toString(36).slice(2, 5)),
+            tripId,
             t.name || 'Untitled Trip',
             t.destination || 'On the Road',
             t.country_code || 'US',
@@ -1978,6 +1999,8 @@ const server = http.createServer(async (req, res) => {
             Number(t.video_count) || 1,
             t.status || 'active',
             t.notes || '',
+            coverPhoto,
+            legsJson,
             t.created_at || now
           );
         }
@@ -1989,12 +2012,15 @@ const server = http.createServer(async (req, res) => {
               id, trip_id, title, vendor, category, expense_date,
               amount_original, currency, exchange_rate, amount_usd,
               payment_method, paid_by, tax_deductible, reimbursable,
-              receipt_data, receipt_name, notes, credit_usd, credit_verified, credit_note, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              receipt_data, receipt_name, notes, credit_usd, credit_verified, credit_note, leg_path, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `);
           for (const e of body.expenses) {
+            const expId = e.id || ('exp-' + Date.now() + Math.random().toString(36).slice(2, 5));
+            const prevExp = existingExpMap.get(expId) || {};
+            const legPath = e.leg_path !== undefined ? String(e.leg_path || '') : (prevExp.leg_path || '');
             insExp.run(
-              e.id || ('exp-' + Date.now() + Math.random().toString(36).slice(2, 5)),
+              expId,
               e.trip_id,
               e.title || 'Untitled Expense',
               e.vendor || '',
@@ -2014,6 +2040,7 @@ const server = http.createServer(async (req, res) => {
               Number(e.credit_usd) || 0,
               e.credit_verified ? 1 : 0,
               e.credit_note || '',
+              legPath,
               e.created_at || now
             );
           }
@@ -3233,7 +3260,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Wander Wallet Creator Finance Server listening on http://0.0.0.0:${PORT}`);
+  console.log(`Wander Wallet Creator Finance Server listening on http://0.0.0.0:${PORT} (DB: ${dbPath})`);
   // Trigger a background email sync on startup if Gmail/IMAP is connected so existing bookings refresh with full HTML email parsing
   setTimeout(async () => {
     try {
@@ -3268,3 +3295,23 @@ setInterval(async () => {
     console.error('[Travel Auto-Sync] Error:', e.message);
   }
 }, 15 * 60 * 1000);
+
+// Graceful shutdown: flush SQLite WAL to persistent volume before container stops
+let isShuttingDown = false;
+function gracefulShutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`[Shutdown] Received ${signal}. Checkpointing SQLite WAL and closing server...`);
+  try {
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+    db.close();
+  } catch (e) {
+    console.error('[Shutdown] SQLite close error:', e.message);
+  }
+  server.close(() => {
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(0), 3000).unref();
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

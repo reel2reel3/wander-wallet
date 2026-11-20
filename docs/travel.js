@@ -3085,7 +3085,7 @@
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error || 'Failed to save leg');
-        if (bridge() && bridge().applyBootstrapData) bridge().applyBootstrapData(data);
+        if (bridge() && bridge().applyBootstrapData) bridge().applyBootstrapData(data.bootstrap || data);
         refreshExpenseLegDropdownIfOpen(newPath);
         toast(editingLeg ? `✓ Updated leg "${newPath}"` : `✓ Added leg "${newPath}"`);
         openManageLegsModal(trip.id, null, '');
@@ -3126,7 +3126,7 @@
           });
           const data = await resp.json();
           if (!resp.ok) throw new Error(data.error || 'Failed to delete leg');
-          if (bridge() && bridge().applyBootstrapData) bridge().applyBootstrapData(data);
+          if (bridge() && bridge().applyBootstrapData) bridge().applyBootstrapData(data.bootstrap || data);
           refreshExpenseLegDropdownIfOpen('');
           toast(`Removed leg "${target.path}"`);
           openManageLegsModal(trip.id, null, '');

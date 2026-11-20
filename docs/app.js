@@ -1643,12 +1643,19 @@
     const localUpdated = Number(localStore && localStore.updated_at) || 0;
     const serverUpdated = Number(serverData.updated_at) || 0;
 
-    // Check if local store has custom trips or custom rewards/cards/custom_fields missing on server
+    // When the persistent server SQLite database already has user data, always trust the server
+    // as the single source of truth so stale browser localStorage can NEVER overwrite or wipe server data.
+    if (serverModified) {
+      saveLocalStore(serverData);
+      return serverData;
+    }
+
+    // Only restore from localStorage if the server DB is brand-new / uninitialized (!serverModified)
     const serverTripIds = new Set((serverData.trips || []).map(t => t.id));
     const missingLocalTrips = (localStore.trips || []).filter(t => !SEED_TRIP_IDS.has(t.id) && !serverTripIds.has(t.id));
     const missingLocalRewards = hasMissingLocalRewardsOnServer(localStore.rewards, serverData.rewards);
 
-    const preferLocalAsPrimary = (localHasCustom && !serverModified) || (localHasCustom && localUpdated > serverUpdated);
+    const preferLocalAsPrimary = localHasCustom && !serverModified;
     const mergedRewards = preferLocalAsPrimary
       ? mergeRewardsPortfolios(localStore.rewards, serverData.rewards)
       : mergeRewardsPortfolios(serverData.rewards, localStore.rewards);
@@ -2483,8 +2490,9 @@
     return changed;
   }
 
-  function applyBootstrapData(data) {
-    if (!data) return;
+  function applyBootstrapData(rawData) {
+    const data = (rawData && rawData.bootstrap) ? rawData.bootstrap : rawData;
+    if (!data || !Array.isArray(data.trips)) return;
     state.settings = data.settings || state.settings;
     state.trips = (data.trips || []).map(t => ({
       ...t,
@@ -2499,6 +2507,9 @@
     state.travel_inbox = data.travel_inbox || state.travel_inbox || [];
     state.travel_documents = data.travel_documents || state.travel_documents || [];
     state.email_sync_status = data.email_sync_status || state.email_sync_status || {};
+    if (hasCompletedServerBootstrap) {
+      saveLocalStore({ ...data, user_modified: true, updated_at: Number(data.updated_at) || Date.now() });
+    }
     try {
       localStorage.setItem('ww_travel_offline_cache', JSON.stringify({
         reservations: state.reservations,
