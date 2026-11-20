@@ -5028,8 +5028,9 @@ body {
 /* Boarding & Check-In Passes View */
 .boarding-passes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 18px;
+  margin-top: 14px;
 }
 
 .boarding-pass-card {
@@ -5042,37 +5043,71 @@ body {
   flex-direction: column;
 }
 
-.boarding-pass-top {
+.boarding-pass-top,
+.bp-top-strip {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
+  gap: 10px;
+  padding: 11px 18px;
   color: #ffffff;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
 
-.boarding-pass-route {
+.bp-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.boarding-pass-route,
+.bp-route-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 20px 12px;
+  gap: 12px;
+  padding: 18px 20px 16px;
   background: linear-gradient(180deg, rgba(14, 165, 233, 0.06) 0%, transparent 100%);
 }
 
-.bp-code {
-  font-size: 28px;
+.bp-code-block {
+  min-width: 0;
+  flex: 1;
+}
+
+.bp-code,
+.bp-iata {
+  font-size: 26px;
   font-weight: 900;
   letter-spacing: 0.04em;
   color: var(--text-primary);
   font-family: var(--font-mono, monospace);
+  line-height: 1.15;
 }
 
-.bp-plane {
-  font-size: 20px;
+.bp-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.bp-plane,
+.bp-arrow-mid {
+  font-size: 18px;
+  font-weight: 700;
   color: var(--accent-sky);
-  opacity: 0.85;
+  opacity: 0.9;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 0 6px;
+}
+
+.bp-divider-perf {
+  border-top: 1.5px dashed var(--border-subtle);
+  margin: 0;
 }
 
 .boarding-pass-title-row {
@@ -5082,17 +5117,18 @@ body {
   color: var(--text-secondary);
 }
 
-.boarding-pass-grid {
+.boarding-pass-grid,
+.bp-meta-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px 14px;
-  padding: 12px 20px;
-  border-top: 1px dashed var(--border-subtle);
+  gap: 12px 16px;
+  padding: 14px 20px;
   border-bottom: 1px dashed var(--border-subtle);
   background: var(--bg-elevated);
 }
 
-.bp-label {
+.bp-label,
+.bp-meta-lbl {
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
@@ -5100,11 +5136,13 @@ body {
   color: var(--text-secondary);
 }
 
-.bp-val {
-  font-size: 12.5px;
-  font-weight: 750;
+.bp-val,
+.bp-meta-val {
+  font-size: 13px;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-top: 2px;
+  margin-top: 3px;
+  word-break: break-word;
 }
 
 .boarding-pass-Tear {
@@ -5113,12 +5151,15 @@ body {
   text-align: center;
 }
 
-.boarding-pass-footer {
+.boarding-pass-footer,
+.bp-footer-actions {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
   background: var(--bg-surface);
+  margin-top: auto;
 }
 
 @media (max-width: 720px) {
