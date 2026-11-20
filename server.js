@@ -1526,94 +1526,17 @@ async function runTravelEmailSync(options = {}) {
       const exists = db.prepare('SELECT id, subject, status FROM travel_inbox WHERE message_uid = ?').get(em.uid);
       if (exists) {
         const nextSubject = parsed.subject || exists.subject || 'Travel Email';
-        const nextStatus = options.requeueAll ? 'pending' : exists.status;
-        db.prepare('UPDATE travel_inbox SET subject = ?, sender = ?, raw_snippet = ?, parsed_json = ?, parser_used = ?, confidence = ?, status = ? WHERE id = ?').run(
-          nextSubject, parsed.sender || '', parsed.snippet || '', JSON.stringify(parsed.reservations), parsed.parser_used, parsed.confidence, nextStatus, exists.id
-        );
-        if (options.requeueAll && exists.status !== 'pending') {
-          addedCount++;
-        }
-
-        const cand = parsed.reservations[0];
-        if (cand) {
-          const rates = getSettingsMap().exchange_rates || DEFAULT_RATES;
-          const allDbRes = db.prepare('SELECT * FROM reservations').all();
-          const passenger = (cand.details && cand.details.passenger) ? String(cand.details.passenger).toLowerCase() : '';
-
-          // Smart-match existing reservation from this email by subject in notes, passenger name, confirmation code, or route
-          let matchingRes = allDbRes.filter(mr => {
-            if (usedResIds.has(mr.id)) return false;
-            const hay = `${mr.title || ''} ${mr.notes || ''}`.toLowerCase();
-            if (nextSubject && (mr.notes || '').toLowerCase().includes(nextSubject.toLowerCase())) return true;
-            if (passenger && hay.includes(passenger)) return true;
-            if (cand.confirmation_code && mr.confirmation_code && mr.confirmation_code.toUpperCase() === cand.confirmation_code.toUpperCase() && !passenger) return true;
-            return false;
-          });
-
-          // Fallback match: same origin/destination email reservation that still has old $34.99 / 0U01M placeholder values
-          if (matchingRes.length === 0 && cand.location_from && cand.location_to) {
-            const fallback = allDbRes.find(mr =>
-              !usedResIds.has(mr.id) &&
-              mr.location_from === cand.location_from &&
-              mr.location_to === cand.location_to &&
-              (Number(mr.cost_amount) < 100 || mr.confirmation_code === '0U01M' || mr.source === 'email')
-            );
-            if (fallback) matchingRes = [fallback];
-          }
-
-          if (matchingRes.length > 0) {
-            for (const mr of matchingRes) {
-              usedResIds.add(mr.id);
-              const nextCur = (cand.cost_currency || mr.cost_currency || 'USD').toUpperCase();
-              const nextAmt = Number(cand.cost_amount) > 0 ? Number(cand.cost_amount) : Number(mr.cost_amount) || 0;
-              const nextUsd = Number((nextAmt * (Number(rates[nextCur]) || 1.0)).toFixed(2));
-              let prevDet = {};
-              try { prevDet = JSON.parse(mr.details_json || '{}'); } catch (e) {}
-              const mergedDet = { ...prevDet, ...(cand.details || {}) };
-              if (parsed.snippet) {
-                mergedDet.full_email_text = parsed.snippet;
-              }
-              db.prepare(`
-                UPDATE reservations
-                SET title = ?, vendor = ?, confirmation_code = ?, start_datetime = ?, end_datetime = ?,
-                    location_from = ?, location_to = ?, cost_amount = ?, cost_currency = ?, cost_usd = ?, details_json = ?
-                WHERE id = ?
-              `).run(
-                cand.title || mr.title,
-                cand.vendor || mr.vendor,
-                (cand.confirmation_code && cand.confirmation_code.length >= 6) ? cand.confirmation_code : mr.confirmation_code,
-                cand.start_datetime || mr.start_datetime,
-                cand.end_datetime || mr.end_datetime,
-                cand.location_from || mr.location_from,
-                cand.location_to || mr.location_to,
-                nextAmt,
-                nextCur,
-                nextUsd,
-                JSON.stringify(mergedDet),
-                mr.id
-              );
-              // If already linked to an expense in the Ledger, keep the expense amount synced too!
-              if (mr.linked_expense_id && nextUsd > 0) {
-                db.prepare(`
-                  UPDATE expenses
-                  SET title = ?, vendor = ?, amount_original = ?, currency = ?, amount_usd = ?
-                  WHERE id = ?
-                `).run(
-                  cand.title || mr.title,
-                  cand.vendor || mr.vendor || 'Travel Booking',
-                  nextAmt,
-                  nextCur,
-                  nextUsd,
-                  mr.linked_expense_id
-                );
-              }
-              updatedCount++;
-            }
-          } else if (exists.status !== 'pending') {
-            // No matching reservation exists in the database anymore — re-open in Pending Email Confirmations!
-            db.prepare("UPDATE travel_inbox SET status = 'pending' WHERE id = ?").run(exists.id);
-            addedCount++;
-          }
+        if (options.requeueAll) {
+          db.prepare('UPDATE travel_inbox SET subject = ?, sender = ?, raw_snippet = ?, parsed_json = ?, parser_used = ?, confidence = ?, status = ? WHERE id = ?').run(
+            nextSubject, parsed.sender || '', parsed.snippet || '', JSON.stringify(parsed.reservations), parsed.parser_used, parsed.confidence, 'pending', exists.id
+          );
+          if (exists.status !== 'pending') addedCount++;
+        } else if (exists.status === 'pending') {
+          // Only refresh parsed preview for still-pending emails; never touch imported/dismissed emails
+          // and never overwrite already-assigned or merged reservations/expenses.
+          db.prepare('UPDATE travel_inbox SET subject = ?, sender = ?, raw_snippet = ?, parsed_json = ?, parser_used = ?, confidence = ? WHERE id = ?').run(
+            nextSubject, parsed.sender || '', parsed.snippet || '', JSON.stringify(parsed.reservations), parsed.parser_used, parsed.confidence, exists.id
+          );
         }
         continue;
       }
